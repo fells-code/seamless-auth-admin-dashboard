@@ -17,7 +17,7 @@ export default function SystemConfig() {
     }
   }, [data]);
 
-  if (isLoading || !form) return <Skeleton className="h-40" />;
+  if (isLoading || !form) return <Skeleton className="h-40 rounded-xl" />;
 
   const updateField = (key: string, value: any) => {
     setForm((prev: any) => ({ ...prev, [key]: value }));
@@ -29,7 +29,13 @@ export default function SystemConfig() {
 
   return (
     <div className="space-y-8">
-      <h1 className="heading-1">System Configuration</h1>
+      {/* Header */}
+      <div className="space-y-1">
+        <h1 className="heading-1">System Configuration</h1>
+        <p className="text-muted text-sm">
+          Manage authentication settings and system behavior
+        </p>
+      </div>
 
       {/* GENERAL */}
       <Section title="General">
@@ -42,76 +48,118 @@ export default function SystemConfig() {
 
       {/* ROLES */}
       <Section title="Roles">
-        <label className="text-sm text-gray-400">Available Roles</label>
-        <RoleChips
-          roles={form.available_roles ?? []}
-          selected={form.available_roles}
-          onChange={(roles) => updateField("available_roles", roles)}
-        />
+        <div className="space-y-5">
+          {/* Available Roles */}
+          <div className="space-y-2">
+            <label className="text-xs text-muted uppercase tracking-wide">
+              Available Roles
+            </label>
 
-        <div className="mt-4">
-          <label className="text-sm text-gray-400">Default Roles</label>
-          <RoleChips
-            roles={form.available_roles ?? []}
-            selected={form.default_roles}
-            onChange={(roles) => updateField("default_roles", roles)}
-          />
+            <RoleChips
+              roles={form.available_roles ?? []}
+              selected={form.available_roles}
+              onChange={(roles) => updateField("available_roles", roles)}
+            />
+
+            {/* Add new role */}
+            <AddRoleInput
+              roles={form.available_roles ?? []}
+              onAdd={(role) =>
+                updateField("available_roles", [...form.available_roles, role])
+              }
+            />
+          </div>
+
+          {/* Default Roles */}
+          <div className="space-y-2">
+            <label className="text-xs text-muted uppercase tracking-wide">
+              Default Roles
+            </label>
+
+            <RoleChips
+              roles={form.available_roles ?? []}
+              selected={form.default_roles}
+              onChange={(roles) => updateField("default_roles", roles)}
+            />
+          </div>
         </div>
       </Section>
 
       {/* TOKENS */}
       <Section title="Token Settings">
-        <Input
-          label="Access Token TTL"
-          value={form.access_token_ttl}
-          onChange={(v) => updateField("access_token_ttl", v)}
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Access Token TTL"
+            value={form.access_token_ttl}
+            onChange={(v) => updateField("access_token_ttl", v)}
+          />
 
-        <Input
-          label="Refresh Token TTL"
-          value={form.refresh_token_ttl}
-          onChange={(v) => updateField("refresh_token_ttl", v)}
-        />
+          <Input
+            label="Refresh Token TTL"
+            value={form.refresh_token_ttl}
+            onChange={(v) => updateField("refresh_token_ttl", v)}
+          />
+        </div>
       </Section>
 
       {/* RATE LIMIT */}
       <Section title="Rate Limiting">
-        <NumberInput
-          label="Rate Limit"
-          value={form.rate_limit}
-          onChange={(v) => updateField("rate_limit", v)}
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <NumberInput
+            label="Rate Limit"
+            value={form.rate_limit}
+            onChange={(v) => updateField("rate_limit", v)}
+          />
 
-        <NumberInput
-          label="Delay After"
-          value={form.delay_after}
-          onChange={(v) => updateField("delay_after", v)}
-        />
+          <NumberInput
+            label="Delay After"
+            value={form.delay_after}
+            onChange={(v) => updateField("delay_after", v)}
+          />
+        </div>
       </Section>
 
       {/* WEBAUTHN / ORIGINS */}
       <Section title="WebAuthn / Origins">
-        <Input
-          label="RP ID"
-          value={form.rpid}
-          onChange={(v) => updateField("rpid", v)}
-        />
+        <div className="space-y-4">
+          <Input
+            label="RP ID"
+            value={form.rpid}
+            onChange={(v) => updateField("rpid", v)}
+          />
 
-        <OriginsEditor
-          origins={form.origins ?? []}
-          setOrigins={(v) => updateField("origins", v)}
-        />
+          <OriginsEditor
+            origins={form.origins ?? []}
+            setOrigins={(v) => updateField("origins", v)}
+          />
+        </div>
       </Section>
 
       {/* SAVE */}
-      <div>
-        <button
-          onClick={save}
-          className="bg-purple-600 text-white px-4 py-2 rounded"
-        >
+      <div className="flex justify-end">
+        <button onClick={save} className="btn btn-primary">
           Save Changes
         </button>
       </div>
+    </div>
+  );
+}
+
+/* ---------- Reusable Form Components ---------- */
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="text-xs text-muted uppercase tracking-wide">
+        {label}
+      </label>
+      {children}
     </div>
   );
 }
@@ -126,14 +174,13 @@ function Input({
   onChange: (v: string) => void;
 }) {
   return (
-    <div className="space-y-1">
-      <label className="text-sm text-gray-400">{label}</label>
+    <Field label={label}>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded"
+        className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
       />
-    </div>
+    </Field>
   );
 }
 
@@ -147,15 +194,14 @@ function NumberInput({
   onChange: (v: number) => void;
 }) {
   return (
-    <div className="space-y-1">
-      <label className="text-sm text-gray-400">{label}</label>
+    <Field label={label}>
       <input
         type="number"
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded"
+        className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
       />
-    </div>
+    </Field>
   );
 }
 
@@ -175,33 +221,78 @@ function OriginsEditor({
   };
 
   return (
-    <div className="space-y-2">
-      <label className="text-sm text-gray-400">Allowed Origins</label>
+    <div className="space-y-3">
+      <Field label="Allowed Origins">
+        <div className="flex gap-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            className="flex-1 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+            placeholder="https://example.com"
+          />
 
-      <div className="flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded"
-          placeholder="https://example.com"
-        />
-
-        <button onClick={add} className="bg-purple-600 text-white px-3 rounded">
-          Add
-        </button>
-      </div>
+          <button onClick={add} className="btn btn-secondary">
+            Add
+          </button>
+        </div>
+      </Field>
 
       {origins.map((o, i) => (
-        <div key={i} className="flex justify-between text-sm">
-          <span>{o}</span>
+        <div
+          key={i}
+          className="flex items-center justify-between rounded-md border border-subtle bg-surface px-3 py-2 text-sm"
+        >
+          <span className="truncate">{o}</span>
+
           <button
             onClick={() => setOrigins(origins.filter((_, idx) => idx !== i))}
-            className="text-red-500"
+            className="text-[var(--highlight)] hover:opacity-80"
           >
             Remove
           </button>
         </div>
       ))}
+    </div>
+  );
+}
+
+function AddRoleInput({
+  roles,
+  onAdd,
+}: {
+  roles: string[];
+  onAdd: (role: string) => void;
+}) {
+  const [value, setValue] = useState("");
+
+  const add = () => {
+    const trimmed = value.trim();
+
+    if (!trimmed) return;
+    if (roles.includes(trimmed)) return;
+
+    onAdd(trimmed);
+    setValue("");
+  };
+
+  return (
+    <div className="flex gap-2">
+      <input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Add role (e.g. admin)"
+        className="flex-1 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            add();
+          }
+        }}
+      />
+
+      <button onClick={add} className="btn btn-secondary">
+        Add
+      </button>
     </div>
   );
 }

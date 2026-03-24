@@ -1,196 +1,128 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useEvents } from "../hooks/useEvents";
 import Table from "../components/Table";
 import Skeleton from "../components/Skeleton";
 import EventFilters from "../components/EventFilters";
-import { useSearchParams } from "react-router-dom";
-import { collapseTypes } from "../lib/eventMapping";
-import { getRange } from "../lib/timeRange";
+import { useNavigate } from "react-router-dom";
+
+function formatTimeAgo(value: string) {
+  const diff = Date.now() - new Date(value).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
 
 export default function Events() {
-  const [type, setType] = useState("");
+  const navigate = useNavigate();
+
   const [offset, setOffset] = useState(0);
-  const [from, setFrom] = useState<string | undefined>();
-  const [to, setTo] = useState<string | undefined>();
-  const [range, setRange] = useState<"1h" | "24h" | "7d" | "custom">("24h");
+
   const limit = 10;
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const handleTypeChange = (value: string) => {
-    setType(value);
-    setOffset(0);
-
-    const params = new URLSearchParams(searchParams);
-
-    if (value) {
-      params.set("type", value);
-    } else {
-      params.delete("type");
-    }
-
-    setSearchParams(params);
-  };
-  const { data, isLoading } = useEvents({
-    type,
-    offset,
-    limit,
-    from,
-    to,
+  const [filters, setFilters] = useState({
+    type: [],
+    from: undefined,
+    to: undefined,
+    range: "24h",
   });
 
-  const total = data?.total ?? 0;
-  const start = offset + 1;
-  const end = Math.min(offset + limit, total);
-
-  const handleFromChange = (value: string) => {
-    setFrom(value || undefined);
-    setOffset(0);
-
-    const params = new URLSearchParams(searchParams);
-
-    if (value) params.set("from", value);
-    else params.delete("from");
-
-    setSearchParams(params);
-  };
-
-  const handleRangeChange = (value: typeof range) => {
-    setRange(value);
-    setOffset(0);
-
-    const params = new URLSearchParams(searchParams);
-
-    if (value !== "custom") {
-      const r = getRange(value);
-
-      if (r) {
-        params.set("from", r.from.toISOString());
-        params.set("to", r.to.toISOString());
-        setFrom(r.from.toISOString());
-        setTo(r.to.toISOString());
-      }
-    }
-
-    setSearchParams(params);
-  };
-
-  useEffect(() => {
-    const rawTypes = searchParams.getAll("type");
-
-    if (rawTypes.length > 0) {
-      setType(collapseTypes(rawTypes));
-    }
-
-    const fromParam = searchParams.get("from");
-    const toParam = searchParams.get("to");
-
-    if (fromParam) setFrom(fromParam);
-    if (toParam) setTo(toParam);
-  }, [searchParams]);
+  const { data, isLoading } = useEvents({
+    type: filters.type,
+    from: filters.from,
+    to: filters.to,
+    offset,
+    limit,
+  });
 
   const events = data?.events ?? [];
-
-  const columns = [
-    { key: "type", label: "Type" },
-    { key: "user_id", label: "User" },
-    { key: "ip_address", label: "IP" },
-    { key: "created_at", label: "Time" },
-  ];
+  const total = data?.total ?? 0;
 
   return (
-    <div className="space-y-6">
-      <h1 className="heading-1">Events</h1>
-
-      <div className="flex gap-3 items-center flex-wrap">
-        <EventFilters type={type} setType={handleTypeChange} />
-
-        {["1h", "24h", "7d", "custom"].map((r) => (
-          <button
-            key={r}
-            onClick={() => handleRangeChange(r as any)}
-            className={`px-3 py-1 rounded ${
-              range === r
-                ? "bg-purple-600 text-white"
-                : "bg-gray-200 dark:bg-gray-800"
-            }`}
-          >
-            {r === "1h" && "Last 1h"}
-            {r === "24h" && "Last 24h"}
-            {r === "7d" && "Last 7d"}
-            {r === "custom" && "Custom"}
-          </button>
-        ))}
-
-        {range === "custom" && (
-          <div className="flex gap-2 items-center">
-            <input
-              type="datetime-local"
-              value={from ?? ""}
-              onChange={(e) => handleFromChange(e.target.value)}
-              className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded"
-            />
-
-            <input
-              type="datetime-local"
-              value={to ?? ""}
-              onChange={(e) => {
-                setOffset(0);
-                const val = e.target.value || undefined;
-                setTo(val);
-
-                const params = new URLSearchParams(searchParams);
-                if (val) params.set("to", val);
-                else params.delete("to");
-
-                setSearchParams(params);
-              }}
-              className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded"
-            />
-          </div>
-        )}
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="space-y-1">
+        <h1 className="heading-1">Events</h1>
+        <p className="text-muted text-sm">
+          Authentication activity across your system
+        </p>
       </div>
 
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <EventFilters
+          value={filters}
+          onChange={(v) => {
+            setOffset(0);
+            setFilters(v);
+          }}
+        />
+      </div>
+
+      {/* Table */}
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-10" />
+            <Skeleton key={i} className="h-14 rounded-xl" />
           ))}
         </div>
       ) : events.length === 0 ? (
-        <div className="text-gray-500">No events found</div>
+        <div className="text-muted text-sm">
+          No events found for the selected filters
+        </div>
       ) : (
         <Table
-          columns={columns}
-          data={events.map((e: any) => ({
-            ...e,
-            created_at: new Date(e.created_at).toLocaleString(),
-          }))}
+          limit={limit}
+          offset={offset}
+          total={total}
+          onPageChange={setOffset}
+          columns={[
+            {
+              key: "type",
+              label: "Type",
+              sortable: true,
+              render: (value: string) => (
+                <span className="text-sm font-medium text-primary">
+                  {value}
+                </span>
+              ),
+            },
+            {
+              key: "user_id",
+              label: "User",
+              render: (value: string) =>
+                value ? (
+                  <button
+                    onClick={() => navigate(`/users/${value}`)}
+                    className="text-sm text-muted hover:text-primary"
+                  >
+                    {value.slice(0, 8)}...
+                  </button>
+                ) : (
+                  <span className="text-subtle">System</span>
+                ),
+            },
+            {
+              key: "ip_address",
+              label: "IP",
+              render: (value: string) => (
+                <span className="font-mono text-sm">{value}</span>
+              ),
+            },
+            {
+              key: "created_at",
+              label: "Time",
+              sortable: true,
+              render: (value: string) => (
+                <span className="text-sm text-muted">
+                  {formatTimeAgo(value)}
+                </span>
+              ),
+            },
+          ]}
+          data={events}
         />
       )}
-
-      <div className="flex justify-between items-center">
-        <div className="text-sm text-gray-400">
-          Showing {start}-{end} of {total}
-        </div>
-
-        <div className="flex gap-2">
-          <button
-            disabled={offset === 0}
-            onClick={() => setOffset((o) => Math.max(0, o - limit))}
-            className="px-3 py-1 bg-gray-200 dark:bg-gray-800 rounded"
-          >
-            Prev
-          </button>
-
-          <button
-            disabled={offset + limit >= total}
-            onClick={() => setOffset((o) => o + limit)}
-            className="px-3 py-1 bg-gray-200 dark:bg-gray-800 rounded"
-          >
-            Next
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

@@ -25,11 +25,11 @@ export default function RoleChips({
           <button
             key={role}
             onClick={() => toggle(role)}
-            className={`px-3 py-1 rounded-full text-sm transition
+            className={`px-3 py-1.5 rounded-full text-sm border transition-all duration-150 cursor-pointer
               ${
                 active
-                  ? "bg-purple-600 text-white"
-                  : "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                  ? "bg-primary text-white border-transparent shadow-sm"
+                  : "bg-surface border-subtle text-muted hover:bg-surface-alt hover:text-primary"
               }
             `}
           >

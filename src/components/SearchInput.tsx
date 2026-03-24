@@ -1,17 +1,40 @@
 // src/components/SearchInput.tsx
+import { Search, X } from "lucide-react";
+
 export default function SearchInput({
   value,
   onChange,
+  placeholder = "Search...",
 }: {
   value: string;
   onChange: (v: string) => void;
+  placeholder?: string;
 }) {
   return (
-    <input
-      className="px-3 py-2 rounded-md bg-gray-100 dark:bg-gray-800 outline-none w-full"
-      placeholder="Search users..."
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    />
+    <div className="relative w-full">
+      {/* Icon */}
+      <Search
+        size={16}
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+      />
+
+      {/* Input */}
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-md border border-subtle bg-surface-alt pl-9 pr-9 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+      />
+
+      {/* Clear button */}
+      {value && (
+        <button
+          onClick={() => onChange("")}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-primary transition"
+        >
+          <X size={14} />
+        </button>
+      )}
+    </div>
   );
 }

@@ -6,6 +6,8 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  CartesianGrid,
+  Area,
 } from "recharts";
 
 function formatHour(value: string) {
@@ -34,11 +36,33 @@ export default function LineChart({
     <div className="h-64 w-full">
       <ResponsiveContainer>
         <RLineChart data={data}>
-          <XAxis dataKey="bucket" tickFormatter={formatTick} stroke="#9ca3af" />
+          {/* subtle grid */}
+          <CartesianGrid
+            stroke="var(--border)"
+            strokeDasharray="3 3"
+            vertical={false}
+          />
 
-          <YAxis stroke="#9ca3af" />
+          <XAxis
+            dataKey="bucket"
+            tickFormatter={formatTick}
+            stroke="var(--text-muted)"
+            tick={{ fontSize: 12 }}
+          />
+
+          <YAxis stroke="var(--text-muted)" tick={{ fontSize: 12 }} />
 
           <Tooltip
+            contentStyle={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: "8px",
+              color: "var(--text)",
+            }}
+            labelStyle={{
+              fontSize: "12px",
+              color: "var(--text-muted)",
+            }}
             labelFormatter={(label) =>
               interval === "day"
                 ? formatDay(label)
@@ -46,22 +70,43 @@ export default function LineChart({
             }
           />
 
-          <Legend />
+          <Legend
+            wrapperStyle={{
+              fontSize: "12px",
+              color: "var(--text-muted)",
+            }}
+          />
+
+          {/* SUCCESS (teal) */}
+          <Area
+            type="monotone"
+            dataKey="success"
+            stroke="none"
+            fill="var(--accent-soft)"
+          />
 
           <Line
             type="monotone"
             dataKey="success"
-            stroke="#22c55e"
-            strokeWidth={2}
+            stroke="var(--accent)"
+            strokeWidth={2.5}
             dot={false}
             name="Success"
+          />
+
+          {/* FAILED (terracotta) */}
+          <Area
+            type="monotone"
+            dataKey="failed"
+            stroke="none"
+            fill="rgba(229,127,96,0.15)"
           />
 
           <Line
             type="monotone"
             dataKey="failed"
-            stroke="#ef4444"
-            strokeWidth={2}
+            stroke="var(--highlight)"
+            strokeWidth={2.5}
             dot={false}
             name="Failed"
           />

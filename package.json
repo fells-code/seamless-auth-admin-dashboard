@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@seamless-auth/react": "file:../seamless-auth-react",
+    "@seamless-auth/types": "file:../seamless-auth-types",
     "@tailwindcss/vite": "^4.2.2",
     "@tanstack/react-query": "^5.94.5",
     "clsx": "^2.1.1",

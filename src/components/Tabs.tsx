@@ -10,21 +10,25 @@ export default function Tabs({
   onChange: (tab: string) => void;
 }) {
   return (
-    <div className="flex gap-2 border-b border-gray-200 dark:border-gray-800">
-      {tabs.map((tab) => (
-        <button
-          key={tab}
-          onClick={() => onChange(tab)}
-          className={clsx(
-            "px-3 py-2 text-sm",
-            active === tab
-              ? "border-b-2 border-purple-500 text-purple-500"
-              : "text-gray-400 hover:text-white",
-          )}
-        >
-          {tab}
-        </button>
-      ))}
+    <div className="inline-flex gap-1 rounded-lg border border-subtle bg-surface-alt p-1">
+      {tabs.map((tab) => {
+        const isActive = active === tab;
+
+        return (
+          <button
+            key={tab}
+            onClick={() => onChange(tab)}
+            className={clsx(
+              "px-3 py-1.5 text-sm rounded-md transition-all duration-150 cursor-pointer",
+              isActive
+                ? "bg-surface text-primary shadow-sm"
+                : "text-muted hover:text-primary hover:bg-surface",
+            )}
+          >
+            {tab}
+          </button>
+        );
+      })}
     </div>
   );
 }

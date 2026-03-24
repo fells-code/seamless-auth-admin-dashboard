@@ -12,8 +12,9 @@ import EditUserModal from "../components/EditUserModal";
 import { useState } from "react";
 import RiskBadge from "../components/RiskBadge";
 import { calculateRiskScore } from "../lib/riskScore";
-import { useUserTimeseries } from "../hooks/useUserTimeSeries";
 import MiniLineChart from "../components/MiniLineChart";
+import { useUserTimeseries } from "../hooks/useUserTimeseries";
+import { Trash2, ShieldOff } from "lucide-react";
 
 export default function UserDetail() {
   const { id } = useParams();
@@ -35,20 +36,6 @@ export default function UserDetail() {
 
   const { user, sessions, credentials, events } = data;
 
-  const handleDeleteUser = () => {
-    if (!confirm("Are you sure you want to delete this user?")) return;
-
-    deleteUser.mutate(user.id, {
-      onSuccess: () => navigate("/users"),
-    });
-  };
-
-  const revokeAllSessions = () => {
-    if (!confirm("Revoke ALL sessions for this user?")) return;
-
-    sessions.forEach((s: any) => revokeSession.mutate(s.id));
-  };
-
   const failedLogins =
     events.filter((e) => e.type === "login_failed").length ?? 0;
 
@@ -59,37 +46,50 @@ export default function UserDetail() {
     failedLogins,
   });
 
+  const handleDeleteUser = () => {
+    if (!confirm("Delete this user?")) return;
+
+    deleteUser.mutate(user.id, {
+      onSuccess: () => navigate("/users"),
+    });
+  };
+
+  const revokeAllSessions = () => {
+    if (!confirm("Revoke all sessions?")) return;
+    sessions.forEach((s: any) => revokeSession.mutate(s.id));
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div className="space-y-2">
           <div className="flex items-center gap-3">
             <h1 className="heading-1">{user.email}</h1>
             <RiskBadge level={risk.level} color={risk.color as any} />
           </div>
 
-          <p className="text-gray-400 text-sm">{user.id}</p>
+          <p className="text-subtle font-mono">{user.id}</p>
         </div>
 
-        <div className="flex gap-2">
-          <button
-            onClick={() => setEditing(true)}
-            className="bg-primary text-white hover:opacity-90"
-          >
+        <div className="flex items-center gap-2">
+          <button onClick={() => setEditing(true)} className="btn btn-primary">
             Edit
           </button>
 
           <button
             onClick={revokeAllSessions}
-            className="bg-yellow-600 text-white px-3 py-1 rounded"
+            className="btn btn-secondary flex items-center gap-1"
           >
-            Revoke Sessions
+            <ShieldOff size={14} />
+            Revoke
           </button>
 
           <button
             onClick={handleDeleteUser}
-            className="bg-red-600 text-white px-3 py-1 rounded"
+            className="btn btn-danger flex items-center gap-1"
           >
+            <Trash2 size={14} />
             Delete
           </button>
         </div>
@@ -102,17 +102,14 @@ export default function UserDetail() {
         onChange={setTab}
       />
 
-      {/* TAB CONTENT */}
-
+      {/* CONTENT */}
       {tab === "Overview" && (
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-surface border border-subtle border border-gray-800 p-4 rounded-lg col-span-3">
-            <div className="text-sm text-gray-400 mb-2">
-              Login Activity (Last 24h)
-            </div>
-
+        <div className="grid grid-cols-3 gap-5">
+          <Card className="col-span-3">
+            <CardHeader title="Login Activity" subtitle="Last 24 hours" />
             <MiniLineChart data={timeseries?.timeseries ?? []} />
-          </div>
+          </Card>
+
           <Stat label="Roles" value={user.roles.join(", ")} />
           <Stat label="Verified" value={user.verified ? "Yes" : "No"} />
           <Stat label="Sessions" value={sessions.length} />
@@ -121,24 +118,34 @@ export default function UserDetail() {
 
       {tab === "Sessions" && (
         <Table
+          selectable
           columns={[
             { key: "ipAddress", label: "IP" },
-            { key: "userAgent", label: "User Agent" },
-            { key: "lastUsedAt", label: "Last Used" },
-            { key: "actions", label: "" },
+            { key: "userAgent", label: "Device" },
+            {
+              key: "lastUsedAt",
+              label: "Last Used",
+              sortable: true,
+              render: (v) => new Date(v).toLocaleString(),
+            },
           ]}
-          data={sessions.map((s: any) => ({
-            ...s,
-            lastUsedAt: new Date(s.lastUsedAt).toLocaleString(),
-            actions: (
-              <button
-                onClick={() => revokeSession.mutate(s.id)}
-                className="text-red-500 hover:underline"
-              >
-                Revoke
-              </button>
-            ),
-          }))}
+          actions={[
+            {
+              icon: ShieldOff,
+              label: "Revoke",
+              variant: "danger",
+              onClick: (row) => revokeSession.mutate(row.id),
+            },
+          ]}
+          bulkActions={[
+            {
+              label: "Revoke Selected",
+              variant: "danger",
+              onClick: (rows) =>
+                rows.forEach((r) => revokeSession.mutate(r.id)),
+            },
+          ]}
+          data={sessions}
         />
       )}
 
@@ -148,12 +155,13 @@ export default function UserDetail() {
             { key: "deviceType", label: "Device" },
             { key: "browser", label: "Browser" },
             { key: "platform", label: "Platform" },
-            { key: "createdAt", label: "Created" },
+            {
+              key: "createdAt",
+              label: "Created",
+              render: (v) => new Date(v).toLocaleString(),
+            },
           ]}
-          data={credentials.map((c: any) => ({
-            ...c,
-            createdAt: new Date(c.createdAt).toLocaleString(),
-          }))}
+          data={credentials}
         />
       )}
 
@@ -161,20 +169,24 @@ export default function UserDetail() {
         <Table
           columns={[
             { key: "type", label: "Type" },
-            { key: "created_at", label: "Time" },
+            {
+              key: "created_at",
+              label: "Time",
+              sortable: true,
+              render: (v) => new Date(v).toLocaleString(),
+            },
           ]}
-          data={events.map((e: any) => ({
-            ...e,
-            created_at: new Date(e.created_at).toLocaleString(),
-          }))}
+          data={events}
         />
       )}
 
       {tab === "Security" && (
-        <div className="bg-red-500/10 border border-red-500 rounded-lg p-4">
+        <Card className="border-red-500/30 bg-red-500/5">
+          <CardHeader title="Security Signals" />
+
           {anomalies?.suspiciousEvents.length ? (
             <>
-              <div className="text-red-400 mb-3">
+              <div className="text-sm text-red-400 mb-4">
                 {anomalies.suspiciousEvents.length} suspicious events detected
               </div>
 
@@ -182,18 +194,21 @@ export default function UserDetail() {
                 columns={[
                   { key: "type", label: "Type" },
                   { key: "ip_address", label: "IP" },
-                  { key: "created_at", label: "Time" },
+                  {
+                    key: "created_at",
+                    label: "Time",
+                    render: (v) => new Date(v).toLocaleString(),
+                  },
                 ]}
-                data={anomalies.suspiciousEvents.map((e: any) => ({
-                  ...e,
-                  created_at: new Date(e.created_at).toLocaleString(),
-                }))}
+                data={anomalies.suspiciousEvents}
               />
             </>
           ) : (
-            <div className="text-green-400">No suspicious activity</div>
+            <div className="text-sm text-muted">
+              No suspicious activity detected
+            </div>
           )}
-        </div>
+        </Card>
       )}
 
       {editing && (
@@ -203,11 +218,38 @@ export default function UserDetail() {
   );
 }
 
+/* ---------- Reusable UI ---------- */
+
+function Card({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`bg-surface border border-subtle rounded-xl p-5 ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function CardHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <div className="mb-4">
+      <h2 className="text-base font-semibold">{title}</h2>
+      {subtitle && <p className="text-subtle text-xs mt-1">{subtitle}</p>}
+    </div>
+  );
+}
+
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-surface border border-subtle border border-gray-800 p-4 rounded-lg">
-      <div className="text-gray-400 text-sm">{label}</div>
-      <div className="text-lg font-semibold">{value}</div>
+    <div className="bg-surface border border-subtle rounded-xl p-4">
+      <div className="text-subtle text-xs uppercase tracking-wide">{label}</div>
+      <div className="text-lg font-semibold mt-1">{value}</div>
     </div>
   );
 }

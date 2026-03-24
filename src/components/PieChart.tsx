@@ -11,15 +11,16 @@ import { buildEventQuery } from "../lib/eventNavigation";
 
 function generateColor(index: number) {
   const palette = [
-    "#7c3aed",
-    "#22c55e",
-    "#ef4444",
-    "#f59e0b",
-    "#3b82f6",
-    "#ec4899",
-    "#14b8a6",
-    "#f97316",
+    "var(--primary)",
+    "var(--accent)",
+    "var(--highlight)",
+    "#8C6A5D",
+    "#5A7D7C",
+    "#D4A373",
+    "#7F5539",
+    "#6B9080",
   ];
+
   return palette[index % palette.length];
 }
 
@@ -34,7 +35,9 @@ export default function PieChart({ data }: { data: any[] }) {
             data={data}
             dataKey="count"
             nameKey="type"
-            outerRadius={80}
+            outerRadius={90}
+            innerRadius={50}
+            paddingAngle={0}
             onClick={(entry: any) => {
               navigate(
                 buildEventQuery({
@@ -44,12 +47,29 @@ export default function PieChart({ data }: { data: any[] }) {
             }}
           >
             {data.map((_, i) => (
-              <Cell key={i} fill={generateColor(i)} />
+              <Cell
+                key={i}
+                fill={generateColor(i)}
+                className="transition-opacity hover:opacity-80 cursor-pointer"
+              />
             ))}
           </Pie>
-          <Legend />
 
-          <Tooltip />
+          <Tooltip
+            contentStyle={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: "8px",
+              color: "var(--text)",
+            }}
+          />
+
+          <Legend
+            wrapperStyle={{
+              fontSize: "12px",
+              color: "var(--text-muted)",
+            }}
+          />
         </RPieChart>
       </ResponsiveContainer>
     </div>

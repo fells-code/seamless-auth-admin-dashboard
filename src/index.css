@@ -74,6 +74,38 @@ html {
   background-color: var(--accent);
 }
 
+.btn {
+  @apply px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150 cursor-pointer;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-secondary {
+  background-color: var(--surface-alt);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.btn-secondary:hover {
+  background-color: var(--surface);
+}
+
+.btn-danger {
+  background-color: var(--highlight);
+  color: white;
+}
+
+.btn-danger:hover {
+  opacity: 0.9;
+}
+
 @keyframes shimmer {
   0% {
     transform: translateX(-100%);

@@ -14,23 +14,44 @@ export default function Unauthenticated() {
   }
 
   return (
-    <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
-      <div className="bg-surface border border-subtle border border-gray-200 dark:border-gray-800 p-8 rounded-xl text-center space-y-4">
-        <h1 className="text-xl font-semibold">Authentication Required</h1>
+    <div className="relative h-screen flex items-center justify-center bg-base text-primary">
+      {/* Background atmosphere */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top,rgba(229,127,96,0.12),transparent_60%)]" />
+        <div className="absolute right-10 bottom-10 h-72 w-72 rounded-full bg-[rgba(63,98,106,0.08)] blur-3xl" />
+      </div>
 
+      {/* Card */}
+      <div className="relative w-full max-w-md rounded-xl border border-subtle bg-surface p-8 shadow-lg text-center space-y-5">
+        {/* Title */}
+        <div className="space-y-1">
+          <h1 className="text-xl font-semibold tracking-tight">
+            Access Required
+          </h1>
+
+          <p className="text-muted text-sm">Seamless Auth Dashboard</p>
+        </div>
+
+        {/* Message */}
         {isAuthenticated && !hasRole("admin") ? (
-          <p className="text-red-400 text-sm">
+          <div className="text-sm text-[var(--highlight)]">
             Your account does not have admin access.
-          </p>
+          </div>
         ) : (
-          <p className="text-gray-500 dark:text-gray-400 text-sm">
-            You must be signed in with an admin account to access the dashboard.
-          </p>
+          <div className="text-sm text-muted">
+            Sign in with an admin account to continue.
+          </div>
         )}
 
-        <button className="bg-primary text-white hover:opacity-90">
-          Sign In
-        </button>
+        {/* Action */}
+        {!isAuthenticated && (
+          <button className="btn btn-primary w-full">Sign In</button>
+        )}
+
+        {/* Footer hint */}
+        <div className="text-xs text-subtle">
+          Authentication is handled by your Seamless Auth instance
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,3 @@
-// src/components/RiskBadge.tsx
 export default function RiskBadge({
   level,
   color,
@@ -7,14 +6,21 @@ export default function RiskBadge({
   color: "red" | "yellow" | "green";
 }) {
   const styles = {
-    red: "bg-red-500/20 text-red-400 border-red-500",
-    yellow: "bg-yellow-500/20 text-yellow-400 border-yellow-500",
-    green: "bg-green-500/20 text-green-400 border-green-500",
+    red: "bg-[rgba(229,127,96,0.12)] text-[var(--highlight)] border-[rgba(229,127,96,0.3)]",
+    yellow:
+      "bg-[rgba(212,163,115,0.12)] text-[#d4a373] border-[rgba(212,163,115,0.3)]",
+    green:
+      "bg-[rgba(63,98,106,0.12)] text-[var(--accent)] border-[rgba(63,98,106,0.3)]",
   };
 
   return (
-    <span className={`px-3 py-1 rounded-full border text-sm ${styles[color]}`}>
-      {level}
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full border text-xs font-medium tracking-tight ${styles[color]}`}
+    >
+      <span className="flex items-center gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+        {level}
+      </span>
     </span>
   );
 }
