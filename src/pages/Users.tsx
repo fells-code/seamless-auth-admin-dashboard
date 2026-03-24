@@ -32,11 +32,11 @@ export default function Users() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between">
-        <h1 className="text-2xl font-bold">Users</h1>
+        <h1 className="heading-1">Users</h1>
 
         <button
           onClick={() => setOpen(true)}
-          className="bg-purple-600 text-white px-3 py-1 rounded"
+          className="bg-primary text-white hover:opacity-90"
         >
           Create User
         </button>

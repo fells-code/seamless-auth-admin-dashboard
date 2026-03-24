@@ -34,6 +34,9 @@ export function useEvents(params: {
 
   return useQuery({
     queryKey: ["events", params],
-    queryFn: () => apiFetch(`/internal/auth-events?${query.toString()}`),
+    queryFn: () =>
+      apiFetch<{ events: any; total: number }>(
+        `/admin/auth-events?${query.toString()}`,
+      ),
   });
 }

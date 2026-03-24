@@ -3,10 +3,17 @@ import { useSessions } from "../hooks/useSessions";
 import { useRevokeSession } from "../hooks/useRevokeSession";
 import Table from "../components/Table";
 import Skeleton from "../components/Skeleton";
+import { useState } from "react";
 
 export default function Sessions() {
   const { data, isLoading } = useSessions();
   const revoke = useRevokeSession();
+  const [offset, setOffset] = useState(0);
+  const limit = 10;
+
+  const total = data?.total ?? 0;
+  const start = offset + 1;
+  const end = Math.min(offset + limit, total);
 
   const sessions = data?.sessions ?? [];
 
@@ -30,7 +37,7 @@ export default function Sessions() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Sessions</h1>
+      <h1 className="heading-1">Sessions</h1>
 
       <Table
         columns={[
@@ -52,6 +59,29 @@ export default function Sessions() {
           ),
         }))}
       />
+      <div className="flex justify-between items-center">
+        <div className="text-sm text-gray-400">
+          Showing {start}-{end} of {total}
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            disabled={offset === 0}
+            onClick={() => setOffset((o) => Math.max(0, o - limit))}
+            className="px-3 py-1 bg-gray-200 dark:bg-gray-800 rounded"
+          >
+            Prev
+          </button>
+
+          <button
+            disabled={offset + limit >= total}
+            onClick={() => setOffset((o) => o + limit)}
+            className="px-3 py-1 bg-gray-200 dark:bg-gray-800 rounded"
+          >
+            Next
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

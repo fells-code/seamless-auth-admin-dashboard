@@ -1,1 +1,84 @@
 @import "tailwindcss";
+
+:root {
+  --bg: #f7efea;
+  --surface: #ffffff;
+  --surface-alt: #f3e6df;
+
+  --text: #2f2622;
+  --text-muted: #7a655c;
+
+  --border: #e2d2c8;
+
+  --primary: #b64e39;
+  --primary-hover: #9e3f2d;
+
+  --accent: #3f626a;
+  --accent-soft: #d6e6e8;
+
+  --highlight: #e57f60;
+}
+
+.dark {
+  --bg: #14100e;
+  --surface: #1e1816;
+  --surface-alt: #2a211e;
+
+  --text: #f5ece7;
+  --text-muted: #b8a29a;
+
+  --border: #3a2e29;
+
+  --primary: #e57f60;
+  --primary-hover: #f09a7f;
+
+  --accent: #5a8a94;
+  --accent-soft: #22373c;
+
+  --highlight: #f9735b;
+}
+
+html {
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* utility layer */
+.bg-base {
+  background-color: var(--bg);
+}
+
+.bg-surface {
+  background-color: var(--surface);
+}
+
+.text-primary {
+  color: var(--text);
+}
+
+.text-muted {
+  color: var(--muted);
+}
+
+.border-subtle {
+  border-color: var(--border);
+}
+
+.bg-primary {
+  background-color: var(--primary);
+}
+
+.bg-accent {
+  background-color: var(--accent);
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}

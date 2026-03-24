@@ -13,7 +13,7 @@ export default function Events() {
   const [from, setFrom] = useState<string | undefined>();
   const [to, setTo] = useState<string | undefined>();
   const [range, setRange] = useState<"1h" | "24h" | "7d" | "custom">("24h");
-  const limit = 20;
+  const limit = 10;
   const [searchParams, setSearchParams] = useSearchParams();
 
   const handleTypeChange = (value: string) => {
@@ -37,6 +37,10 @@ export default function Events() {
     from,
     to,
   });
+
+  const total = data?.total ?? 0;
+  const start = offset + 1;
+  const end = Math.min(offset + limit, total);
 
   const handleFromChange = (value: string) => {
     setFrom(value || undefined);
@@ -95,7 +99,7 @@ export default function Events() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Events</h1>
+      <h1 className="heading-1">Events</h1>
 
       <div className="flex gap-3 items-center flex-wrap">
         <EventFilters type={type} setType={handleTypeChange} />
@@ -164,21 +168,28 @@ export default function Events() {
         />
       )}
 
-      <div className="flex gap-2">
-        <button
-          disabled={offset === 0}
-          onClick={() => setOffset((o) => Math.max(0, o - limit))}
-          className="px-3 py-1 bg-gray-200 dark:bg-gray-800 rounded"
-        >
-          Prev
-        </button>
+      <div className="flex justify-between items-center">
+        <div className="text-sm text-gray-400">
+          Showing {start}-{end} of {total}
+        </div>
 
-        <button
-          onClick={() => setOffset((o) => o + limit)}
-          className="px-3 py-1 bg-gray-200 dark:bg-gray-800 rounded"
-        >
-          Next
-        </button>
+        <div className="flex gap-2">
+          <button
+            disabled={offset === 0}
+            onClick={() => setOffset((o) => Math.max(0, o - limit))}
+            className="px-3 py-1 bg-gray-200 dark:bg-gray-800 rounded"
+          >
+            Prev
+          </button>
+
+          <button
+            disabled={offset + limit >= total}
+            onClick={() => setOffset((o) => o + limit)}
+            className="px-3 py-1 bg-gray-200 dark:bg-gray-800 rounded"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -5,6 +5,6 @@ import { apiFetch } from "../lib/api";
 export function useSessions() {
   return useQuery({
     queryKey: ["sessions"],
-    queryFn: () => apiFetch("/sessions"),
+    queryFn: () => apiFetch("/admin/sessions"),
   });
 }

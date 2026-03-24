@@ -3,6 +3,7 @@ import { useSystemConfig } from "../hooks/useSystemConfig";
 import { useUpdateSystemConfig } from "../hooks/useUpdateSystemConfig";
 import Skeleton from "../components/Skeleton";
 import RoleChips from "../components/RoleChips";
+import { Section } from "../components/Section";
 
 export default function SystemConfig() {
   const { data, isLoading } = useSystemConfig();
@@ -28,7 +29,7 @@ export default function SystemConfig() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold">System Configuration</h1>
+      <h1 className="heading-1">System Configuration</h1>
 
       {/* GENERAL */}
       <Section title="General">
@@ -201,21 +202,6 @@ function OriginsEditor({
           </button>
         </div>
       ))}
-    </div>
-  );
-}
-
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="bg-white dark:bg-gray-900 border border-gray-800 p-4 rounded-lg space-y-4">
-      <h2 className="font-semibold">{title}</h2>
-      {children}
     </div>
   );
 }

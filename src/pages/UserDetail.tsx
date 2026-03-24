@@ -64,7 +64,7 @@ export default function UserDetail() {
       <div className="flex justify-between items-start">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{user.email}</h1>
+            <h1 className="heading-1">{user.email}</h1>
             <RiskBadge level={risk.level} color={risk.color as any} />
           </div>
 
@@ -74,7 +74,7 @@ export default function UserDetail() {
         <div className="flex gap-2">
           <button
             onClick={() => setEditing(true)}
-            className="bg-purple-600 text-white px-3 py-1 rounded"
+            className="bg-primary text-white hover:opacity-90"
           >
             Edit
           </button>
@@ -106,7 +106,7 @@ export default function UserDetail() {
 
       {tab === "Overview" && (
         <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white dark:bg-gray-900 border border-gray-800 p-4 rounded-lg col-span-3">
+          <div className="bg-surface border border-subtle border border-gray-800 p-4 rounded-lg col-span-3">
             <div className="text-sm text-gray-400 mb-2">
               Login Activity (Last 24h)
             </div>
@@ -205,7 +205,7 @@ export default function UserDetail() {
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-white dark:bg-gray-900 border border-gray-800 p-4 rounded-lg">
+    <div className="bg-surface border border-subtle border border-gray-800 p-4 rounded-lg">
       <div className="text-gray-400 text-sm">{label}</div>
       <div className="text-lg font-semibold">{value}</div>
     </div>

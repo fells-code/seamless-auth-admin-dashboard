@@ -19,7 +19,7 @@ export default function CreateUserModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
-      <div className="bg-white dark:bg-gray-900 p-6 rounded-lg w-96 space-y-4">
+      <div className="bg-surface border border-subtle p-6 rounded-lg w-96 space-y-4">
         <h2 className="text-lg font-semibold">Create User</h2>
 
         <input
@@ -41,7 +41,7 @@ export default function CreateUserModal({ onClose }: { onClose: () => void }) {
 
           <button
             onClick={submit}
-            className="bg-purple-600 text-white px-3 py-1 rounded"
+            className="bg-primary text-white hover:opacity-90"
           >
             Create
           </button>

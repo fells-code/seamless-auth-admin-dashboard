@@ -13,7 +13,7 @@ export default function Security() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Security</h1>
+      <h1 className="heading-1">Security</h1>
 
       {/* Metrics */}
       <div className="grid grid-cols-3 gap-4">
@@ -38,7 +38,7 @@ export default function Security() {
       </div>
 
       {/* Failed login spike */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-4 rounded-lg">
+      <div className="bg-surface border border-subtle border border-gray-200 dark:border-gray-800 p-4 rounded-lg">
         <h2 className="text-lg font-semibold mb-2">Recent Failed Logins</h2>
 
         {loadingAnomalies ? (

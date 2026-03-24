@@ -1,18 +1,16 @@
-// src/components/StatCard.tsx
 export default function StatCard({
   label,
   value,
-  sub,
 }: {
   label: string;
   value: number | string;
-  sub?: string;
 }) {
   return (
-    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4 shadow-sm">
-      <div className="text-gray-500 dark:text-gray-400 text-sm">{label}</div>
-      <div className="text-2xl font-semibold mt-1">{value}</div>
-      {sub && <div className="text-xs text-gray-400 mt-1">{sub}</div>}
+    <div className="rounded-xl p-4 bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-950 border border-gray-200 dark:border-gray-800">
+      <div className="text-xs text-gray-500 uppercase tracking-wide">
+        {label}
+      </div>
+      <div className="text-xl font-semibold mt-1 tracking-tight">{value}</div>
     </div>
   );
 }

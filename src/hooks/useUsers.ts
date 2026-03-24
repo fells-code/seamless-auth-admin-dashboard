@@ -25,6 +25,6 @@ export function useUsers(params: {
   return useQuery({
     queryKey: ["users", params],
     queryFn: () =>
-      apiFetch<{ users: User[]; total: number }>(`/internal/users?${query}`),
+      apiFetch<{ users: User[]; total: number }>(`/admin/users?${query}`),
   });
 }

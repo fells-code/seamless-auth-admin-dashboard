@@ -8,22 +8,37 @@ import Events from "./pages/Events";
 import Security from "./pages/Security";
 import UserDetail from "./pages/UserDetail";
 import SystemConfig from "./pages/SystemConfig";
+import { AuthProvider } from "@seamless-auth/react";
+import { API_URL } from "./lib/api";
+import RequireAuth from "./components/RequireAuth";
+import Unauthenticated from "./pages/Unauthenticated";
+import Profile from "./pages/Profile";
 
 export default function App() {
   return (
-    <Routes>
-      <Route element={<Layout />}>
-        <Route path="/" element={<Overview />} />
-        <Route path="/users" element={<Users />} />
-        <Route path="/sessions" element={<Sessions />} />
-        <Route path="/events" element={<Events />} />
-        <Route path="/security" element={<Security />} />
-        <Route path="/users/:id" element={<UserDetail />} />
-        <Route path="/system" element={<SystemConfig />} />
-      </Route>
+    <AuthProvider apiHost={API_URL} mode="web">
+      <Routes>
+        <Route path="/unauthenticated" element={<Unauthenticated />} />
 
-      {/* fallback */}
-      <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
+        <Route
+          element={
+            <RequireAuth>
+              <Layout />
+            </RequireAuth>
+          }
+        >
+          <Route path="/" element={<Overview />} />
+          <Route path="/users" element={<Users />} />
+          <Route path="/sessions" element={<Sessions />} />
+          <Route path="/events" element={<Events />} />
+          <Route path="/security" element={<Security />} />
+          <Route path="/users/:id" element={<UserDetail />} />
+          <Route path="/system" element={<SystemConfig />} />
+          <Route path="/profile" element={<Profile />} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </AuthProvider>
   );
 }
