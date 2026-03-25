@@ -9,21 +9,18 @@ export default function Unauthenticated() {
     return <LayoutSkeleton />;
   }
 
-  if (isAuthenticated && hasRole("admin")) {
+  if (isAuthenticated) {
     return <Navigate to="/" replace />;
   }
 
   return (
     <div className="relative h-screen flex items-center justify-center bg-base text-primary">
-      {/* Background atmosphere */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top,rgba(229,127,96,0.12),transparent_60%)]" />
         <div className="absolute right-10 bottom-10 h-72 w-72 rounded-full bg-[rgba(63,98,106,0.08)] blur-3xl" />
       </div>
 
-      {/* Card */}
       <div className="relative w-full max-w-md rounded-xl border border-subtle bg-surface p-8 shadow-lg text-center space-y-5">
-        {/* Title */}
         <div className="space-y-1">
           <h1 className="text-xl font-semibold tracking-tight">
             Access Required
@@ -32,7 +29,6 @@ export default function Unauthenticated() {
           <p className="text-muted text-sm">Seamless Auth Dashboard</p>
         </div>
 
-        {/* Message */}
         {isAuthenticated && !hasRole("admin") ? (
           <div className="text-sm text-[var(--highlight)]">
             Your account does not have admin access.

@@ -3,7 +3,7 @@ import UserMenu from "./UserMenu";
 
 export default function Topbar() {
   return (
-    <header className="relative h-14 flex items-center justify-between px-6 border-b border-subtle bg-surface/80 backdrop-blur supports-[backdrop-filter]:bg-surface/60">
+    <header className="relative z-40 h-14 flex items-center justify-between px-6 border-b border-subtle bg-surface/80 backdrop-blur supports-[backdrop-filter]:bg-surface/60">
       {/* Left side (future space for breadcrumbs or page title) */}
       <div className="flex items-center gap-3">
         {/* intentionally empty for now */}

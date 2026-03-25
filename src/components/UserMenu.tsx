@@ -31,7 +31,7 @@ export default function UserMenu() {
   if (!user) return null;
 
   return (
-    <div className="relative">
+    <div className="relative z-50">
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-3 px-3 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-800"

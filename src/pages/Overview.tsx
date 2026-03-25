@@ -36,10 +36,16 @@ export default function Overview() {
               label="Database"
               value={formatBytes(data?.databaseSize ?? 0)}
             />
-            <StatCard label="Sessions" value={data?.activeSessions} />
-            <StatCard label="Logins" value={data?.loginSuccess24h} />
             <StatCard
-              label="Failure Rate"
+              label="Sessions - Last 24h"
+              value={data?.activeSessions}
+            />
+            <StatCard
+              label="Logins  - Last 24h"
+              value={data?.loginSuccess24h}
+            />
+            <StatCard
+              label="Failure Rate  - Last 24h"
               value={`${Math.round((1 - (data?.successRate24h || 0)) * 100)}%`}
             />
           </>
@@ -72,13 +78,13 @@ export default function Overview() {
       {/* Insights */}
       <div className="grid grid-cols-2 gap-5">
         <InsightCard
-          title="Login Failures"
+          title="Login Failures - Last 24h"
           message={`${data?.loginFailed24h ?? 0} failures in the last 24 hours`}
-          tone="danger"
+          tone={data?.loginFailed24h > 0 ? "danger" : "neutral"}
         />
 
         <InsightCard
-          title="Passkey Usage"
+          title="Passkey Usage - Last 24h"
           message={`${data?.passkeyUsage24h ?? 0} passkey logins`}
           tone="neutral"
         />
@@ -98,8 +104,8 @@ function InsightCard({
 }) {
   const styles =
     tone === "danger"
-      ? "bg-red-500/10 border-red-500 text-red-400"
-      : "bg-gray-100 dark:bg-gray-900 border-gray-300 dark:border-gray-700";
+      ? "bg-accent-soft dark:bg-accent-soft text-red-400"
+      : "bg-accent-soft dark:bg-accent-soft border-gray-300 dark:border-gray-700";
 
   return (
     <div className={`p-4 rounded-xl border ${styles}`}>
@@ -111,7 +117,7 @@ function InsightCard({
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-white/70 dark:bg-gray-900/60 backdrop-blur border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm">
+    <div className="bg-accent-soft dark:bg-accent-soft backdrop-blur border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm">
       {children}
     </div>
   );
