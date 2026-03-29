@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "docker:build": "docker build -t seamless-admin:local .",
+    "docker:run": "docker run -p 8080:80 seamless-admin:local"
   },
   "dependencies": {
     "@seamless-auth/react": "^0.0.7",
