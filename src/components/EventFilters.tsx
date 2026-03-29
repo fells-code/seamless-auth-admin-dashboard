@@ -1,8 +1,14 @@
-// src/components/EventFilters.tsx
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
 import { useState } from "react";
 import { eventGroups } from "../lib/eventGroups";
 import { getRange } from "../lib/timeRange";
 import { AuthEventTypeEnum } from "../types/authEventTypes";
+import type { EventFilter } from "../pages/Events";
 
 const allTypes = AuthEventTypeEnum.options;
 
@@ -16,11 +22,15 @@ export default function EventFilters({
     to?: string;
     range: "1h" | "24h" | "7d" | "custom";
   };
-  onChange: (v: any) => void;
+  onChange: (v: EventFilter) => void;
 }) {
   const [range, setRange] = useState(value.range ?? "24h");
 
-  const applyGroup = (group: any) => {
+  const applyGroup = (group: {
+    label: string;
+    value: string;
+    match: (t: string) => boolean;
+  }) => {
     const types = group.value === "" ? [] : allTypes.filter(group.match);
 
     onChange({
@@ -82,7 +92,9 @@ export default function EventFilters({
         {["1h", "24h", "7d", "custom"].map((r) => (
           <button
             key={r}
-            onClick={() => handleRangeChange(r as any)}
+            onClick={() =>
+              handleRangeChange(r as "1h" | "24h" | "7d" | "custom")
+            }
             className={`text-sm px-3 py-1.5 rounded-md border transition ${
               range === r
                 ? "bg-primary text-white border-transparent"

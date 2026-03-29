@@ -1,3 +1,9 @@
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
 import {
   PieChart as RPieChart,
   Pie,
@@ -8,6 +14,15 @@ import {
 } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { buildEventQuery } from "../lib/eventNavigation";
+
+/* ---------- Types ---------- */
+
+type PieChartDatum = {
+  type: string;
+  count: number;
+};
+
+/* ---------- Helpers ---------- */
 
 function generateColor(index: number) {
   const palette = [
@@ -24,7 +39,9 @@ function generateColor(index: number) {
   return palette[index % palette.length];
 }
 
-export default function PieChart({ data }: { data: any[] }) {
+/* ---------- Component ---------- */
+
+export default function PieChart({ data }: { data: PieChartDatum[] }) {
   const navigate = useNavigate();
 
   return (
@@ -38,10 +55,15 @@ export default function PieChart({ data }: { data: any[] }) {
             outerRadius={90}
             innerRadius={50}
             paddingAngle={0}
-            onClick={(entry: any) => {
+            onClick={(entry) => {
+              // Recharts types are messy → narrow safely
+              if (!entry || typeof entry !== "object") return;
+
+              const e = entry as unknown as PieChartDatum;
+
               navigate(
                 buildEventQuery({
-                  type: entry.type,
+                  type: e.type,
                 }),
               );
             }}

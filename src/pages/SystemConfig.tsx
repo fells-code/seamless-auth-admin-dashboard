@@ -1,5 +1,11 @@
-import { useState, useEffect } from "react";
-import { useSystemConfig } from "../hooks/useSystemConfig";
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
+import { useState } from "react";
+import { useSystemConfig, type SystemConfig } from "../hooks/useSystemConfig";
 import { useUpdateSystemConfig } from "../hooks/useUpdateSystemConfig";
 import Skeleton from "../components/Skeleton";
 import RoleChips from "../components/RoleChips";
@@ -9,18 +15,22 @@ export default function SystemConfig() {
   const { data, isLoading } = useSystemConfig();
   const update = useUpdateSystemConfig();
 
-  const [form, setForm] = useState<any>({});
+  const [form, setForm] = useState<SystemConfig | null>(null);
 
-  useEffect(() => {
-    if (data) {
-      setForm(data);
-    }
-  }, [data]);
+  // initialize form once when data arrives
+  if (!form && data) {
+    setForm(data);
+  }
 
-  if (isLoading || !form) return <Skeleton className="h-40 rounded-xl" />;
+  if (isLoading || !form) {
+    return <Skeleton className="h-40 rounded-xl" />;
+  }
 
-  const updateField = (key: string, value: any) => {
-    setForm((prev: any) => ({ ...prev, [key]: value }));
+  const updateField = <K extends keyof SystemConfig>(
+    key: K,
+    value: SystemConfig[K],
+  ) => {
+    setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
   };
 
   const save = () => {
@@ -29,7 +39,6 @@ export default function SystemConfig() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="space-y-1">
         <h1 className="heading-1">System Configuration</h1>
         <p className="text-muted text-sm">
@@ -37,7 +46,6 @@ export default function SystemConfig() {
         </p>
       </div>
 
-      {/* GENERAL */}
       <Section title="General">
         <Input
           label="App Name"
@@ -46,38 +54,34 @@ export default function SystemConfig() {
         />
       </Section>
 
-      {/* ROLES */}
       <Section title="Roles">
         <div className="space-y-5">
-          {/* Available Roles */}
           <div className="space-y-2">
             <label className="text-xs text-muted uppercase tracking-wide">
               Available Roles
             </label>
 
             <RoleChips
-              roles={form.available_roles ?? []}
+              roles={form.available_roles}
               selected={form.available_roles}
               onChange={(roles) => updateField("available_roles", roles)}
             />
 
-            {/* Add new role */}
             <AddRoleInput
-              roles={form.available_roles ?? []}
+              roles={form.available_roles}
               onAdd={(role) =>
                 updateField("available_roles", [...form.available_roles, role])
               }
             />
           </div>
 
-          {/* Default Roles */}
           <div className="space-y-2">
             <label className="text-xs text-muted uppercase tracking-wide">
               Default Roles
             </label>
 
             <RoleChips
-              roles={form.available_roles ?? []}
+              roles={form.available_roles}
               selected={form.default_roles}
               onChange={(roles) => updateField("default_roles", roles)}
             />
@@ -85,7 +89,6 @@ export default function SystemConfig() {
         </div>
       </Section>
 
-      {/* TOKENS */}
       <Section title="Token Settings">
         <div className="grid grid-cols-2 gap-4">
           <Input
@@ -102,7 +105,6 @@ export default function SystemConfig() {
         </div>
       </Section>
 
-      {/* RATE LIMIT */}
       <Section title="Rate Limiting">
         <div className="grid grid-cols-2 gap-4">
           <NumberInput
@@ -119,7 +121,6 @@ export default function SystemConfig() {
         </div>
       </Section>
 
-      {/* WEBAUTHN / ORIGINS */}
       <Section title="WebAuthn / Origins">
         <div className="space-y-4">
           <Input
@@ -129,13 +130,12 @@ export default function SystemConfig() {
           />
 
           <OriginsEditor
-            origins={form.origins ?? []}
+            origins={form.origins}
             setOrigins={(v) => updateField("origins", v)}
           />
         </div>
       </Section>
 
-      {/* SAVE */}
       <div className="flex justify-end">
         <button onClick={save} className="btn btn-primary">
           Save Changes

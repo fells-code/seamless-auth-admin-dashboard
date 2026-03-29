@@ -1,9 +1,22 @@
-// src/pages/Security.tsx
-import { useAnomalies } from "../hooks/useAnomalies";
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
+import { useAnomalies, type AuthEventPartial } from "../hooks/useAnomalies";
 import { useLoginStats } from "../hooks/useLoginStats";
 import Skeleton from "../components/Skeleton";
 import StatCard from "../components/StatCard";
 import Table from "../components/Table";
+
+type LoginStats = {
+  success: number;
+  failed: number;
+  successRate?: number;
+};
+
+/* ---------- Helpers ---------- */
 
 function formatTimeAgo(value: string) {
   const diff = Date.now() - new Date(value).getTime();
@@ -14,11 +27,16 @@ function formatTimeAgo(value: string) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+/* ---------- Component ---------- */
+
 export default function Security() {
   const { data: anomalies, isLoading: loadingAnomalies } = useAnomalies();
   const { data: stats, isLoading: loadingStats } = useLoginStats();
 
-  const suspiciousEvents = anomalies?.suspiciousEvents ?? [];
+  const suspiciousEvents: AuthEventPartial[] =
+    anomalies?.suspiciousEvents ?? [];
+
+  const loginStats = stats as LoginStats | undefined;
 
   return (
     <div className="space-y-8">
@@ -40,14 +58,16 @@ export default function Security() {
           </>
         ) : (
           <>
-            <StatCard label="Login Success" value={stats?.success ?? 0} />
+            <StatCard label="Login Success" value={loginStats?.success ?? 0} />
 
-            <StatCard label="Login Failures" value={stats?.failed ?? 0} />
+            <StatCard label="Login Failures" value={loginStats?.failed ?? 0} />
 
             <StatCard
               label="Success Rate"
               value={
-                stats ? `${Math.round((stats.successRate || 0) * 100)}%` : "0%"
+                loginStats
+                  ? `${Math.round((loginStats.successRate ?? 0) * 100)}%`
+                  : "0%"
               }
             />
           </>
@@ -62,7 +82,7 @@ export default function Security() {
           <Skeleton className="h-10 rounded-xl" />
         ) : (
           <div className="text-2xl font-semibold text-[var(--highlight)]">
-            {anomalies?.failedLogins ?? 0}
+            {anomalies?.total ?? 0}
           </div>
         )}
       </Card>
@@ -81,30 +101,30 @@ export default function Security() {
             No suspicious activity detected
           </div>
         ) : (
-          <Table
+          <Table<AuthEventPartial>
             columns={[
               {
                 key: "type",
                 label: "Type",
-                render: (value: string) => (
+                render: (value) => (
                   <span className="text-sm font-medium text-[var(--highlight)]">
-                    {value}
+                    {value as string}
                   </span>
                 ),
               },
               {
                 key: "ip_address",
                 label: "IP",
-                render: (value: string) => (
-                  <span className="font-mono text-sm">{value}</span>
+                render: (value) => (
+                  <span className="font-mono text-sm">{value as string}</span>
                 ),
               },
               {
                 key: "created_at",
                 label: "Time",
-                render: (value: string) => (
+                render: (value) => (
                   <span className="text-sm text-muted">
-                    {formatTimeAgo(value)}
+                    {formatTimeAgo(value as string)}
                   </span>
                 ),
               },

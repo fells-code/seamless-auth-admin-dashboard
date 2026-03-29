@@ -1,12 +1,10 @@
-// src/types/user.ts
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
 
-export type User = {
-  id: string;
-  email: string;
-  phone?: string | null;
-  roles: string[];
-  verified: boolean;
-};
+import type { User } from "@seamless-auth/types";
 
 export type Session = {
   id: string;
@@ -20,6 +18,8 @@ export type Credential = {
   id: string;
   deviceType?: string;
   createdAt: string;
+  browser: string;
+  platform: string;
 };
 
 export type AuthEvent = {

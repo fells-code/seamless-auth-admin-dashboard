@@ -1,4 +1,9 @@
-// src/pages/Profile.tsx
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
 import { useAuth } from "@seamless-auth/react";
 import { useUserDetail } from "../hooks/useUserDetail";
 import { useRevokeSession } from "../hooks/useRevokeSession";
@@ -10,6 +15,29 @@ import { useState } from "react";
 import { Section } from "../components/Section";
 import { ShieldOff } from "lucide-react";
 
+/* ---------- Types ---------- */
+
+type Session = {
+  id: string;
+  ipAddress: string;
+  userAgent: string;
+  lastUsedAt: string;
+};
+
+type Credential = {
+  id: string;
+  deviceType: string;
+  browser: string;
+  createdAt: string;
+};
+
+type UserDetailResponse = {
+  sessions: Session[];
+  credentials: Credential[];
+};
+
+/* ---------- Component ---------- */
+
 export default function Profile() {
   const { user } = useAuth();
 
@@ -20,14 +48,22 @@ export default function Profile() {
   const revokeSession = useRevokeSession();
   const updateUser = useUpdateUser(user?.id);
 
-  const [email, setEmail] = useState(user?.email ?? "");
-  const [phone, setPhone] = useState(user?.phone ?? "");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [initialized, setInitialized] = useState(false);
+
+  // initialize once (no effect)
+  if (!initialized && user) {
+    setEmail(user.email ?? "");
+    setPhone(user.phone ?? "");
+    setInitialized(true);
+  }
 
   if (isLoading || !data) {
     return <Skeleton className="h-40 rounded-xl" />;
   }
 
-  const { sessions, credentials } = data;
+  const { sessions, credentials } = data as UserDetailResponse;
 
   const save = () => {
     updateUser.mutate({ email, phone });
@@ -43,7 +79,7 @@ export default function Profile() {
         </p>
       </div>
 
-      {/* Profile Info */}
+      {/* Account */}
       <Section title="Account">
         <div className="space-y-4">
           <Input label="Email" value={email} onChange={setEmail} />
@@ -59,7 +95,7 @@ export default function Profile() {
 
       {/* Sessions */}
       <Section title="Sessions">
-        <Table
+        <Table<Session>
           limit={limit}
           offset={offset}
           total={sessions.length}
@@ -68,14 +104,12 @@ export default function Profile() {
             {
               key: "ipAddress",
               label: "IP",
-              render: (v: string) => (
-                <span className="font-mono text-sm">{v}</span>
-              ),
+              render: (v) => <span className="font-mono text-sm">{v}</span>,
             },
             {
               key: "userAgent",
               label: "Device",
-              render: (v: string) => (
+              render: (v) => (
                 <span className="text-sm text-muted truncate max-w-[200px]">
                   {v}
                 </span>
@@ -84,7 +118,7 @@ export default function Profile() {
             {
               key: "lastUsedAt",
               label: "Last Used",
-              render: (v: string) => (
+              render: (v) => (
                 <span className="text-sm text-muted">
                   {new Date(v).toLocaleString()}
                 </span>
@@ -99,20 +133,20 @@ export default function Profile() {
               onClick: (row) => revokeSession.mutate(row.id),
             },
           ]}
-          data={sessions.slice(0, 5)}
+          data={sessions.slice(offset, offset + limit)}
         />
       </Section>
 
       {/* Credentials */}
       <Section title="Credentials">
-        <Table
+        <Table<Credential>
           columns={[
             { key: "deviceType", label: "Device" },
             { key: "browser", label: "Browser" },
             {
               key: "createdAt",
               label: "Created",
-              render: (v: string) => (
+              render: (v) => (
                 <span className="text-sm text-muted">
                   {new Date(v).toLocaleString()}
                 </span>

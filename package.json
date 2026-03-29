@@ -10,11 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@seamless-auth/react": "file:../seamless-auth-react",
-    "@seamless-auth/types": "file:../seamless-auth-types",
+    "@seamless-auth/react": "^0.0.7",
+    "@seamless-auth/types": "^0.1.3",
     "@tailwindcss/vite": "^4.2.2",
     "@tanstack/react-query": "^5.94.5",
     "clsx": "^2.1.1",
+    "eslint-plugin-license-header": "^0.9.0",
     "lucide-react": "^0.577.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

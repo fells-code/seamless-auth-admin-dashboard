@@ -1,3 +1,9 @@
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
 import { useParams, useNavigate } from "react-router-dom";
 import { useUserDetail } from "../hooks/useUserDetail";
 import { useUserAnomalies } from "../hooks/useUserAnomalies";
@@ -15,29 +21,36 @@ import { calculateRiskScore } from "../lib/riskScore";
 import MiniLineChart from "../components/MiniLineChart";
 import { useUserTimeseries } from "../hooks/useUserTimeseries";
 import { Trash2, ShieldOff } from "lucide-react";
+import type {
+  AuthEvent,
+  Credential,
+  Session,
+  UserDetailResponse,
+} from "../types/user";
 
 export default function UserDetail() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const { data, isLoading } = useUserDetail(id!);
   const { data: anomalies } = useUserAnomalies(id!);
-  const { data: timeseries } = useUserTimeseries(data?.user?.id || "");
+  const { data: timeseries } = useUserTimeseries(data?.user?.id ?? "");
 
   const revokeSession = useRevokeSession();
   const deleteUser = useDeleteUser();
 
   const [editing, setEditing] = useState(false);
-  const [tab, setTab] = useState("Overview");
+  const [tab, setTab] = useState<
+    "Overview" | "Sessions" | "Credentials" | "Events" | "Security"
+  >("Overview");
 
   if (isLoading || !data) {
     return <Skeleton className="h-40" />;
   }
 
-  const { user, sessions, credentials, events } = data;
+  const { user, sessions, credentials, events } = data as UserDetailResponse;
 
-  const failedLogins =
-    events.filter((e) => e.type === "login_failed").length ?? 0;
+  const failedLogins = events.filter((e) => e.type === "login_failed").length;
 
   const suspiciousCount = anomalies?.suspiciousEvents.length ?? 0;
 
@@ -56,7 +69,7 @@ export default function UserDetail() {
 
   const revokeAllSessions = () => {
     if (!confirm("Revoke all sessions?")) return;
-    sessions.forEach((s: any) => revokeSession.mutate(s.id));
+    sessions.forEach((s) => revokeSession.mutate(s.id));
   };
 
   return (
@@ -66,7 +79,10 @@ export default function UserDetail() {
         <div className="space-y-2">
           <div className="flex items-center gap-3">
             <h1 className="heading-1">{user.email}</h1>
-            <RiskBadge level={risk.level} color={risk.color as any} />
+            <RiskBadge
+              level={risk.level}
+              color={risk.color as "green" | "red" | "yellow"}
+            />
           </div>
 
           <p className="text-subtle font-mono">{user.id}</p>
@@ -99,15 +115,15 @@ export default function UserDetail() {
       <Tabs
         tabs={["Overview", "Sessions", "Credentials", "Events", "Security"]}
         active={tab}
-        onChange={setTab}
+        onChange={(t) => setTab(t as typeof tab)}
       />
 
-      {/* CONTENT */}
+      {/* Overview */}
       {tab === "Overview" && (
         <div className="grid grid-cols-3 gap-5">
           <Card className="col-span-3">
             <CardHeader title="Login Activity" subtitle="Last 24 hours" />
-            <MiniLineChart data={timeseries?.timeseries ?? []} />
+            <MiniLineChart data={timeseries?.timeseries} />
           </Card>
 
           <Stat label="Roles" value={user.roles.join(", ")} />
@@ -116,8 +132,9 @@ export default function UserDetail() {
         </div>
       )}
 
+      {/* Sessions */}
       {tab === "Sessions" && (
-        <Table
+        <Table<Session>
           selectable
           columns={[
             { key: "ipAddress", label: "IP" },
@@ -126,7 +143,7 @@ export default function UserDetail() {
               key: "lastUsedAt",
               label: "Last Used",
               sortable: true,
-              render: (v) => new Date(v).toLocaleString(),
+              render: (v) => new Date(v as string).toLocaleString(),
             },
           ]}
           actions={[
@@ -149,8 +166,9 @@ export default function UserDetail() {
         />
       )}
 
+      {/* Credentials */}
       {tab === "Credentials" && (
-        <Table
+        <Table<Credential>
           columns={[
             { key: "deviceType", label: "Device" },
             { key: "browser", label: "Browser" },
@@ -158,28 +176,30 @@ export default function UserDetail() {
             {
               key: "createdAt",
               label: "Created",
-              render: (v) => new Date(v).toLocaleString(),
+              render: (v) => new Date(v as string).toLocaleString(),
             },
           ]}
           data={credentials}
         />
       )}
 
+      {/* Events */}
       {tab === "Events" && (
-        <Table
+        <Table<AuthEvent>
           columns={[
             { key: "type", label: "Type" },
             {
               key: "created_at",
               label: "Time",
               sortable: true,
-              render: (v) => new Date(v).toLocaleString(),
+              render: (v) => new Date(v as string).toLocaleString(),
             },
           ]}
           data={events}
         />
       )}
 
+      {/* Security */}
       {tab === "Security" && (
         <Card className="border-red-500/30 bg-red-500/5">
           <CardHeader title="Security Signals" />
@@ -190,14 +210,14 @@ export default function UserDetail() {
                 {anomalies.suspiciousEvents.length} suspicious events detected
               </div>
 
-              <Table
+              <Table<AuthEvent>
                 columns={[
                   { key: "type", label: "Type" },
                   { key: "ip_address", label: "IP" },
                   {
                     key: "created_at",
                     label: "Time",
-                    render: (v) => new Date(v).toLocaleString(),
+                    render: (v) => new Date(v as string).toLocaleString(),
                   },
                 ]}
                 data={anomalies.suspiciousEvents}
@@ -217,8 +237,6 @@ export default function UserDetail() {
     </div>
   );
 }
-
-/* ---------- Reusable UI ---------- */
 
 function Card({
   children,

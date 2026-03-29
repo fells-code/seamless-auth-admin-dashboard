@@ -1,3 +1,9 @@
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
 import { useDashboard } from "../hooks/useDashboard";
 import { useAuthTimeseries } from "../hooks/useAuthTimeseries";
 import { useGroupedEvents } from "../hooks/useGroupedEvents";
@@ -31,18 +37,18 @@ export default function Overview() {
           ))
         ) : (
           <>
-            <StatCard label="Users" value={data?.totalUsers} />
+            <StatCard label="Users" value={data?.totalUsers ?? 0} />
             <StatCard
               label="Database"
               value={formatBytes(data?.databaseSize ?? 0)}
             />
             <StatCard
               label="Sessions - Last 24h"
-              value={data?.activeSessions}
+              value={data?.activeSessions ?? 0}
             />
             <StatCard
               label="Logins  - Last 24h"
-              value={data?.loginSuccess24h}
+              value={data?.loginSuccess24h ?? 0}
             />
             <StatCard
               label="Failure Rate  - Last 24h"
@@ -80,7 +86,7 @@ export default function Overview() {
         <InsightCard
           title="Login Failures - Last 24h"
           message={`${data?.loginFailed24h ?? 0} failures in the last 24 hours`}
-          tone={data?.loginFailed24h > 0 ? "danger" : "neutral"}
+          tone={(data?.loginFailed24h ?? 0 > 0) ? "danger" : "neutral"}
         />
 
         <InsightCard

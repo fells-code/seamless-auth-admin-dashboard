@@ -1,6 +1,13 @@
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
 // src/hooks/useEvents.ts
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
+import type { AuthEvent } from "@seamless-auth/types";
 
 export function useEvents(params: {
   limit?: number;
@@ -32,7 +39,7 @@ export function useEvents(params: {
       params.to,
     ],
     queryFn: () =>
-      apiFetch<{ events: any[]; total: number }>(
+      apiFetch<{ events: AuthEvent[]; total: number }>(
         `/admin/auth-events?${query.toString()}`,
       ),
   });

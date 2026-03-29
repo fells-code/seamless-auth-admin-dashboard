@@ -1,16 +1,26 @@
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
 import { LineChart, Line, ResponsiveContainer, Area, Tooltip } from "recharts";
+import type { TimeSeriesData } from "../hooks/useUserTimeseries";
 
 function formatLabel(value: string) {
   const d = new Date(value);
   return d.toLocaleString();
 }
 
-export default function MiniLineChart({ data }: { data: any[] }) {
+export default function MiniLineChart({
+  data,
+}: {
+  data: TimeSeriesData[] | undefined;
+}) {
   return (
     <div className="h-24 w-full">
       <ResponsiveContainer>
         <LineChart data={data}>
-          {/* Tooltip */}
           <Tooltip
             contentStyle={{
               background: "var(--surface)",
@@ -23,8 +33,11 @@ export default function MiniLineChart({ data }: { data: any[] }) {
               color: "var(--text-muted)",
               fontSize: "11px",
             }}
-            labelFormatter={formatLabel}
-            formatter={(value: number, name: string) => [
+            labelFormatter={(label) => {
+              if (typeof label !== "string") return label;
+              return formatLabel(label);
+            }}
+            formatter={(value, name) => [
               value,
               name === "success" ? "Success" : "Failed",
             ]}

@@ -1,14 +1,21 @@
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
 // src/components/EditUserModal.tsx
 import { useState } from "react";
 import { useUpdateUser } from "../hooks/useUpdateUser";
 import { useRoles } from "../hooks/useRoles";
 import RoleChips from "./RoleChips";
+import type { User } from "@seamless-auth/types";
 
 export default function EditUserModal({
   user,
   onClose,
 }: {
-  user: any;
+  user: User;
   onClose: () => void;
 }) {
   const [email, setEmail] = useState(user.email);

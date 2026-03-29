@@ -1,4 +1,9 @@
-// src/pages/Users.tsx
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
 import { useState } from "react";
 import { useUsers } from "../hooks/useUsers";
 import Table from "../components/Table";
@@ -8,7 +13,20 @@ import { useNavigate } from "react-router-dom";
 import CreateUserModal from "../components/CreateUserModal";
 import { ArrowRight, Trash2 } from "lucide-react";
 
-function formatTimeAgo(date?: string) {
+/* ---------- Types ---------- */
+
+type User = {
+  id: string;
+  email: string;
+  phone?: string | null;
+  roles: string[];
+  verified: boolean;
+  lastLogin?: string | null;
+};
+
+/* ---------- Helpers ---------- */
+
+function formatTimeAgo(date?: string | null) {
   if (!date) return "-";
   const diff = Date.now() - new Date(date).getTime();
   const mins = Math.floor(diff / 60000);
@@ -17,6 +35,8 @@ function formatTimeAgo(date?: string) {
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.floor(hrs / 24)}d ago`;
 }
+
+/* ---------- Component ---------- */
 
 export default function Users() {
   const navigate = useNavigate();
@@ -29,7 +49,7 @@ export default function Users() {
 
   const { data, isLoading } = useUsers({ search, limit, offset });
 
-  const users = data?.users ?? [];
+  const users: User[] = data?.users ?? [];
   const total = data?.total ?? 0;
 
   if (isLoading) {
@@ -75,7 +95,7 @@ export default function Users() {
           No users found. Create your first user to get started.
         </div>
       ) : (
-        <Table
+        <Table<User>
           data={users}
           selectable
           limit={limit}
@@ -87,7 +107,7 @@ export default function Users() {
               key: "email",
               label: "User",
               sortable: true,
-              render: (value: string, row: any) => (
+              render: (value, row) => (
                 <div
                   onClick={() => navigate(`/users/${row.id}`)}
                   className="group flex items-center justify-between cursor-pointer"
@@ -98,7 +118,7 @@ export default function Users() {
                     </span>
 
                     <span className="text-xs text-muted">
-                      {row.phone || "No phone"}
+                      {row.phone ?? "No phone"}
                     </span>
                   </div>
                 </div>
@@ -107,16 +127,17 @@ export default function Users() {
             {
               key: "roles",
               label: "Roles",
-              render: (roles: string[]) => (
+              render: (roles) => (
                 <div className="flex flex-wrap gap-1">
-                  {roles.map((r) => (
-                    <span
-                      key={r}
-                      className="px-2 py-0.5 text-xs rounded-full bg-surface-alt border border-subtle"
-                    >
-                      {r}
-                    </span>
-                  ))}
+                  {roles &&
+                    (roles as string[]).map((r) => (
+                      <span
+                        key={r}
+                        className="px-2 py-0.5 text-xs rounded-full bg-surface-alt border border-subtle"
+                      >
+                        {r}
+                      </span>
+                    ))}
                 </div>
               ),
             },
@@ -124,7 +145,7 @@ export default function Users() {
               key: "verified",
               label: "Status",
               sortable: true,
-              render: (value: boolean) => (
+              render: (value) => (
                 <span
                   className={`text-xs font-medium ${
                     value ? "text-[var(--accent)]" : "text-[var(--highlight)]"
@@ -138,9 +159,9 @@ export default function Users() {
               key: "lastLogin",
               label: "Last Active",
               sortable: true,
-              render: (value: string) => (
+              render: (value) => (
                 <span className="text-sm text-muted">
-                  {formatTimeAgo(value)}
+                  {formatTimeAgo(value as string)}
                 </span>
               ),
             },
@@ -156,6 +177,7 @@ export default function Users() {
               label: "Delete",
               variant: "danger",
               onClick: (row) => {
+                // TODO: Implement delete user
                 console.log("delete user", row.id);
               },
             },

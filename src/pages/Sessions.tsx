@@ -1,15 +1,20 @@
-// src/pages/Sessions.tsx
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
 import { useSessions } from "../hooks/useSessions";
 import { useRevokeSession } from "../hooks/useRevokeSession";
 import Table from "../components/Table";
 import Skeleton from "../components/Skeleton";
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
+import type { Session } from "../types/user";
 
-function formatUserAgent(ua?: string) {
+function formatUserAgent(ua?: string | null) {
   if (!ua) return "Unknown device";
 
-  // quick lightweight parsing
   if (ua.includes("Firefox")) return "Firefox";
   if (ua.includes("Chrome")) return "Chrome";
   if (ua.includes("Safari")) return "Safari";
@@ -45,7 +50,7 @@ export default function Sessions() {
         <p className="text-muted text-sm">Active sessions across your system</p>
       </div>
 
-      <Table
+      <Table<Session>
         selectable
         limit={limit}
         offset={offset}
@@ -56,19 +61,21 @@ export default function Sessions() {
             key: "ipAddress",
             label: "IP Address",
             sortable: true,
-            render: (value: string) => (
+            render: (value) => (
               <span className="font-mono text-sm">{value}</span>
             ),
           },
           {
             key: "userAgent",
             label: "Device",
-            render: (value: string) => (
+            render: (value) => (
               <div className="flex flex-col">
                 <span className="text-sm">{formatUserAgent(value)}</span>
-                <span className="text-xs text-muted truncate max-w-[200px]">
-                  {value}
-                </span>
+                {value && (
+                  <span className="text-xs text-muted truncate max-w-[200px]">
+                    {value}
+                  </span>
+                )}
               </div>
             ),
           },
@@ -76,9 +83,9 @@ export default function Sessions() {
             key: "lastUsedAt",
             label: "Last Used",
             sortable: true,
-            render: (value: string) => (
+            render: (value) => (
               <span className="text-sm">
-                {new Date(value).toLocaleString()}
+                {new Date(value as string).toLocaleString()}
               </span>
             ),
           },

@@ -1,9 +1,23 @@
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
 import { useState } from "react";
 import { useEvents } from "../hooks/useEvents";
 import Table from "../components/Table";
 import Skeleton from "../components/Skeleton";
 import EventFilters from "../components/EventFilters";
 import { useNavigate } from "react-router-dom";
+import type { AuthEvent } from "@seamless-auth/types";
+
+export type EventFilter = {
+  type: string[];
+  from?: string;
+  to?: string;
+  range: "1h" | "24h" | "7d" | "custom";
+};
 
 function formatTimeAgo(value: string) {
   const diff = Date.now() - new Date(value).getTime();
@@ -18,9 +32,9 @@ export default function Events() {
   const navigate = useNavigate();
 
   const [offset, setOffset] = useState(0);
-
   const limit = 10;
-  const [filters, setFilters] = useState({
+
+  const [filters, setFilters] = useState<EventFilter>({
     type: [],
     from: undefined,
     to: undefined,
@@ -35,12 +49,11 @@ export default function Events() {
     limit,
   });
 
-  const events = data?.events ?? [];
+  const events: AuthEvent[] = data?.events ?? [];
   const total = data?.total ?? 0;
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="space-y-1">
         <h1 className="heading-1">Events</h1>
         <p className="text-muted text-sm">
@@ -48,11 +61,10 @@ export default function Events() {
         </p>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <EventFilters
           value={filters}
-          onChange={(v) => {
+          onChange={(v: EventFilter) => {
             setOffset(0);
             setFilters(v);
           }}
@@ -71,7 +83,7 @@ export default function Events() {
           No events found for the selected filters
         </div>
       ) : (
-        <Table
+        <Table<AuthEvent>
           limit={limit}
           offset={offset}
           total={total}
@@ -81,22 +93,22 @@ export default function Events() {
               key: "type",
               label: "Type",
               sortable: true,
-              render: (value: string) => (
+              render: (value) => (
                 <span className="text-sm font-medium text-primary">
-                  {value}
+                  {value as string}
                 </span>
               ),
             },
             {
               key: "user_id",
               label: "User",
-              render: (value: string) =>
+              render: (value) =>
                 value ? (
                   <button
                     onClick={() => navigate(`/users/${value}`)}
                     className="text-sm text-muted hover:text-primary"
                   >
-                    {value.slice(0, 8)}...
+                    {(value as string).slice(0, 8)}...
                   </button>
                 ) : (
                   <span className="text-subtle">System</span>
@@ -105,17 +117,17 @@ export default function Events() {
             {
               key: "ip_address",
               label: "IP",
-              render: (value: string) => (
-                <span className="font-mono text-sm">{value}</span>
+              render: (value) => (
+                <span className="font-mono text-sm">{value as string}</span>
               ),
             },
             {
               key: "created_at",
               label: "Time",
               sortable: true,
-              render: (value: string) => (
+              render: (value) => (
                 <span className="text-sm text-muted">
-                  {formatTimeAgo(value)}
+                  {formatTimeAgo(value as string)}
                 </span>
               ),
             },

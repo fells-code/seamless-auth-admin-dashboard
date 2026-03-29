@@ -1,3 +1,9 @@
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
 import {
   LineChart as RLineChart,
   Line,
@@ -9,6 +15,14 @@ import {
   CartesianGrid,
   Area,
 } from "recharts";
+
+type ChartPoint = {
+  bucket: string; // ISO date string
+  success: number;
+  failed: number;
+};
+
+type Interval = "hour" | "day";
 
 function formatHour(value: string) {
   const d = new Date(value);
@@ -27,8 +41,8 @@ export default function LineChart({
   data,
   interval = "hour",
 }: {
-  data: any[];
-  interval?: "hour" | "day";
+  data: ChartPoint[];
+  interval?: Interval;
 }) {
   const formatTick = interval === "day" ? formatDay : formatHour;
 
@@ -36,7 +50,7 @@ export default function LineChart({
     <div className="h-64 w-full">
       <ResponsiveContainer>
         <RLineChart data={data}>
-          {/* subtle grid */}
+          {/* Grid */}
           <CartesianGrid
             stroke="var(--border)"
             strokeDasharray="3 3"
@@ -63,11 +77,13 @@ export default function LineChart({
               fontSize: "12px",
               color: "var(--text-muted)",
             }}
-            labelFormatter={(label) =>
-              interval === "day"
+            labelFormatter={(label) => {
+              if (typeof label !== "string") return label;
+
+              return interval === "day"
                 ? formatDay(label)
-                : new Date(label).toLocaleString()
-            }
+                : new Date(label).toLocaleString();
+            }}
           />
 
           <Legend
@@ -77,7 +93,7 @@ export default function LineChart({
             }}
           />
 
-          {/* SUCCESS (teal) */}
+          {/* SUCCESS */}
           <Area
             type="monotone"
             dataKey="success"
@@ -94,7 +110,7 @@ export default function LineChart({
             name="Success"
           />
 
-          {/* FAILED (terracotta) */}
+          {/* FAILED */}
           <Area
             type="monotone"
             dataKey="failed"

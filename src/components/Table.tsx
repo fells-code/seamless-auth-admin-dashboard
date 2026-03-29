@@ -1,28 +1,33 @@
-// src/components/Table.tsx
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
 import { useState, useRef, useEffect } from "react";
 import clsx from "clsx";
 
-type Column = {
-  key: string;
+type Column<T, K extends keyof T = keyof T> = {
+  key: K;
   label: string;
   sortable?: boolean;
-  render?: (value: any, row: any) => React.ReactNode;
+  render?: (value: T[K], row: T) => React.ReactNode;
 };
 
-type RowAction = {
-  icon: any;
-  onClick: (row: any) => void;
+type RowAction<T> = {
+  icon: React.ComponentType<{ size?: number }>;
+  onClick: (row: T) => void;
   label?: string;
   variant?: "default" | "danger";
 };
 
-type BulkAction = {
+type BulkAction<T> = {
   label: string;
-  onClick: (rows: any[]) => void;
+  onClick: (rows: T[]) => void;
   variant?: "default" | "danger";
 };
 
-export default function Table({
+export default function Table<T extends Record<string, unknown>>({
   columns,
   data,
   selectable = false,
@@ -33,12 +38,12 @@ export default function Table({
   offset = 0,
   onPageChange,
 }: {
-  columns: Column[];
-  data: any[];
+  columns: Column<T>[];
+  data: T[];
   selectable?: boolean;
 
-  actions?: RowAction[];
-  bulkActions?: BulkAction[];
+  actions?: RowAction<T>[];
+  bulkActions?: BulkAction<T>[];
 
   total?: number;
   limit?: number;
@@ -46,13 +51,14 @@ export default function Table({
   onPageChange?: (offset: number) => void;
 }) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<keyof T | null>(null);
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
 
   const headerCheckboxRef = useRef<HTMLInputElement | null>(null);
 
   const toggleSelect = (index: number) => {
     const next = new Set(selected);
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     next.has(index) ? next.delete(index) : next.add(index);
     setSelected(next);
   };
@@ -65,7 +71,7 @@ export default function Table({
     }
   };
 
-  // 🔥 indeterminate state
+  // indeterminate state
   useEffect(() => {
     if (headerCheckboxRef.current) {
       headerCheckboxRef.current.indeterminate =
@@ -73,7 +79,7 @@ export default function Table({
     }
   }, [selected, data.length]);
 
-  const handleSort = (key: string) => {
+  const handleSort = (key: keyof T) => {
     if (sortKey === key) {
       setDirection(direction === "asc" ? "desc" : "asc");
     } else {
@@ -102,7 +108,7 @@ export default function Table({
     actions.length ? "80px" : ""
   }`;
 
-  const selectedRows = [...selected].map((i) => sortedData[i]);
+  const selectedRows: T[] = [...selected].map((i) => sortedData[i]);
 
   return (
     <div className="space-y-3">
@@ -147,7 +153,7 @@ export default function Table({
 
         {columns.map((col) => (
           <div
-            key={col.key}
+            key={String(col.key)}
             className={clsx(
               col.sortable &&
                 "cursor-pointer hover:text-primary flex items-center gap-1",
@@ -191,8 +197,10 @@ export default function Table({
             )}
 
             {columns.map((col) => (
-              <div key={col.key} className="truncate text-sm">
-                {col.render ? col.render(row[col.key], row) : row[col.key]}
+              <div key={String(col.key)} className="truncate text-sm">
+                {col.render
+                  ? col.render(row[col.key], row)
+                  : (row[col.key] as React.ReactNode)}
               </div>
             ))}
 
