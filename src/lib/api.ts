@@ -4,8 +4,9 @@
  * See LICENSE file in the project root for full license information
  */
 
-export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5312";
-const API_SERVICE_TOKEN = import.meta.env.VITE_API_SERVICE_TOKEN;
+import { getApiUrl } from "./runtimeConfig";
+
+export const API_URL = getApiUrl();
 
 export async function apiFetch<T>(
   path: string,
@@ -14,10 +15,6 @@ export async function apiFetch<T>(
   const headers = new Headers(options.headers || {});
 
   headers.set("Content-Type", "application/json");
-
-  if (API_SERVICE_TOKEN) {
-    headers.set("Authorization", `Bearer ${API_SERVICE_TOKEN}`);
-  }
 
   const res = await fetch(`${API_URL}${path}`, {
     credentials: "include",
