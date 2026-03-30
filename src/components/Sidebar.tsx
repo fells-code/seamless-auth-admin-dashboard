@@ -79,7 +79,7 @@ export default function Sidebar() {
 
       {/* Optional footer (future space for version / env) */}
       <div className="text-xs text-muted px-2 pt-4 border-t border-subtle">
-        v0.1
+        v0.0.5
       </div>
     </aside>
   );
