@@ -1,3 +1,5 @@
+[![Publish Docker Image](https://github.com/fells-code/seamless-auth-admin-dashboard/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/fells-code/seamless-auth-admin-dashboard/actions/workflows/docker-publish.yml)
+
 # Seamless Auth Dashboard
 
 The Seamless Auth Dashboard is a web interface for operating a Seamless Auth deployment. It provides visibility into authentication activity and gives operators direct control over users, sessions, and configuration.
