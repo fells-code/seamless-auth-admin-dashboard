@@ -15,7 +15,7 @@ export default function Unauthenticated() {
     return <LayoutSkeleton />;
   }
 
-  if (isAuthenticated) {
+  if (isAuthenticated && hasRole("admin")) {
     return <Navigate to="/" replace />;
   }
 

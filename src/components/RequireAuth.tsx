@@ -14,7 +14,7 @@ export default function RequireAuth({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, hasRole } = useAuth();
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export default function RequireAuth({
     return <AuthLoading />;
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !hasRole("admin")) {
     return <Navigate to="/unauthenticated" replace />;
   }
 
