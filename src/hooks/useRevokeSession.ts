@@ -13,7 +13,7 @@ export function useRevokeSession() {
 
   return useMutation({
     mutationFn: (id: string) =>
-      apiFetch(`/sessions/${id}`, {
+      apiFetch(`/admin/sessions/${id}`, {
         method: "DELETE",
       }),
     onSuccess: () => {

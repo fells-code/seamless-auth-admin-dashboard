@@ -8,6 +8,7 @@ declare global {
   interface Window {
     __SEAMLESS_CONFIG__?: {
       API_URL: string;
+      AUTH_MODE: string;
     };
   }
 }
@@ -18,4 +19,12 @@ export function getApiUrl(): string {
   }
 
   return import.meta.env.VITE_API_URL;
+}
+
+export function getAuthMode(): string {
+  if (window.__SEAMLESS_CONFIG__?.AUTH_MODE) {
+    return window.__SEAMLESS_CONFIG__.AUTH_MODE;
+  }
+
+  return import.meta.env.VITE_AUTH_MODE;
 }
