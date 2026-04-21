@@ -5,9 +5,11 @@
  */
 
 // src/components/UserMenu.tsx
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@seamless-auth/react";
 import { useNavigate } from "react-router-dom";
+import ThemeToggle from "./ThemeToggle";
+import { useTheme } from "../hooks/useTheme";
 
 function getInitials(email: string) {
   if (!email) return "?";
@@ -32,48 +34,122 @@ function timeAgo(date?: string) {
 export default function UserMenu() {
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
+  const { themeName, setThemeName, themes } = useTheme();
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open]);
 
   if (!user) return null;
 
   return (
-    <div className="relative z-50">
+    <div ref={menuRef} className="relative z-50">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-3 px-3 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-800"
+        className="flex items-center gap-3 rounded-lg px-3 py-1.5 transition hover:bg-[var(--surface-alt)]"
       >
         {/* Avatar */}
-        <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center text-sm font-semibold">
+        <div
+          className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold text-white"
+          style={{ backgroundColor: "var(--primary)" }}
+        >
           {getInitials(user.email)}
         </div>
 
         {/* Info */}
-        <div className="text-left hidden sm:block">
+        <div className="hidden text-left sm:block">
           <div className="text-sm font-medium">{user.email}</div>
-          <div className="text-xs text-gray-400">
+          <div className="text-xs text-[var(--text-muted)]">
             last login: {timeAgo(user.lastLogin)}
           </div>
         </div>
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-56 bg-surface border border-subtle border border-gray-200 dark:border-gray-800 rounded shadow-lg">
-          <button
-            onClick={() => {
-              navigate("/profile");
-              setOpen(false);
-            }}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800"
-          >
-            Profile
-          </button>
+        <div className="absolute right-0 mt-2 w-80 rounded-xl border border-subtle bg-surface p-2 shadow-lg">
+          <div className="border-b border-subtle px-3 pb-3 pt-2">
+            <div className="text-sm font-medium">Appearance</div>
+            <div className="mt-1 text-xs text-[var(--text-muted)]">
+              Choose a color theme and light or dark mode.
+            </div>
+          </div>
 
-          <button
-            onClick={logout}
-            className="w-full text-left px-4 py-2 text-red-500 hover:bg-gray-100 dark:hover:bg-gray-800"
-          >
-            Logout
-          </button>
+          <div className="space-y-2 px-2 py-3">
+            {themes.map((theme) => {
+              const active = theme.value === themeName;
+
+              return (
+                <button
+                  key={theme.value}
+                  onClick={() => setThemeName(theme.value)}
+                  className={`w-full rounded-xl border px-3 py-3 text-left transition ${
+                    active
+                      ? "border-[var(--primary)] bg-[var(--surface-alt)] shadow-sm"
+                      : "border-subtle hover:bg-[var(--surface-alt)]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-medium">{theme.label}</div>
+                      <div className="mt-1 text-xs text-[var(--text-muted)]">
+                        {theme.description}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      {theme.swatches.map((swatch) => (
+                        <span
+                          key={swatch}
+                          className="h-4 w-4 rounded-full border border-white/40"
+                          style={{ backgroundColor: swatch }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+
+            <div className="pt-1">
+              <ThemeToggle />
+            </div>
+          </div>
+
+          <div className="border-t border-subtle px-2 pt-2">
+            <button
+              onClick={() => {
+                navigate("/profile");
+                setOpen(false);
+              }}
+              className="w-full rounded-lg px-4 py-2 text-left text-sm transition hover:bg-[var(--surface-alt)]"
+            >
+              Profile
+            </button>
+
+            <button
+              onClick={() => {
+                setOpen(false);
+                logout();
+              }}
+              className="w-full rounded-lg px-4 py-2 text-left text-sm text-[var(--highlight)] transition hover:bg-[var(--surface-alt)]"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       )}
     </div>

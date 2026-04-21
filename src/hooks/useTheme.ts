@@ -4,29 +4,15 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { useState } from "react";
-
-type Theme = "light" | "dark";
+import { useContext } from "react";
+import { ThemeContext } from "../lib/theme";
 
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const stored = localStorage.getItem("theme") as Theme | null;
+  const context = useContext(ThemeContext);
 
-    const initial = stored ?? "light";
+  if (!context) {
+    throw new Error("useTheme must be used within a ThemeProvider");
+  }
 
-    // apply immediately (no effect needed)
-    document.documentElement.classList.toggle("dark", initial === "dark");
-
-    return initial;
-  });
-
-  const toggle = () => {
-    const next: Theme = theme === "light" ? "dark" : "light";
-
-    setTheme(next);
-    localStorage.setItem("theme", next);
-    document.documentElement.classList.toggle("dark", next === "dark");
-  };
-
-  return { theme, toggle };
+  return context;
 }
