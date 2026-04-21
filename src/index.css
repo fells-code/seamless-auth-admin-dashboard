@@ -116,6 +116,120 @@
   --highlight: #b8d3e0;
 }
 
+:root[data-theme="summer"] {
+  --bg: #f7f1dc;
+  --surface: #fffaf0;
+  --surface-alt: #f3e2bf;
+
+  --text: #2f3d47;
+  --text-muted: #6f7f87;
+
+  --border: #e7d2a2;
+
+  --primary: #33a6c9;
+  --primary-hover: #218fb0;
+
+  --accent: #1c5b74;
+  --accent-soft: #d6edf3;
+
+  --highlight: #f2bf63;
+}
+
+:root.dark[data-theme="summer"] {
+  --bg: #0f2029;
+  --surface: #17303c;
+  --surface-alt: #214252;
+
+  --text: #edf8fb;
+  --text-muted: #a6c0c9;
+
+  --border: #335667;
+
+  --primary: #58c4e5;
+  --primary-hover: #7ed2ec;
+
+  --accent: #f2bf63;
+  --accent-soft: #193845;
+
+  --highlight: #ffd489;
+}
+
+:root[data-theme="spring"] {
+  --bg: #f9f3e8;
+  --surface: #fffdf8;
+  --surface-alt: #f7e7de;
+
+  --text: #354233;
+  --text-muted: #72806e;
+
+  --border: #e8d9c8;
+
+  --primary: #e88fb0;
+  --primary-hover: #d77b9d;
+
+  --accent: #7fbf74;
+  --accent-soft: #e1f0db;
+
+  --highlight: #f4d96c;
+}
+
+:root.dark[data-theme="spring"] {
+  --bg: #1a1f18;
+  --surface: #242b22;
+  --surface-alt: #30392d;
+
+  --text: #f3f5ec;
+  --text-muted: #b3beaa;
+
+  --border: #445140;
+
+  --primary: #f0a6c2;
+  --primary-hover: #f4bad0;
+
+  --accent: #9ed28f;
+  --accent-soft: #2e3f2b;
+
+  --highlight: #f0db86;
+}
+
+:root[data-theme="developer"] {
+  --bg: #1c232b;
+  --surface: #252d36;
+  --surface-alt: #313b46;
+
+  --text: #ebf1f5;
+  --text-muted: #9dafbd;
+
+  --border: #455261;
+
+  --primary: #3aaed8;
+  --primary-hover: #56bde3;
+
+  --accent: #7c4dff;
+  --accent-soft: #21303a;
+
+  --highlight: #68d391;
+}
+
+:root.dark[data-theme="developer"] {
+  --bg: #0f1419;
+  --surface: #161c22;
+  --surface-alt: #1d252e;
+
+  --text: #edf3f7;
+  --text-muted: #92a3b2;
+
+  --border: #2d3945;
+
+  --primary: #4fc3f7;
+  --primary-hover: #75d0fb;
+
+  --accent: #8b5cf6;
+  --accent-soft: #162028;
+
+  --highlight: #7ee787;
+}
+
 html {
   font-family: Inter, system-ui, -apple-system, sans-serif;
   line-height: 1.5;
@@ -166,6 +280,14 @@ html {
   font-weight: 600;
   letter-spacing: -0.025em;
   line-height: 1.1;
+}
+
+.heading-2 {
+  color: var(--text);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .btn {

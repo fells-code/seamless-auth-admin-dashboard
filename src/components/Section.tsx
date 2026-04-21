@@ -6,15 +6,33 @@
 
 export function Section({
   title,
+  description,
+  actions,
   children,
 }: {
   title: string;
+  description?: string;
+  actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-surface border border-subtle border border-gray-200 dark:border-gray-800 p-5 rounded-xl space-y-4">
-      <h2 className="heading-2">{title}</h2>
-      {children}
-    </div>
+    <section className="overflow-hidden rounded-2xl border border-subtle bg-surface shadow-[0_1px_0_rgba(255,255,255,0.35)_inset]">
+      <div className="border-b border-subtle bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-alt)_75%,transparent),transparent)] px-5 py-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <h2 className="heading-2">{title}</h2>
+            {description && (
+              <p className="max-w-2xl text-sm text-muted">{description}</p>
+            )}
+          </div>
+
+          {actions && <div className="shrink-0">{actions}</div>}
+        </div>
+      </div>
+
+      <div className="space-y-4 p-5">
+        {children}
+      </div>
+    </section>
   );
 }

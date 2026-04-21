@@ -5,17 +5,21 @@
  */
 
 import { useAuth } from "@seamless-auth/react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import AuthLoading from "./AuthLoading";
 import { useState, useEffect } from "react";
+import { saveLastProtectedRoute } from "../lib/lastRoute";
 
 export default function RequireAuth({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, user, hasRole } = useAuth();
+  const { isAuthenticated, user, hasRole, loading } = useAuth();
   const [ready, setReady] = useState(false);
+  const location = useLocation();
+
+  const currentPath = `${location.pathname}${location.search}${location.hash}`;
 
   useEffect(() => {
     if (user !== undefined) {
@@ -23,12 +27,22 @@ export default function RequireAuth({
     }
   }, [user]);
 
-  if (user === undefined) {
+  useEffect(() => {
+    saveLastProtectedRoute(currentPath);
+  }, [currentPath]);
+
+  if (loading || user === undefined) {
     return <AuthLoading />;
   }
 
   if (!isAuthenticated || !hasRole("admin")) {
-    return <Navigate to="/unauthenticated" replace />;
+    return (
+      <Navigate
+        to="/unauthenticated"
+        replace
+        state={{ from: currentPath }}
+      />
+    );
   }
 
   return (

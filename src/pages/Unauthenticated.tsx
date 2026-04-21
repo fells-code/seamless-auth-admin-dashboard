@@ -5,18 +5,24 @@
  */
 
 import { useAuth } from "@seamless-auth/react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import LayoutSkeleton from "../components/LayoutSkeleton";
+import { getLastProtectedRoute } from "../lib/lastRoute";
 
 export default function Unauthenticated() {
   const { isAuthenticated, hasRole, user, loading } = useAuth();
+  const location = useLocation();
+
+  const redirectTo =
+    (location.state as { from?: string } | null)?.from ??
+    getLastProtectedRoute();
 
   if (loading || user === undefined) {
     return <LayoutSkeleton />;
   }
 
   if (isAuthenticated && hasRole("admin")) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={redirectTo} replace />;
   }
 
   return (

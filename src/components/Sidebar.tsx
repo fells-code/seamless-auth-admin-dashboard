@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -24,6 +24,8 @@ const navItems = [
 ];
 
 export default function Sidebar() {
+  const location = useLocation();
+
   return (
     <aside className="w-64 h-full flex flex-col bg-surface border-r border-subtle px-4 py-5">
       {/* Branding */}

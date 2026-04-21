@@ -7,7 +7,12 @@
 import { createContext } from "react";
 
 export type ThemeMode = "light" | "dark";
-export type ThemeName = "autumn" | "winter";
+export type ThemeName =
+  | "autumn"
+  | "winter"
+  | "summer"
+  | "spring"
+  | "developer";
 
 export type ThemeOption = {
   value: ThemeName;
@@ -45,12 +50,36 @@ export const themes: ThemeOption[] = [
     description: "Snowy stone, alpine blue, and glacial slate",
     swatches: ["#5e89a6", "#2f4e63", "#eff5f8"],
   },
+  {
+    value: "summer",
+    label: "Summer",
+    description: "Sunlit sand, bright surf, and deep ocean blues",
+    swatches: ["#f2bf63", "#33a6c9", "#f8edd2"],
+  },
+  {
+    value: "spring",
+    label: "Spring",
+    description: "Fresh blooms, new grass, and warm morning light",
+    swatches: ["#e88fb0", "#7fbf74", "#f4d96c"],
+  },
+  {
+    value: "developer",
+    label: "Developer",
+    description: "Low-glare graphite, terminal cyan, and focused contrast",
+    swatches: ["#3aaed8", "#1f2933", "#3a4651"],
+  },
 ];
 
 export const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function isThemeName(value: string | null): value is ThemeName {
-  return value === "autumn" || value === "winter";
+  return (
+    value === "autumn" ||
+    value === "winter" ||
+    value === "summer" ||
+    value === "spring" ||
+    value === "developer"
+  );
 }
 
 function isThemeMode(value: string | null): value is ThemeMode {
