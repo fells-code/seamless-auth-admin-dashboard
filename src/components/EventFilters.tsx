@@ -4,13 +4,9 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { useState } from "react";
 import { eventGroups } from "../lib/eventGroups";
 import { getRange } from "../lib/timeRange";
-import { AuthEventTypeEnum } from "../types/authEventTypes";
 import type { EventFilter } from "../pages/Events";
-
-const allTypes = AuthEventTypeEnum.options;
 
 export default function EventFilters({
   value,
@@ -24,24 +20,18 @@ export default function EventFilters({
   };
   onChange: (v: EventFilter) => void;
 }) {
-  const [range, setRange] = useState(value.range ?? "24h");
-
   const applyGroup = (group: {
     label: string;
     value: string;
     match: (t: string) => boolean;
   }) => {
-    const types = group.value === "" ? [] : allTypes.filter(group.match);
-
     onChange({
       ...value,
-      type: types,
+      type: group.value === "" ? [] : [group.value],
     });
   };
 
-  const handleRangeChange = (r: typeof range) => {
-    setRange(r);
-
+  const handleRangeChange = (r: EventFilter["range"]) => {
     if (r !== "custom") {
       const rangeVal = getRange(r);
 
@@ -69,10 +59,11 @@ export default function EventFilters({
           const active =
             group.value === ""
               ? value.type.length === 0
-              : value.type.some(group.match);
+              : value.type.includes(group.value) || value.type.some(group.match);
 
           return (
             <button
+              type="button"
               key={group.value}
               onClick={() => applyGroup(group)}
               className={`px-3 py-1.5 rounded-full text-sm border transition ${
@@ -91,12 +82,13 @@ export default function EventFilters({
       <div className="flex flex-wrap items-center gap-2">
         {["1h", "24h", "7d", "custom"].map((r) => (
           <button
+            type="button"
             key={r}
             onClick={() =>
-              handleRangeChange(r as "1h" | "24h" | "7d" | "custom")
+              handleRangeChange(r as EventFilter["range"])
             }
             className={`text-sm px-3 py-1.5 rounded-md border transition ${
-              range === r
+              value.range === r
                 ? "bg-primary text-white border-transparent"
                 : "bg-surface border-subtle hover:bg-surface-alt"
             }`}
@@ -108,7 +100,7 @@ export default function EventFilters({
           </button>
         ))}
 
-        {range === "custom" && (
+        {value.range === "custom" && (
           <div className="flex gap-2">
             <input
               type="datetime-local"
