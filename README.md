@@ -1,196 +1,186 @@
 [![Publish Docker Image](https://github.com/fells-code/seamless-auth-admin-dashboard/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/fells-code/seamless-auth-admin-dashboard/actions/workflows/docker-publish.yml)
+[![Coverage](https://img.shields.io/badge/coverage-85.3%25-green)](#testing)
 
 # Seamless Auth Dashboard
 
-The Seamless Auth Dashboard is a web interface for operating a Seamless Auth deployment. It provides visibility into authentication activity and gives operators direct control over users, sessions, and configuration.
+The Seamless Auth Dashboard is a React/Vite admin portal for operating a Seamless Auth deployment. It gives operators direct visibility into authentication activity and lets admins manage users, sessions, security signals, and system configuration from one place.
 
-This project is intended to run alongside the Seamless Auth API. Together, they form a self-hosted authentication system that lives inside your infrastructure.
+This app is intended to run alongside the Seamless Auth API as part of a self-hosted auth stack.
 
----
+## What It Does
 
-## Overview
-
-The dashboard exposes the operational surface of Seamless Auth. It is designed for day-to-day use by engineers and operators who need to inspect activity, respond to issues, and manage access.
-
-Core capabilities include:
-
-- User management
-- Session control
-- Authentication event inspection
-- Security signal visibility
-- System configuration editing
-
-The goal is not just to display data, but to support investigation and control in one place.
-
----
-
-## Features
-
-### Users
-
-- List and search users
-- Create new users
-- Edit email, phone, and roles
-- Delete users
-
-### Sessions
-
-- View active sessions per user
-- Revoke individual sessions
-- Revoke all sessions for a user
-
-### Events
-
-- Browse authentication events
-- Filter by type and time range
-- Navigate from charts directly into filtered views
-
-### Security
-
-- Surface suspicious activity
-- View related IPs and user agents
-- Inspect user-level anomalies
-- Risk score per user
-
-### System Configuration
-
-- Manage available and default roles
-- Configure token lifetimes
-- Adjust rate limiting
-- Set WebAuthn configuration (RPID and origins)
-
----
-
-## Architecture
-
-The dashboard talks directly to the Seamless Auth API. It relies on endpoints such as:
-
-- /internal/\* for metrics and observability
-- /admin/\* for management operations
-- /system-config/\* for configuration
-
-Authentication is handled by the Seamless Auth system itself. In web mode, this typically uses secure cookies.
-
----
+- browse and manage users
+- inspect sessions and revoke them
+- filter and investigate authentication events
+- review suspicious activity and anomaly signals
+- edit system configuration
+- operate with runtime config injection in containerized environments
 
 ## Tech Stack
 
-- React (Vite)
+- React 19
+- Vite
 - TypeScript
-- Tailwind CSS
 - TanStack Query
+- Tailwind CSS v4
 - Recharts
+- Vitest + Testing Library
 
-The UI is intentionally lightweight and does not depend on a large component framework.
+## Runtime Model
 
----
+This dashboard is built as static assets and served by nginx.
+
+Runtime configuration is injected at container startup:
+
+- `index.html` loads `/config.js`
+- `entrypoint.sh` writes `window.__SEAMLESS_CONFIG__`
+- `src/lib/runtimeConfig.ts` reads runtime config first, then falls back to `import.meta.env`
+
+That runtime-config flow is intentional. The dashboard is designed to be reconfigured per environment without rebuilding the frontend image.
+
+## Features
+
+### Overview
+
+- operator landing page with metrics, charts, and investigation entry points
+
+### Users
+
+- list, search, create, edit, and delete users
+- drill into individual user detail
+
+### Sessions
+
+- inspect active sessions
+- revoke individual sessions
+
+### Events
+
+- browse authentication events
+- filter by grouped event type and time range
+- deep-link into filtered views
+
+### Security
+
+- review anomaly and suspicious activity signals
+- navigate from security context into event investigation
+
+### System Configuration
+
+- manage available roles and auth settings
+
+### Appearance
+
+- multiple built-in themes
+- light and dark modes
+- appearance switching from the user menu
 
 ## Development
 
 Install dependencies:
 
-```
+```bash
 npm install
 ```
 
-Run the dashboard locally:
+Start the dev server:
 
-```
+```bash
 npm run dev
 ```
 
-The app will be available at:
+The app will be available at [http://localhost:5173](http://localhost:5173).
 
+## Scripts
+
+```bash
+npm run dev
+npm run lint
+npm run format
+npm run format:check
+npm run typecheck
+npm test
+npm run coverage
+npm run build
 ```
-http://localhost:5173
-```
 
----
+## Local Configuration
 
-## Configuration
+You can provide config through Vite env vars for local development:
 
-Create a `.env` file in the project root:
-
-```
+```bash
 VITE_API_URL=http://localhost:5312
 ```
 
-This should point to your running Seamless Auth API instance.
+In production-like deployments, prefer the runtime `config.js` injection flow instead.
 
----
+## Testing
+
+The repo includes a frontend test setup using Vitest, Testing Library, and jsdom.
+
+Useful commands:
+
+```bash
+npm test
+npm run coverage
+```
+
+Coverage is currently focused on shared components and `src/lib` helpers.
 
 ## Docker
 
-The dashboard is designed to run alongside the API in a containerized setup.
+Build the container image locally:
 
-For development:
-
-```
-docker compose up --build
+```bash
+npm run docker:build
 ```
 
-In production, the dashboard is built as static assets and served by nginx.
+Run it locally:
 
----
+```bash
+npm run docker:run
+```
+
+The production image serves the built frontend through nginx and includes a container health check.
 
 ## Project Structure
 
-```
+```text
 src/
   components/
-  pages/
   hooks/
   lib/
+  pages/
+  types/
 ```
 
-- components: reusable UI elements
-- pages: top-level views
-- hooks: data fetching and mutations
-- lib: utilities and shared logic
-
----
+- `components`: shared UI primitives and app shell
+- `hooks`: data fetching and mutations
+- `lib`: helpers, config, and domain utilities
+- `pages`: top-level route screens
+- `types`: shared frontend types
 
 ## Design Notes
 
-The dashboard follows a few principles:
+The dashboard is intentionally lightweight:
 
-- Keep state in the URL where possible
-- Treat charts as entry points into deeper views
-- Prefer simple components over heavy abstractions
-- Keep API contracts strict and predictable
+- explicit routes instead of heavy meta-framework conventions
+- thin pages and focused hooks
+- shared UI primitives over a component framework
+- theme-aware styling through shared CSS tokens
+- URL-driven filter state where it improves operator workflows
 
-These choices make it easier to reason about behavior and debug issues.
+## Current State
 
----
+The app is functional and meant for real use. The current focus is on consistency, operator ergonomics, and tightening the remaining rough edges.
 
-## Use Case
+Known areas still worth attention:
 
-This dashboard is built for teams that want to run authentication as part of their own stack.
-
-Instead of delegating identity to an external provider, Seamless Auth allows you to:
-
-- own your user data
-- control your authentication flows
-- integrate directly with your infrastructure
-
-The dashboard provides the interface needed to operate that system effectively.
-
----
-
-## Status
-
-The project is functional and intended for real use. The current focus is on refinement, consistency, and documentation.
-
-Future improvements will focus on better visualization, alerting, and operator workflows.
-
----
+- `AuthProvider` auth mode wiring is not fully aligned with runtime config support
+- the unauthenticated `Sign In` button still has no wired action
+- a few query invalidation paths remain narrower than ideal
+- chart components have lighter test coverage than the shared shell and utility layers
 
 ## License
 
 AGPL-3.0
-
----
-
-## Notes
-
-This dashboard is one part of a larger system. The API and supporting services form the core of Seamless Auth. The dashboard exists to make that system usable in practice.

@@ -13,6 +13,7 @@ import {
   KeyRound,
   Settings,
 } from "lucide-react";
+import packageJson from "../../package.json";
 
 const navItems = [
   { name: "Overview", path: "/", icon: LayoutDashboard },
@@ -81,7 +82,7 @@ export default function Sidebar() {
 
       {/* Optional footer (future space for version / env) */}
       <div className="text-xs text-muted px-2 pt-4 border-t border-subtle">
-        v0.0.5
+        v{packageJson.version}
       </div>
     </aside>
   );
