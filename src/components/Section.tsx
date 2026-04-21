@@ -30,9 +30,7 @@ export function Section({
         </div>
       </div>
 
-      <div className="space-y-4 p-5">
-        {children}
-      </div>
+      <div className="space-y-4 p-5">{children}</div>
     </section>
   );
 }

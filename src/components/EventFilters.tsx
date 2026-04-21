@@ -59,7 +59,8 @@ export default function EventFilters({
           const active =
             group.value === ""
               ? value.type.length === 0
-              : value.type.includes(group.value) || value.type.some(group.match);
+              : value.type.includes(group.value) ||
+                value.type.some(group.match);
 
           return (
             <button
@@ -84,9 +85,7 @@ export default function EventFilters({
           <button
             type="button"
             key={r}
-            onClick={() =>
-              handleRangeChange(r as EventFilter["range"])
-            }
+            onClick={() => handleRangeChange(r as EventFilter["range"])}
             className={`text-sm px-3 py-1.5 rounded-md border transition ${
               value.range === r
                 ? "bg-primary text-white border-transparent"

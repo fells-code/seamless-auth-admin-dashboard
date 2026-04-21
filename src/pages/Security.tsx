@@ -46,7 +46,8 @@ export default function Security() {
   const { data: anomalies, isLoading: loadingAnomalies } = useAnomalies();
   const { data: stats, isLoading: loadingStats } = useLoginStats();
 
-  const suspiciousEvents: AuthEventPartial[] = anomalies?.suspiciousEvents ?? [];
+  const suspiciousEvents: AuthEventPartial[] =
+    anomalies?.suspiciousEvents ?? [];
   const loginStats = stats as LoginStats | undefined;
 
   const uniqueIps = new Set(
@@ -58,7 +59,9 @@ export default function Security() {
     count: number;
   } | null>((best, event) => {
     const type = event.type ?? "unknown";
-    const count = suspiciousEvents.filter((entry) => entry.type === type).length;
+    const count = suspiciousEvents.filter(
+      (entry) => entry.type === type,
+    ).length;
 
     if (!best || count > best.count) {
       return { type, count };
@@ -117,7 +120,10 @@ export default function Security() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <SignalPill label="Suspicious signals" value={`${anomalies?.total ?? 0}`} />
+                <SignalPill
+                  label="Suspicious signals"
+                  value={`${anomalies?.total ?? 0}`}
+                />
                 <SignalPill label="Unique flagged IPs" value={`${uniqueIps}`} />
                 <SignalPill
                   label="Most common threat"
@@ -148,7 +154,11 @@ export default function Security() {
               <FocusPanel
                 icon={Siren}
                 title="Latest signal"
-                value={latestSignal ? formatTimeAgo(latestSignal.created_at, referenceNow) : "none"}
+                value={
+                  latestSignal
+                    ? formatTimeAgo(latestSignal.created_at, referenceNow)
+                    : "none"
+                }
                 description="Most recent suspicious event seen in the anomaly feed."
                 actionLabel="Open security"
                 onClick={() => navigate("/security")}
@@ -210,9 +220,7 @@ export default function Security() {
             value={topEventType?.type ?? "No anomalies"}
             description="The dominant suspicious event type is usually the best first clue about what is happening."
             actionLabel="Filter event type"
-            onClick={() =>
-              navigate(buildEventFilterUrl(topEventType?.type))
-            }
+            onClick={() => navigate(buildEventFilterUrl(topEventType?.type))}
           />
         </div>
       </Section>
@@ -242,7 +250,9 @@ export default function Security() {
                     {(value as string) ?? "Unknown type"}
                   </span>
                   <span className="text-xs text-muted">
-                    {row.user_id ? `User ${row.user_id}` : "System-level signal"}
+                    {row.user_id
+                      ? `User ${row.user_id}`
+                      : "System-level signal"}
                   </span>
                 </div>
               ),
@@ -271,7 +281,9 @@ export default function Security() {
                     {formatTimeAgo(value as string | undefined, referenceNow)}
                   </span>
                   <span className="text-xs text-muted">
-                    {value ? new Date(value as string).toLocaleString() : "No timestamp"}
+                    {value
+                      ? new Date(value as string).toLocaleString()
+                      : "No timestamp"}
                   </span>
                 </div>
               ),

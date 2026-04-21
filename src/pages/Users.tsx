@@ -6,7 +6,13 @@
 
 import type { ComponentType } from "react";
 import { useState } from "react";
-import { ArrowRight, ShieldCheck, Trash2, UserPlus, Users2 } from "lucide-react";
+import {
+  ArrowRight,
+  ShieldCheck,
+  Trash2,
+  UserPlus,
+  Users2,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useUsers, type User } from "../hooks/useUsers";
 import { useDeleteUser } from "../hooks/useDeleteUser";
@@ -62,10 +68,14 @@ export default function Users() {
   const users: User[] = data?.users ?? [];
   const total = data?.total ?? 0;
   const verifiedCount = users.filter((user) => user.verified).length;
-  const adminCount = users.filter((user) => user.roles.includes("admin")).length;
+  const adminCount = users.filter((user) =>
+    user.roles.includes("admin"),
+  ).length;
   const recentlyActiveCount = users.filter((user) => {
     if (!user.lastLogin) return false;
-    return referenceNow - new Date(user.lastLogin).getTime() <= 24 * 60 * 60 * 1000;
+    return (
+      referenceNow - new Date(user.lastLogin).getTime() <= 24 * 60 * 60 * 1000
+    );
   }).length;
 
   const handleDeleteUser = (user: User) => {
@@ -220,9 +230,7 @@ export default function Users() {
                   <span className="text-xs text-muted">
                     {row.phone ?? "No phone on record"}
                   </span>
-                  <span className="truncate text-xs text-muted">
-                    {row.id}
-                  </span>
+                  <span className="truncate text-xs text-muted">{row.id}</span>
                 </button>
               ),
             },
@@ -241,7 +249,9 @@ export default function Users() {
                       </span>
                     ))
                   ) : (
-                    <span className="text-xs text-muted">No roles assigned</span>
+                    <span className="text-xs text-muted">
+                      No roles assigned
+                    </span>
                   )}
                 </div>
               ),
@@ -257,13 +267,13 @@ export default function Users() {
               label: "Last Active",
               sortable: true,
               render: (value) => (
-                    <div className="flex flex-col">
-                      <span className="text-sm text-primary">
-                        {formatTimeAgo(
-                          value as string | null | undefined,
-                          referenceNow,
-                        )}
-                      </span>
+                <div className="flex flex-col">
+                  <span className="text-sm text-primary">
+                    {formatTimeAgo(
+                      value as string | null | undefined,
+                      referenceNow,
+                    )}
+                  </span>
                   {value ? (
                     <span className="text-xs text-muted">
                       {new Date(value as string).toLocaleString()}

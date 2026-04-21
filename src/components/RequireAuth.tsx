@@ -37,11 +37,7 @@ export default function RequireAuth({
 
   if (!isAuthenticated || !hasRole("admin")) {
     return (
-      <Navigate
-        to="/unauthenticated"
-        replace
-        state={{ from: currentPath }}
-      />
+      <Navigate to="/unauthenticated" replace state={{ from: currentPath }} />
     );
   }
 

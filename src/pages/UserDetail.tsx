@@ -100,7 +100,9 @@ export default function UserDetail() {
 
   const { user, sessions, credentials, events } = data as UserDetailResponse;
 
-  const failedLogins = events.filter((event) => event.type === "login_failed").length;
+  const failedLogins = events.filter(
+    (event) => event.type === "login_failed",
+  ).length;
   const suspiciousCount = anomalies?.suspiciousEvents.length ?? 0;
   const risk = calculateRiskScore({
     suspiciousEvents: suspiciousCount,
@@ -171,10 +173,16 @@ export default function UserDetail() {
                       {user.id}
                     </span>
                     <span className="rounded-full border border-subtle bg-surface px-3 py-1.5">
-                      {user.verified ? "Verified account" : "Unverified account"}
+                      {user.verified
+                        ? "Verified account"
+                        : "Unverified account"}
                     </span>
                     <span className="rounded-full border border-subtle bg-surface px-3 py-1.5">
-                      Last seen {formatTimeAgo(user.lastLogin ?? latestSession?.lastUsedAt, referenceNow)}
+                      Last seen{" "}
+                      {formatTimeAgo(
+                        user.lastLogin ?? latestSession?.lastUsedAt,
+                        referenceNow,
+                      )}
                     </span>
                   </div>
                 </div>
@@ -187,9 +195,15 @@ export default function UserDetail() {
 
               <div className="flex flex-wrap gap-2">
                 <InfoPill label="Roles" value={`${user.roles.length}`} />
-                <InfoPill label="Active sessions" value={`${sessions.length}`} />
+                <InfoPill
+                  label="Active sessions"
+                  value={`${sessions.length}`}
+                />
                 <InfoPill label="Credentials" value={`${credentials.length}`} />
-                <InfoPill label="Suspicious signals" value={`${suspiciousCount}`} />
+                <InfoPill
+                  label="Suspicious signals"
+                  value={`${suspiciousCount}`}
+                />
               </div>
             </div>
 
@@ -215,7 +229,10 @@ export default function UserDetail() {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    <button onClick={() => setEditing(true)} className="btn btn-primary">
+                    <button
+                      onClick={() => setEditing(true)}
+                      className="btn btn-primary"
+                    >
                       Edit User
                     </button>
                     <button
@@ -224,7 +241,10 @@ export default function UserDetail() {
                     >
                       Revoke Sessions
                     </button>
-                    <button onClick={handleDeleteUser} className="btn btn-danger">
+                    <button
+                      onClick={handleDeleteUser}
+                      className="btn btn-danger"
+                    >
                       Delete User
                     </button>
                   </div>
@@ -249,7 +269,11 @@ export default function UserDetail() {
         <StatCard
           label="Sessions"
           value={sessions.length}
-          hint={latestSession ? `Last seen ${formatTimeAgo(latestSession.lastUsedAt, referenceNow)}` : "No active sessions"}
+          hint={
+            latestSession
+              ? `Last seen ${formatTimeAgo(latestSession.lastUsedAt, referenceNow)}`
+              : "No active sessions"
+          }
         />
         <StatCard
           label="Suspicious Signals"

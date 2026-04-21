@@ -270,7 +270,9 @@ export default function SystemConfigPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 rounded-2xl border border-subtle bg-surface px-5 py-4 shadow-lg">
           <div className="space-y-1">
             <div className="text-sm font-medium text-primary">
-              {isDirty ? "Unsaved configuration changes" : "Configuration is up to date"}
+              {isDirty
+                ? "Unsaved configuration changes"
+                : "Configuration is up to date"}
             </div>
             <div className="text-sm text-muted">
               {isDirty
@@ -452,7 +454,9 @@ function OriginsEditor({
 
           <button
             onClick={() =>
-              setOrigins(origins.filter((_, currentIndex) => currentIndex !== index))
+              setOrigins(
+                origins.filter((_, currentIndex) => currentIndex !== index),
+              )
             }
             className="text-[var(--highlight)] transition hover:opacity-80"
           >

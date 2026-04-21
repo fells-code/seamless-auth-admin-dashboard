@@ -70,8 +70,8 @@ export default function Overview() {
                 </div>
                 <h1 className="heading-1">Overview</h1>
                 <p className="max-w-2xl text-sm text-muted">
-                  A live snapshot of authentication health, growth, and
-                  operator attention areas across your Seamless Auth deployment.
+                  A live snapshot of authentication health, growth, and operator
+                  attention areas across your Seamless Auth deployment.
                 </p>
               </div>
 
@@ -327,7 +327,10 @@ function ActionCard({
         <p className="text-sm text-muted">{description}</p>
       </div>
 
-      <button onClick={onClick} className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-primary transition hover:opacity-80">
+      <button
+        onClick={onClick}
+        className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-primary transition hover:opacity-80"
+      >
         {actionLabel}
         <ArrowRight size={14} />
       </button>

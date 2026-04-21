@@ -103,8 +103,9 @@ export default function Events() {
   const total = data?.total ?? 0;
 
   const uniqueTypes = new Set(events.map((event) => event.type)).size;
-  const uniqueIps = new Set(events.map((event) => event.ip_address).filter(Boolean))
-    .size;
+  const uniqueIps = new Set(
+    events.map((event) => event.ip_address).filter(Boolean),
+  ).size;
   const securitySignalCount = events.filter((event) =>
     event.type.includes("suspicious"),
   ).length;
@@ -154,7 +155,10 @@ export default function Events() {
 
               <div className="flex flex-wrap gap-2">
                 <InfoPill label="Matched events" value={`${total}`} />
-                <InfoPill label="Visible event types" value={`${uniqueTypes}`} />
+                <InfoPill
+                  label="Visible event types"
+                  value={`${uniqueTypes}`}
+                />
                 <InfoPill label="Visible IPs" value={`${uniqueIps}`} />
               </div>
             </div>
@@ -163,7 +167,9 @@ export default function Events() {
               <FocusPanel
                 icon={Clock3}
                 title="Latest event"
-                value={latestEvent ? formatTimeAgo(latestEvent, referenceNow) : "n/a"}
+                value={
+                  latestEvent ? formatTimeAgo(latestEvent, referenceNow) : "n/a"
+                }
                 description="How recently the newest visible event occurred."
               />
 
@@ -226,10 +232,7 @@ export default function Events() {
           </div>
         }
       >
-        <EventFilters
-          value={filters}
-          onChange={handleFiltersChange}
-        />
+        <EventFilters value={filters} onChange={handleFiltersChange} />
       </Section>
 
       <Section
@@ -239,13 +242,17 @@ export default function Events() {
         <div className="grid gap-4 lg:grid-cols-3">
           <ActionCard
             title="Latest activity"
-            value={latestEvent ? formatTimeAgo(latestEvent, referenceNow) : "n/a"}
+            value={
+              latestEvent ? formatTimeAgo(latestEvent, referenceNow) : "n/a"
+            }
             description="How recent the newest visible event is in the current result set."
           />
 
           <ActionCard
             title="Dominant direction"
-            value={securitySignalCount > 0 ? "Security review" : "General traffic"}
+            value={
+              securitySignalCount > 0 ? "Security review" : "General traffic"
+            }
             description="A fast read on whether the current slice looks operational or security-oriented."
           />
 
@@ -296,7 +303,9 @@ export default function Events() {
                       onClick={() => navigate(`/users/${value}`)}
                       className="inline-flex items-center gap-2 text-sm text-muted transition hover:text-primary"
                     >
-                      <span className="font-mono">{(value as string).slice(0, 8)}...</span>
+                      <span className="font-mono">
+                        {(value as string).slice(0, 8)}...
+                      </span>
                       <ArrowRight size={12} />
                     </button>
                   ) : (
@@ -312,7 +321,9 @@ export default function Events() {
                       {(value as string) ?? "Unknown IP"}
                     </span>
                     <span className="text-xs text-muted">
-                      {row.type.includes("suspicious") ? "Security-relevant source" : "Observed request origin"}
+                      {row.type.includes("suspicious")
+                        ? "Security-relevant source"
+                        : "Observed request origin"}
                     </span>
                   </div>
                 ),

@@ -16,12 +16,9 @@ import {
   type ThemeContextValue,
 } from "../lib/theme";
 
-export default function ThemeProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const [appearance, setAppearance] = useState<Appearance>(getInitialAppearance);
+export default function ThemeProvider({ children }: { children: ReactNode }) {
+  const [appearance, setAppearance] =
+    useState<Appearance>(getInitialAppearance);
 
   useEffect(() => {
     applyAppearance(appearance);

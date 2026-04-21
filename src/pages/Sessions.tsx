@@ -72,7 +72,9 @@ function isRecent(session: Session) {
 }
 
 function isIdle(session: Session) {
-  return Date.now() - new Date(session.lastUsedAt).getTime() >= 24 * 60 * 60 * 1000;
+  return (
+    Date.now() - new Date(session.lastUsedAt).getTime() >= 24 * 60 * 60 * 1000
+  );
 }
 
 function isExpiringSoon(session: Session) {
@@ -162,8 +164,8 @@ export default function Sessions() {
                 <h1 className="heading-1">Sessions</h1>
                 <p className="max-w-2xl text-sm text-muted">
                   Review active sessions, spot stale access, and revoke tokens
-                  that no longer look healthy. This view currently emphasizes IP,
-                  device signature, and expiry timing.
+                  that no longer look healthy. This view currently emphasizes
+                  IP, device signature, and expiry timing.
                 </p>
               </div>
 

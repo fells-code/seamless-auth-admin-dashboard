@@ -6,7 +6,7 @@ on:
       - dev
       - beta
     tags:
-      - 'v*'
+      - "v*"
 
 permissions:
   contents: read
