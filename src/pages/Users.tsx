@@ -4,6 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
+import type { ComponentType } from "react";
 import { useState } from "react";
 import { ArrowRight, ShieldCheck, Trash2, UserPlus, Users2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -16,10 +17,10 @@ import CreateUserModal from "../components/CreateUserModal";
 import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
 
-function formatTimeAgo(date?: string | null) {
+function formatTimeAgo(date?: string | null, now?: number) {
   if (!date) return "No recent activity";
 
-  const diff = Date.now() - new Date(date).getTime();
+  const diff = (now ?? new Date().getTime()) - new Date(date).getTime();
   const mins = Math.floor(diff / 60000);
 
   if (mins < 60) return `${mins}m ago`;
@@ -52,6 +53,7 @@ export default function Users() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
+  const [referenceNow] = useState(() => Date.now());
 
   const limit = 10;
 
@@ -63,7 +65,7 @@ export default function Users() {
   const adminCount = users.filter((user) => user.roles.includes("admin")).length;
   const recentlyActiveCount = users.filter((user) => {
     if (!user.lastLogin) return false;
-    return Date.now() - new Date(user.lastLogin).getTime() <= 24 * 60 * 60 * 1000;
+    return referenceNow - new Date(user.lastLogin).getTime() <= 24 * 60 * 60 * 1000;
   }).length;
 
   const handleDeleteUser = (user: User) => {
@@ -255,10 +257,13 @@ export default function Users() {
               label: "Last Active",
               sortable: true,
               render: (value) => (
-                <div className="flex flex-col">
-                  <span className="text-sm text-primary">
-                    {formatTimeAgo(value as string | null | undefined)}
-                  </span>
+                    <div className="flex flex-col">
+                      <span className="text-sm text-primary">
+                        {formatTimeAgo(
+                          value as string | null | undefined,
+                          referenceNow,
+                        )}
+                      </span>
                   {value ? (
                     <span className="text-xs text-muted">
                       {new Date(value as string).toLocaleString()}
@@ -309,7 +314,7 @@ function FocusPanel({
   value,
   description,
 }: {
-  icon: React.ComponentType<{ size?: number }>;
+  icon: ComponentType<{ size?: number }>;
   title: string;
   value: string;
   description: string;
