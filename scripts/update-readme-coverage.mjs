@@ -23,14 +23,22 @@ const color = getBadgeColor(linePct);
 const nextBadge = `[![Coverage](https://img.shields.io/badge/coverage-${encodeURIComponent(
   coverageValue,
 )}-${color})](#testing)`;
+const coverageBadgePattern =
+  /\[!\[Coverage\]\(https:\/\/img\.shields\.io\/badge\/coverage-[^)]+\)\]\(#testing\)/;
 
-const updated = readme.replace(
-  /\[!\[Coverage\]\(https:\/\/img\.shields\.io\/badge\/coverage-[^)]+\)\]\(#testing\)/,
-  nextBadge,
-);
+let updated = readme;
 
-if (updated === readme) {
-  throw new Error("Coverage badge not found in README.md");
+if (coverageBadgePattern.test(readme)) {
+  updated = readme.replace(coverageBadgePattern, nextBadge);
+} else {
+  const lines = readme.split("\n");
+
+  if (lines.length > 0 && lines[0].startsWith("[![Publish Docker Image]")) {
+    lines.splice(1, 0, nextBadge);
+    updated = lines.join("\n");
+  } else {
+    updated = `${nextBadge}\n\n${readme}`;
+  }
 }
 
 writeFileSync(readmePath, updated);
