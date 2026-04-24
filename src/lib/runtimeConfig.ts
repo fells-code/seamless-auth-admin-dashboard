@@ -26,5 +26,5 @@ export function getAuthMode(): string {
     return window.__SEAMLESS_CONFIG__.AUTH_MODE;
   }
 
-  return import.meta.env.VITE_AUTH_MODE;
+  return "server";
 }
