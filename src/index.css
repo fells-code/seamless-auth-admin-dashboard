@@ -280,7 +280,7 @@ html {
 
 .heading-1 {
   color: var(--text);
-  font-size: 1.875rem;
+  font-size: 1.5rem;
   font-weight: 600;
   letter-spacing: -0.025em;
   line-height: 1.1;
@@ -288,14 +288,14 @@ html {
 
 .heading-2 {
   color: var(--text);
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.2;
 }
 
 .btn {
-  @apply px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150 cursor-pointer;
+  @apply inline-flex min-h-10 items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-150 cursor-pointer;
 }
 
 .btn-primary {
@@ -332,5 +332,15 @@ html {
   }
   100% {
     transform: translateX(100%);
+  }
+}
+
+@media (min-width: 640px) {
+  .heading-1 {
+    font-size: 1.875rem;
+  }
+
+  .heading-2 {
+    font-size: 1.125rem;
   }
 }

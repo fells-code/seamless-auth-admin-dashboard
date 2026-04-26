@@ -111,9 +111,14 @@ export default function Table<T extends Record<string, unknown>>({
 
   const gridTemplate = `${
     selectable ? "40px " : ""
-  }repeat(${columns.length}, minmax(120px, 1fr)) ${
+  }repeat(${columns.length}, minmax(160px, 1fr)) ${
     actions.length ? "80px" : ""
   }`;
+  const tableMinWidth = `${
+    (selectable ? 40 : 0) +
+    columns.length * 160 +
+    (actions.length ? 80 : 0)
+  }px`;
 
   const selectedRows: T[] = [...selected].map((i) => sortedData[i]);
   const hasRows = sortedData.length > 0;
@@ -124,12 +129,12 @@ export default function Table<T extends Record<string, unknown>>({
   return (
     <div className="overflow-hidden rounded-2xl border border-subtle bg-surface shadow-[0_1px_0_rgba(255,255,255,0.35)_inset]">
       {selected.size > 0 && bulkActions.length > 0 && (
-        <div className="flex items-center justify-between border-b border-subtle bg-surface-alt px-4 py-3">
+        <div className="flex flex-col gap-3 border-b border-subtle bg-surface-alt px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-muted">
             {selected.size} selected for bulk action
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {bulkActions.map((action, i) => (
               <button
                 key={i}
@@ -149,7 +154,7 @@ export default function Table<T extends Record<string, unknown>>({
       )}
 
       <div className="border-b border-subtle bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-alt)_72%,transparent),transparent)] px-4 py-3">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <div className="text-[11px] uppercase tracking-[0.18em] text-muted">
               Results
@@ -166,46 +171,51 @@ export default function Table<T extends Record<string, unknown>>({
           )}
         </div>
 
-        <div
-          className="mt-3 grid items-center gap-3 text-xs uppercase tracking-[0.18em] text-subtle"
-          style={{ gridTemplateColumns: gridTemplate }}
-        >
-          {selectable && (
-            <input
-              ref={headerCheckboxRef}
-              type="checkbox"
-              checked={selected.size === data.length && data.length > 0}
-              onChange={toggleAll}
-              className="accent-[var(--primary)]"
-            />
-          )}
+        <div className="mt-3 overflow-x-auto" role="region" aria-label="Table content">
+          <div
+            className="grid min-w-full w-max items-center gap-3 text-xs uppercase tracking-[0.18em] text-subtle"
+            style={{
+              gridTemplateColumns: gridTemplate,
+              minWidth: tableMinWidth,
+            }}
+          >
+            {selectable && (
+              <input
+                ref={headerCheckboxRef}
+                type="checkbox"
+                checked={selected.size === data.length && data.length > 0}
+                onChange={toggleAll}
+                className="accent-[var(--primary)]"
+              />
+            )}
 
-          {columns.map((col) => {
-            const SortIcon =
-              sortKey !== col.key
-                ? ArrowUpDown
-                : direction === "asc"
-                  ? ArrowUp
-                  : ArrowDown;
+            {columns.map((col) => {
+              const SortIcon =
+                sortKey !== col.key
+                  ? ArrowUpDown
+                  : direction === "asc"
+                    ? ArrowUp
+                    : ArrowDown;
 
-            return (
-              <button
-                key={String(col.key)}
-                type="button"
-                className={clsx(
-                  "flex items-center gap-1 text-left",
-                  !col.sortable && "cursor-default",
-                  col.sortable && "transition hover:text-primary",
-                )}
-                onClick={() => col.sortable && handleSort(col.key)}
-              >
-                <span>{col.label}</span>
-                {col.sortable && <SortIcon size={12} />}
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={String(col.key)}
+                  type="button"
+                  className={clsx(
+                    "flex items-center gap-1 text-left",
+                    !col.sortable && "cursor-default",
+                    col.sortable && "transition hover:text-primary",
+                  )}
+                  onClick={() => col.sortable && handleSort(col.key)}
+                >
+                  <span>{col.label}</span>
+                  {col.sortable && <SortIcon size={12} />}
+                </button>
+              );
+            })}
 
-          {actions.length > 0 && <div className="text-right">Actions</div>}
+            {actions.length > 0 && <div className="text-right">Actions</div>}
+          </div>
         </div>
       </div>
 
@@ -223,7 +233,8 @@ export default function Table<T extends Record<string, unknown>>({
           </div>
         </div>
       ) : (
-        <div className="divide-y divide-[color:var(--border)]/70">
+        <div className="overflow-x-auto">
+          <div className="min-w-full w-max divide-y divide-[color:var(--border)]/70">
           {sortedData.map((row, i) => {
             const isSelected = selected.has(i);
 
@@ -231,12 +242,15 @@ export default function Table<T extends Record<string, unknown>>({
               <div
                 key={i}
                 className={clsx(
-                  "grid items-center gap-3 px-4 py-3 transition-all",
+                  "grid min-w-full w-max items-center gap-3 px-4 py-3 transition-all",
                   "hover:bg-[color:var(--surface-alt)]/45",
                   isSelected &&
                     "bg-[color:var(--accent-soft)]/40 ring-1 ring-inset ring-[var(--primary)]",
                 )}
-                style={{ gridTemplateColumns: gridTemplate }}
+                style={{
+                  gridTemplateColumns: gridTemplate,
+                  minWidth: tableMinWidth,
+                }}
               >
                 {selectable && (
                   <input
@@ -284,16 +298,17 @@ export default function Table<T extends Record<string, unknown>>({
               </div>
             );
           })}
+          </div>
         </div>
       )}
 
       {total !== undefined && onPageChange && (
-        <div className="flex items-center justify-between border-t border-subtle px-4 py-3">
+        <div className="flex flex-col gap-3 border-t border-subtle px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-muted">
             Showing {rangeStart}-{rangeEnd} of {total}
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 self-start sm:self-auto">
             <button
               disabled={offset === 0}
               onClick={() => onPageChange(Math.max(0, offset - limit))}

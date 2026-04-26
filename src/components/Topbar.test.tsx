@@ -5,6 +5,7 @@
  */
 
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import Topbar from "./Topbar";
 
@@ -14,8 +15,16 @@ vi.mock("./UserMenu", () => ({
 
 describe("Topbar", () => {
   it("renders the user controls area", () => {
-    render(<Topbar />);
+    render(
+      <MemoryRouter initialEntries={["/events"]}>
+        <Topbar />
+      </MemoryRouter>,
+    );
 
     expect(screen.getByText("User menu")).toBeInTheDocument();
+    expect(screen.getByText("Events")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Open navigation menu/i }),
+    ).toBeInTheDocument();
   });
 });

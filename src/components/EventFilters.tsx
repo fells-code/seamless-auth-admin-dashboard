@@ -100,19 +100,19 @@ export default function EventFilters({
         ))}
 
         {value.range === "custom" && (
-          <div className="flex gap-2">
+          <div className="grid w-full gap-2 sm:grid-cols-2">
             <input
               type="datetime-local"
               value={value.from ?? ""}
               onChange={(e) => onChange({ ...value, from: e.target.value })}
-              className="px-3 py-2 rounded-md border border-subtle bg-surface-alt text-sm"
+              className="min-h-10 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm"
             />
 
             <input
               type="datetime-local"
               value={value.to ?? ""}
               onChange={(e) => onChange({ ...value, to: e.target.value })}
-              className="px-3 py-2 rounded-md border border-subtle bg-surface-alt text-sm"
+              className="min-h-10 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm"
             />
           </div>
         )}

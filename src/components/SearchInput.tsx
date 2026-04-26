@@ -29,7 +29,7 @@ export default function SearchInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-md border border-subtle bg-surface-alt pl-9 pr-9 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+        className="min-h-10 w-full rounded-md border border-subtle bg-surface-alt py-2 pl-9 pr-9 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
       />
 
       {/* Clear button */}

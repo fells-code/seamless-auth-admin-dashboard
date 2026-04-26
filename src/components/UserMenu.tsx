@@ -80,7 +80,7 @@ export default function UserMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 rounded-xl border border-subtle bg-surface p-2 shadow-lg">
+        <div className="absolute right-0 mt-2 w-[min(20rem,calc(100vw-1rem))] rounded-xl border border-subtle bg-surface p-2 shadow-lg">
           <div className="border-b border-subtle px-3 pb-3 pt-2">
             <div className="text-sm font-medium">Appearance</div>
             <div className="mt-1 text-xs text-[var(--text-muted)]">
