@@ -8,6 +8,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
 
+export type LoginMethod = "passkey" | "magic_link" | "email_otp" | "phone_otp";
+
 export type SystemConfig = {
   app_name: string;
   available_roles: string[];
@@ -16,6 +18,8 @@ export type SystemConfig = {
   refresh_token_ttl: string;
   rate_limit: number;
   delay_after: number;
+  login_methods: LoginMethod[];
+  passkey_login_fallback_enabled: boolean;
   rpid: string;
   origins: string[];
 };

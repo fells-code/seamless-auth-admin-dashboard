@@ -5,13 +5,44 @@
  */
 
 import { useMemo, useState } from "react";
-import { ShieldCheck, TimerReset, Waypoints } from "lucide-react";
-import { useSystemConfig, type SystemConfig } from "../hooks/useSystemConfig";
+import { KeyRound, ShieldCheck, TimerReset, Waypoints } from "lucide-react";
+import {
+  useSystemConfig,
+  type LoginMethod,
+  type SystemConfig,
+} from "../hooks/useSystemConfig";
 import { useUpdateSystemConfig } from "../hooks/useUpdateSystemConfig";
 import Skeleton from "../components/Skeleton";
 import RoleChips from "../components/RoleChips";
 import { Section } from "../components/Section";
 import StatCard from "../components/StatCard";
+
+const LOGIN_METHOD_OPTIONS: {
+  value: LoginMethod;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "passkey",
+    label: "Passkeys",
+    description: "WebAuthn passkey login for users with registered credentials.",
+  },
+  {
+    value: "magic_link",
+    label: "Magic Links",
+    description: "Email sign-in links for passwordless login fallback.",
+  },
+  {
+    value: "email_otp",
+    label: "Email OTP",
+    description: "One-time email codes after login initiation.",
+  },
+  {
+    value: "phone_otp",
+    label: "SMS OTP",
+    description: "One-time SMS codes after login initiation.",
+  },
+];
 
 export default function SystemConfigPage() {
   const { data, isLoading } = useSystemConfig();
@@ -103,6 +134,10 @@ export default function SystemConfigPage() {
                   label="Dirty state"
                   value={isDirty ? "Unsaved changes" : "In sync"}
                 />
+                <InfoPill
+                  label="Login methods"
+                  value={`${form.login_methods.length}`}
+                />
               </div>
             </div>
 
@@ -127,12 +162,19 @@ export default function SystemConfigPage() {
                 value={`${form.origins.length}`}
                 description="Trusted origins currently allowed for WebAuthn and related flows."
               />
+
+              <FocusPanel
+                icon={KeyRound}
+                title="Login methods"
+                value={`${form.login_methods.length}`}
+                description="Enabled passwordless entry points for account sign-in."
+              />
             </div>
           </div>
         </div>
       </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard
           label="Available Roles"
           value={form.available_roles.length}
@@ -152,6 +194,15 @@ export default function SystemConfigPage() {
           label="Origins"
           value={form.origins.length}
           hint={`RP ID: ${form.rpid}`}
+        />
+        <StatCard
+          label="Login Methods"
+          value={form.login_methods.length}
+          hint={
+            form.passkey_login_fallback_enabled
+              ? "Passkey fallback enabled"
+              : "Passkey fallback disabled"
+          }
         />
       </div>
 
@@ -202,6 +253,27 @@ export default function SystemConfigPage() {
               onChange={(roles) => updateField("default_roles", roles)}
             />
           </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Login Policy"
+        description="Control which passwordless login methods users can choose after login initiation."
+      >
+        <div className="space-y-5">
+          <LoginMethodSelector
+            value={form.login_methods}
+            onChange={(value) => updateField("login_methods", value)}
+          />
+
+          <CheckboxField
+            label="Passkey Login Fallback"
+            description="Allow configured fallback methods when passkey login cannot be completed."
+            checked={form.passkey_login_fallback_enabled}
+            onChange={(checked) =>
+              updateField("passkey_login_fallback_enabled", checked)
+            }
+          />
         </div>
       </Section>
 
@@ -407,6 +479,92 @@ function NumberInput({
         className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
       />
     </Field>
+  );
+}
+
+function LoginMethodSelector({
+  value,
+  onChange,
+}: {
+  value: LoginMethod[];
+  onChange: (v: LoginMethod[]) => void;
+}) {
+  const toggle = (method: LoginMethod) => {
+    const enabled = value.includes(method);
+
+    if (enabled) {
+      if (value.length === 1) return;
+      onChange(value.filter((current) => current !== method));
+      return;
+    }
+
+    onChange([...value, method]);
+  };
+
+  return (
+    <Field
+      label="Enabled Login Methods"
+      helperText="At least one login method must remain enabled."
+    >
+      <div className="grid gap-3 md:grid-cols-2">
+        {LOGIN_METHOD_OPTIONS.map((option) => {
+          const checked = value.includes(option.value);
+          const disabled = checked && value.length === 1;
+
+          return (
+            <label
+              key={option.value}
+              className="flex min-h-24 cursor-pointer items-start gap-3 rounded-md border border-subtle bg-surface-alt p-4 transition hover:border-[var(--primary)] has-[:checked]:border-[var(--primary)] has-[:checked]:bg-surface"
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                disabled={disabled}
+                onChange={() => toggle(option.value)}
+                className="mt-1 h-4 w-4 rounded border-subtle accent-[var(--primary)] disabled:opacity-50"
+              />
+
+              <span className="space-y-1">
+                <span className="block text-sm font-medium text-primary">
+                  {option.label}
+                </span>
+                <span className="block text-sm text-muted">
+                  {option.description}
+                </span>
+              </span>
+            </label>
+          );
+        })}
+      </div>
+    </Field>
+  );
+}
+
+function CheckboxField({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-3 rounded-md border border-subtle bg-surface-alt p-4 transition hover:border-[var(--primary)]">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="mt-1 h-4 w-4 rounded border-subtle accent-[var(--primary)]"
+      />
+
+      <span className="space-y-1">
+        <span className="block text-sm font-medium text-primary">{label}</span>
+        <span className="block text-sm text-muted">{description}</span>
+      </span>
+    </label>
   );
 }
 
