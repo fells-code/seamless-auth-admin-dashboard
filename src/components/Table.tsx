@@ -115,9 +115,7 @@ export default function Table<T extends Record<string, unknown>>({
     actions.length ? "80px" : ""
   }`;
   const tableMinWidth = `${
-    (selectable ? 40 : 0) +
-    columns.length * 160 +
-    (actions.length ? 80 : 0)
+    (selectable ? 40 : 0) + columns.length * 160 + (actions.length ? 80 : 0)
   }px`;
 
   const selectedRows: T[] = [...selected].map((i) => sortedData[i]);
@@ -171,7 +169,11 @@ export default function Table<T extends Record<string, unknown>>({
           )}
         </div>
 
-        <div className="mt-3 overflow-x-auto" role="region" aria-label="Table content">
+        <div
+          className="mt-3 overflow-x-auto"
+          role="region"
+          aria-label="Table content"
+        >
           <div
             className="grid min-w-full w-max items-center gap-3 text-xs uppercase tracking-[0.18em] text-subtle"
             style={{
@@ -235,69 +237,69 @@ export default function Table<T extends Record<string, unknown>>({
       ) : (
         <div className="overflow-x-auto">
           <div className="min-w-full w-max divide-y divide-[color:var(--border)]/70">
-          {sortedData.map((row, i) => {
-            const isSelected = selected.has(i);
+            {sortedData.map((row, i) => {
+              const isSelected = selected.has(i);
 
-            return (
-              <div
-                key={i}
-                className={clsx(
-                  "grid min-w-full w-max items-center gap-3 px-4 py-3 transition-all",
-                  "hover:bg-[color:var(--surface-alt)]/45",
-                  isSelected &&
-                    "bg-[color:var(--accent-soft)]/40 ring-1 ring-inset ring-[var(--primary)]",
-                )}
-                style={{
-                  gridTemplateColumns: gridTemplate,
-                  minWidth: tableMinWidth,
-                }}
-              >
-                {selectable && (
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggleSelect(i)}
-                    className="accent-[var(--primary)]"
-                  />
-                )}
+              return (
+                <div
+                  key={i}
+                  className={clsx(
+                    "grid min-w-full w-max items-center gap-3 px-4 py-3 transition-all",
+                    "hover:bg-[color:var(--surface-alt)]/45",
+                    isSelected &&
+                      "bg-[color:var(--accent-soft)]/40 ring-1 ring-inset ring-[var(--primary)]",
+                  )}
+                  style={{
+                    gridTemplateColumns: gridTemplate,
+                    minWidth: tableMinWidth,
+                  }}
+                >
+                  {selectable && (
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelect(i)}
+                      className="accent-[var(--primary)]"
+                    />
+                  )}
 
-                {columns.map((col) => (
-                  <div
-                    key={String(col.key)}
-                    className="min-w-0 truncate text-sm text-primary"
-                  >
-                    {col.render
-                      ? col.render(row[col.key], row)
-                      : (row[col.key] as React.ReactNode)}
-                  </div>
-                ))}
+                  {columns.map((col) => (
+                    <div
+                      key={String(col.key)}
+                      className="min-w-0 truncate text-sm text-primary"
+                    >
+                      {col.render
+                        ? col.render(row[col.key], row)
+                        : (row[col.key] as React.ReactNode)}
+                    </div>
+                  ))}
 
-                {actions.length > 0 && (
-                  <div className="flex justify-end gap-2">
-                    {actions.map((action, idx) => {
-                      const Icon = action.icon;
+                  {actions.length > 0 && (
+                    <div className="flex justify-end gap-2">
+                      {actions.map((action, idx) => {
+                        const Icon = action.icon;
 
-                      return (
-                        <button
-                          key={idx}
-                          onClick={() => action.onClick(row)}
-                          title={action.label}
-                          className={clsx(
-                            "rounded-md p-1.5 transition",
-                            action.variant === "danger"
-                              ? "text-[var(--highlight)] hover:bg-[color:var(--highlight)]/10"
-                              : "text-muted hover:bg-surface-alt hover:text-primary",
-                          )}
-                        >
-                          <Icon size={16} />
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => action.onClick(row)}
+                            title={action.label}
+                            className={clsx(
+                              "rounded-md p-1.5 transition",
+                              action.variant === "danger"
+                                ? "text-[var(--highlight)] hover:bg-[color:var(--highlight)]/10"
+                                : "text-muted hover:bg-surface-alt hover:text-primary",
+                            )}
+                          >
+                            <Icon size={16} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

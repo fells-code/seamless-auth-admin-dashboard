@@ -25,7 +25,8 @@ const LOGIN_METHOD_OPTIONS: {
   {
     value: "passkey",
     label: "Passkeys",
-    description: "WebAuthn passkey login for users with registered credentials.",
+    description:
+      "WebAuthn passkey login for users with registered credentials.",
   },
   {
     value: "magic_link",

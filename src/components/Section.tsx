@@ -26,7 +26,9 @@ export function Section({
             )}
           </div>
 
-          {actions && <div className="w-full sm:w-auto sm:shrink-0">{actions}</div>}
+          {actions && (
+            <div className="w-full sm:w-auto sm:shrink-0">{actions}</div>
+          )}
         </div>
       </div>
 
