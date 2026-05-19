@@ -12,6 +12,7 @@ import Users from "./pages/Users";
 import Sessions from "./pages/Sessions";
 import Events from "./pages/Events";
 import Security from "./pages/Security";
+import Organizations from "./pages/Organizations";
 import UserDetail from "./pages/UserDetail";
 import SystemConfig from "./pages/SystemConfig";
 import { AuthProvider } from "@seamless-auth/react";
@@ -35,6 +36,7 @@ export default function App() {
         >
           <Route path="/" element={<Overview />} />
           <Route path="/users" element={<Users />} />
+          <Route path="/organizations" element={<Organizations />} />
           <Route path="/sessions" element={<Sessions />} />
           <Route path="/events" element={<Events />} />
           <Route path="/security" element={<Security />} />

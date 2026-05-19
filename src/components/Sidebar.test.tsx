@@ -20,6 +20,9 @@ describe("Sidebar", () => {
 
     expect(screen.getByText("Seamless Auth")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Overview/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Organizations/i }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /System/i })).toBeInTheDocument();
   });
 
