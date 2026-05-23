@@ -19,12 +19,19 @@ describe("collapseTypes", () => {
 
   it("collapses magic link and suspicious groups", () => {
     expect(collapseTypes(["magic_link_requested"])).toBe("magicLink");
-    expect(collapseTypes(["request_suspicious"])).toBe("suspicious");
+    expect(collapseTypes(["request_suspicious"])).toBe("security");
+  });
+
+  it("collapses infrastructure event families", () => {
+    expect(collapseTypes(["refresh_token_success"])).toBe("token");
+    expect(collapseTypes(["service_token_success"])).toBe("serviceToken");
+    expect(collapseTypes(["oauth_login_success"])).toBe("oauth");
+    expect(collapseTypes(["step_up_success"])).toBe("stepUp");
   });
 
   it("falls back to the first concrete type", () => {
-    expect(collapseTypes(["token_refreshed", "token_issued"])).toBe(
-      "token_refreshed",
+    expect(collapseTypes(["unknown_event", "unknown_other"])).toBe(
+      "unknown_event",
     );
   });
 

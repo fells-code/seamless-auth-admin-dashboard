@@ -6,7 +6,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
-import type { LoginMethod } from "./useSystemConfig";
+import type { LoginMethod, OAuthProviderConfig } from "./useSystemConfig";
 
 export type SystemConfig = {
   app_name: string;
@@ -18,6 +18,7 @@ export type SystemConfig = {
   delay_after: number;
   login_methods: LoginMethod[];
   passkey_login_fallback_enabled: boolean;
+  oauth_providers: OAuthProviderConfig[];
   rpid: string;
   origins: string[];
 };

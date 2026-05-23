@@ -47,11 +47,8 @@ export default function Overview() {
       }, grouped.summary[0])
     : undefined;
 
-  const securitySignalCount = grouped?.summary.length
-    ? grouped.summary
-        .filter((item) => item.type.includes("suspicious"))
-        .reduce((sum, item) => sum + item.count, 0)
-    : 0;
+  const securitySignalCount =
+    grouped?.summary.find((item) => item.type === "security")?.count ?? 0;
 
   return (
     <div className="space-y-8">
@@ -90,7 +87,7 @@ export default function Overview() {
                 />
                 <StatusPill
                   label="Top event"
-                  value={dominantEvent?.type ?? "n/a"}
+                  value={dominantEvent?.label ?? dominantEvent?.type ?? "n/a"}
                 />
               </div>
             </div>

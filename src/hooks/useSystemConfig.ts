@@ -8,7 +8,29 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
 
-export type LoginMethod = "passkey" | "magic_link" | "email_otp" | "phone_otp";
+export type LoginMethod =
+  | "passkey"
+  | "magic_link"
+  | "email_otp"
+  | "phone_otp"
+  | "oauth";
+
+export type OAuthProviderConfig = {
+  id: string;
+  name: string;
+  enabled: boolean;
+  clientId: string;
+  clientSecretEnv: string;
+  authorizationUrl: string;
+  tokenUrl: string;
+  userInfoUrl: string;
+  scopes: string[];
+  redirectUri?: string;
+  subjectJsonPath: string;
+  emailJsonPath: string;
+  nameJsonPath?: string;
+  allowSignup: boolean;
+};
 
 export type SystemConfig = {
   app_name: string;
@@ -20,6 +42,7 @@ export type SystemConfig = {
   delay_after: number;
   login_methods: LoginMethod[];
   passkey_login_fallback_enabled: boolean;
+  oauth_providers: OAuthProviderConfig[];
   rpid: string;
   origins: string[];
 };

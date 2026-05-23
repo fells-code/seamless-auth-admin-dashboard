@@ -6,16 +6,34 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
+import { categorizeEventSummary } from "../lib/eventCategories";
 
-export interface groupedEvents {
+type EventSummaryResponse = {
   summary: {
     type: string;
     count: number;
   }[];
+};
+
+export interface GroupedEvents {
+  summary: {
+    type: string;
+    label: string;
+    count: number;
+  }[];
 }
+
 export function useGroupedEvents() {
   return useQuery({
     queryKey: ["grouped-events"],
-    queryFn: () => apiFetch<groupedEvents>("/internal/auth-events/grouped"),
+    queryFn: async (): Promise<GroupedEvents> => {
+      const data = await apiFetch<EventSummaryResponse>(
+        "/internal/auth-events/summary",
+      );
+
+      return {
+        summary: categorizeEventSummary(data.summary),
+      };
+    },
   });
 }

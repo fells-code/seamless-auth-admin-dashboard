@@ -14,6 +14,7 @@ This app is intended to run alongside the Seamless Auth API as part of a self-ho
 - filter and investigate authentication events
 - review suspicious activity and anomaly signals
 - edit system configuration
+- configure allowed login methods and OAuth providers
 - operate with runtime config injection in containerized environments
 
 ## Tech Stack
@@ -68,6 +69,55 @@ That runtime-config flow is intentional. The dashboard is designed to be reconfi
 ### System Configuration
 
 - manage available roles and auth settings
+- enable or disable login methods such as passkeys, magic links, OTP, and OAuth
+- configure OAuth providers without entering provider client secrets in the browser
+
+#### OAuth Provider Configuration
+
+The dashboard edits the Seamless Auth API `oauth_providers` system config. OAuth is enabled by
+turning on the `OAuth` login method and adding one or more provider records.
+
+Each provider record includes:
+
+- provider id, such as `google` or `github`
+- display name
+- client id
+- `clientSecretEnv`, the name of the server environment variable holding the client secret
+- authorization URL
+- token URL
+- userinfo URL
+- requested scopes
+- JSON paths used to read provider subject, email, and name from the userinfo response
+- optional redirect URI
+- signup policy
+
+The dashboard intentionally does **not** collect provider client-secret values. Store those secrets
+on the Seamless Auth API host and reference them by environment variable name, for example
+`GOOGLE_CLIENT_SECRET`.
+
+Example provider configuration:
+
+```json
+{
+  "id": "google",
+  "name": "Google",
+  "enabled": true,
+  "clientId": "google-oauth-client-id",
+  "clientSecretEnv": "GOOGLE_CLIENT_SECRET",
+  "authorizationUrl": "https://accounts.google.com/o/oauth2/v2/auth",
+  "tokenUrl": "https://oauth2.googleapis.com/token",
+  "userInfoUrl": "https://openidconnect.googleapis.com/v1/userinfo",
+  "scopes": ["openid", "email", "profile"],
+  "redirectUri": "https://app.example.com/oauth/callback",
+  "subjectJsonPath": "sub",
+  "emailJsonPath": "email",
+  "nameJsonPath": "name",
+  "allowSignup": true
+}
+```
+
+After saving config, clients can discover enabled providers with `GET /oauth/providers` and start
+login with `POST /oauth/:providerId/start`.
 
 ### Appearance
 

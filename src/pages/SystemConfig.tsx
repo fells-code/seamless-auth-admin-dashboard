@@ -9,6 +9,7 @@ import { KeyRound, ShieldCheck, TimerReset, Waypoints } from "lucide-react";
 import {
   useSystemConfig,
   type LoginMethod,
+  type OAuthProviderConfig,
   type SystemConfig,
 } from "../hooks/useSystemConfig";
 import { useUpdateSystemConfig } from "../hooks/useUpdateSystemConfig";
@@ -42,6 +43,11 @@ const LOGIN_METHOD_OPTIONS: {
     value: "phone_otp",
     label: "SMS OTP",
     description: "One-time SMS codes after login initiation.",
+  },
+  {
+    value: "oauth",
+    label: "OAuth",
+    description: "External identity providers such as Google or GitHub.",
   },
 ];
 
@@ -138,6 +144,10 @@ export default function SystemConfigPage() {
                 <InfoPill
                   label="Login methods"
                   value={`${form.login_methods.length}`}
+                />
+                <InfoPill
+                  label="OAuth providers"
+                  value={`${form.oauth_providers.length}`}
                 />
               </div>
             </div>
@@ -276,6 +286,16 @@ export default function SystemConfigPage() {
             }
           />
         </div>
+      </Section>
+
+      <Section
+        title="OAuth Providers"
+        description="Configure external login providers. Client secrets are referenced by environment variable name and are not entered here."
+      >
+        <OAuthProvidersEditor
+          providers={form.oauth_providers}
+          setProviders={(value) => updateField("oauth_providers", value)}
+        />
       </Section>
 
       <Section
@@ -452,6 +472,7 @@ function Input({
   return (
     <Field label={label} helperText={helperText}>
       <input
+        aria-label={label}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
@@ -566,6 +587,203 @@ function CheckboxField({
         <span className="block text-sm text-muted">{description}</span>
       </span>
     </label>
+  );
+}
+
+const emptyOAuthProvider: OAuthProviderConfig = {
+  id: "",
+  name: "",
+  enabled: true,
+  clientId: "",
+  clientSecretEnv: "",
+  authorizationUrl: "",
+  tokenUrl: "",
+  userInfoUrl: "",
+  scopes: [],
+  redirectUri: "",
+  subjectJsonPath: "sub",
+  emailJsonPath: "email",
+  nameJsonPath: "name",
+  allowSignup: true,
+};
+
+function OAuthProvidersEditor({
+  providers,
+  setProviders,
+}: {
+  providers: OAuthProviderConfig[];
+  setProviders: (providers: OAuthProviderConfig[]) => void;
+}) {
+  const [draft, setDraft] = useState<OAuthProviderConfig>(emptyOAuthProvider);
+
+  const addProvider = () => {
+    if (!draft.id || !draft.name || !draft.clientId || !draft.clientSecretEnv) {
+      return;
+    }
+
+    setProviders([
+      ...providers.filter((provider) => provider.id !== draft.id),
+      {
+        ...draft,
+        scopes: draft.scopes.filter(Boolean),
+        redirectUri: draft.redirectUri || undefined,
+        nameJsonPath: draft.nameJsonPath || undefined,
+      },
+    ]);
+    setDraft(emptyOAuthProvider);
+  };
+
+  const updateProvider = (
+    index: number,
+    updates: Partial<OAuthProviderConfig>,
+  ) => {
+    setProviders(
+      providers.map((provider, currentIndex) =>
+        currentIndex === index ? { ...provider, ...updates } : provider,
+      ),
+    );
+  };
+
+  const removeProvider = (index: number) => {
+    setProviders(providers.filter((_, currentIndex) => currentIndex !== index));
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-3 rounded-md border border-subtle bg-surface-alt p-4 lg:grid-cols-2">
+        <Input
+          label="Provider ID"
+          value={draft.id}
+          helperText="Use lowercase kebab-case, such as google or github."
+          onChange={(value) => setDraft({ ...draft, id: value })}
+        />
+        <Input
+          label="Display Name"
+          value={draft.name}
+          onChange={(value) => setDraft({ ...draft, name: value })}
+        />
+        <Input
+          label="Client ID"
+          value={draft.clientId}
+          onChange={(value) => setDraft({ ...draft, clientId: value })}
+        />
+        <Input
+          label="Client Secret Env"
+          value={draft.clientSecretEnv}
+          helperText="Name of the server environment variable containing the secret."
+          onChange={(value) => setDraft({ ...draft, clientSecretEnv: value })}
+        />
+        <Input
+          label="Authorization URL"
+          value={draft.authorizationUrl}
+          onChange={(value) => setDraft({ ...draft, authorizationUrl: value })}
+        />
+        <Input
+          label="Token URL"
+          value={draft.tokenUrl}
+          onChange={(value) => setDraft({ ...draft, tokenUrl: value })}
+        />
+        <Input
+          label="User Info URL"
+          value={draft.userInfoUrl}
+          onChange={(value) => setDraft({ ...draft, userInfoUrl: value })}
+        />
+        <Input
+          label="Redirect URI"
+          value={draft.redirectUri ?? ""}
+          onChange={(value) => setDraft({ ...draft, redirectUri: value })}
+        />
+        <Input
+          label="Scopes"
+          value={draft.scopes.join(", ")}
+          helperText="Comma-separated scopes requested during OAuth authorization."
+          onChange={(value) =>
+            setDraft({
+              ...draft,
+              scopes: value
+                .split(",")
+                .map((scope) => scope.trim())
+                .filter(Boolean),
+            })
+          }
+        />
+        <Input
+          label="Subject JSON Path"
+          value={draft.subjectJsonPath}
+          onChange={(value) => setDraft({ ...draft, subjectJsonPath: value })}
+        />
+        <Input
+          label="Email JSON Path"
+          value={draft.emailJsonPath}
+          onChange={(value) => setDraft({ ...draft, emailJsonPath: value })}
+        />
+        <Input
+          label="Name JSON Path"
+          value={draft.nameJsonPath ?? ""}
+          onChange={(value) => setDraft({ ...draft, nameJsonPath: value })}
+        />
+        <div className="flex items-end">
+          <button onClick={addProvider} className="btn btn-secondary">
+            Add Provider
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {providers.map((provider, index) => (
+          <div
+            key={provider.id}
+            className="rounded-md border border-subtle bg-surface-alt p-4"
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0 space-y-1">
+                <div className="font-medium text-primary">{provider.name}</div>
+                <div className="text-sm text-muted">{provider.id}</div>
+                <div className="truncate text-xs text-muted">
+                  Secret env: {provider.clientSecretEnv}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() =>
+                    updateProvider(index, { enabled: !provider.enabled })
+                  }
+                  className="btn btn-secondary"
+                >
+                  {provider.enabled ? "Disable" : "Enable"}
+                </button>
+                <button
+                  onClick={() => removeProvider(index)}
+                  className="text-sm text-[var(--highlight)] transition hover:opacity-80"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3 grid gap-2 text-xs text-muted md:grid-cols-2">
+              <span className="truncate">Client ID: {provider.clientId}</span>
+              <span className="truncate">
+                Scopes: {provider.scopes.join(", ") || "None"}
+              </span>
+              <span className="truncate">
+                Authorization: {provider.authorizationUrl}
+              </span>
+              <span className="truncate">
+                User info: {provider.userInfoUrl}
+              </span>
+            </div>
+          </div>
+        ))}
+
+        {providers.length === 0 && (
+          <div className="rounded-md border border-subtle bg-surface-alt p-4 text-sm text-muted">
+            No OAuth providers configured.
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
