@@ -13,12 +13,14 @@ import {
   Activity,
   KeyRound,
   Settings,
+  Building2,
 } from "lucide-react";
 import packageJson from "../../package.json";
 
 const navItems = [
   { name: "Overview", path: "/", icon: LayoutDashboard },
   { name: "Users", path: "/users", icon: Users },
+  { name: "Organizations", path: "/organizations", icon: Building2 },
   { name: "Sessions", path: "/sessions", icon: KeyRound },
   { name: "Events", path: "/events", icon: Activity },
   { name: "Security", path: "/security", icon: Shield },
