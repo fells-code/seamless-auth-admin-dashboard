@@ -104,10 +104,7 @@ function SidebarContent({
   );
 }
 
-export default function Sidebar({
-  mobileOpen = false,
-  onClose,
-}: SidebarProps) {
+export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
   return (
     <>
       <aside className="hidden h-full w-64 flex-col border-r border-subtle bg-surface px-4 py-5 xl:flex">
