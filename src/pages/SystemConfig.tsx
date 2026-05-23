@@ -770,7 +770,9 @@ function OAuthProvidersEditor({
               <span className="truncate">
                 Authorization: {provider.authorizationUrl}
               </span>
-              <span className="truncate">User info: {provider.userInfoUrl}</span>
+              <span className="truncate">
+                User info: {provider.userInfoUrl}
+              </span>
             </div>
           </div>
         ))}
