@@ -19,6 +19,7 @@ import { buildEventQuery } from "../lib/eventNavigation";
 
 type PieChartDatum = {
   type: string;
+  label?: string;
   count: number;
 };
 
@@ -29,11 +30,15 @@ function generateColor(index: number) {
     "var(--primary)",
     "var(--accent)",
     "var(--highlight)",
-    "#8C6A5D",
-    "#5A7D7C",
-    "#D4A373",
-    "#7F5539",
-    "#6B9080",
+    "color-mix(in srgb, var(--primary) 70%, var(--accent))",
+    "color-mix(in srgb, var(--accent) 70%, var(--highlight))",
+    "color-mix(in srgb, var(--highlight) 70%, var(--primary))",
+    "color-mix(in srgb, var(--primary) 55%, var(--surface-alt))",
+    "color-mix(in srgb, var(--accent) 55%, var(--surface-alt))",
+    "color-mix(in srgb, var(--highlight) 55%, var(--surface-alt))",
+    "color-mix(in srgb, var(--primary) 65%, var(--text-muted))",
+    "color-mix(in srgb, var(--accent) 65%, var(--text-muted))",
+    "color-mix(in srgb, var(--highlight) 65%, var(--text-muted))",
   ];
 
   return palette[index % palette.length];
@@ -43,15 +48,29 @@ function generateColor(index: number) {
 
 export default function PieChart({ data }: { data: PieChartDatum[] }) {
   const navigate = useNavigate();
+  const chartData = data
+    .filter((item) => item.count > 0)
+    .map((item) => ({
+      ...item,
+      label: item.label ?? item.type,
+    }));
+
+  if (chartData.length === 0) {
+    return (
+      <div className="flex h-80 w-full items-center justify-center rounded-xl border border-dashed border-subtle bg-surface-alt text-sm text-muted">
+        No event data yet
+      </div>
+    );
+  }
 
   return (
-    <div className="h-64 w-full">
+    <div className="h-80 w-full">
       <ResponsiveContainer>
         <RPieChart>
           <Pie
-            data={data}
+            data={chartData}
             dataKey="count"
-            nameKey="type"
+            nameKey="label"
             outerRadius={90}
             innerRadius={50}
             paddingAngle={0}
@@ -62,13 +81,13 @@ export default function PieChart({ data }: { data: PieChartDatum[] }) {
               const e = entry as unknown as PieChartDatum;
 
               navigate(
-                buildEventQuery({
-                  type: e.type,
-                }),
+                e.type === "other"
+                  ? "/events"
+                  : buildEventQuery({ type: e.type }),
               );
             }}
           >
-            {data.map((_, i) => (
+            {chartData.map((_, i) => (
               <Cell
                 key={i}
                 fill={generateColor(i)}
@@ -87,8 +106,10 @@ export default function PieChart({ data }: { data: PieChartDatum[] }) {
           />
 
           <Legend
+            iconSize={8}
             wrapperStyle={{
-              fontSize: "12px",
+              fontSize: "11px",
+              lineHeight: "16px",
               color: "var(--text-muted)",
             }}
           />

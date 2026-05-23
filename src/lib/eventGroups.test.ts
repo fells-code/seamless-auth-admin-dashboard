@@ -11,11 +11,24 @@ describe("eventGroups", () => {
   it("includes the expected top-level quick filters", () => {
     expect(eventGroups.map((group) => group.value)).toEqual([
       "",
-      "login",
-      "webauthn",
-      "otp",
-      "token",
       "security",
+      "login",
+      "oauth",
+      "webauthn",
+      "magicLink",
+      "otp",
+      "totp",
+      "stepUp",
+      "registration",
+      "token",
+      "serviceToken",
+      "logout",
+      "user",
+      "system",
+      "bootstrap",
+      "jwks",
+      "notification",
+      "operation",
     ]);
   });
 
@@ -24,6 +37,7 @@ describe("eventGroups", () => {
 
     expect(loginGroup?.match("login_success")).toBe(true);
     expect(loginGroup?.match("login_suspicious")).toBe(false);
+    expect(loginGroup?.match("oauth_login_success")).toBe(false);
   });
 
   it("matches security-only suspicious activity", () => {
@@ -33,5 +47,17 @@ describe("eventGroups", () => {
 
     expect(securityGroup?.match("request_suspicious")).toBe(true);
     expect(securityGroup?.match("login_success")).toBe(false);
+  });
+
+  it("matches infrastructure-specific event families", () => {
+    const tokenGroup = eventGroups.find((group) => group.value === "token");
+    const serviceTokenGroup = eventGroups.find(
+      (group) => group.value === "serviceToken",
+    );
+    const stepUpGroup = eventGroups.find((group) => group.value === "stepUp");
+
+    expect(tokenGroup?.match("refresh_token_failed")).toBe(true);
+    expect(serviceTokenGroup?.match("service_token_success")).toBe(true);
+    expect(stepUpGroup?.match("step_up_challenge")).toBe(true);
   });
 });
