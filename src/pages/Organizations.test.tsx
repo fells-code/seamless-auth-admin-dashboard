@@ -94,7 +94,9 @@ describe("Organizations", () => {
   it("renders organizations and members", () => {
     render(<Organizations />);
 
-    expect(screen.getByRole("heading", { name: "Organizations" })).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Organizations" }),
+    ).toBeVisible();
     expect(screen.getAllByText("Acme").length).toBeGreaterThan(0);
     expect(screen.getByText("owner@example.com")).toBeVisible();
   });

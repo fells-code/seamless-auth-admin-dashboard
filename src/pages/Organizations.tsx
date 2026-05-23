@@ -23,7 +23,8 @@ import {
 } from "../hooks/useOrganizations";
 
 type OrganizationRow = Organization & Record<string, unknown>;
-type OrganizationMembershipRow = OrganizationMembership & Record<string, unknown>;
+type OrganizationMembershipRow = OrganizationMembership &
+  Record<string, unknown>;
 
 function parseCsv(value: string) {
   return Array.from(
@@ -518,13 +519,7 @@ function SelectedOrganizationForm({
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="space-y-2">
       <span className="block text-xs uppercase tracking-[0.18em] text-muted">
