@@ -67,6 +67,24 @@ describe("SystemConfigPage", () => {
     );
   });
 
+  it("adds scoped roles to the available role set", () => {
+    render(<SystemConfigPage />);
+
+    fireEvent.change(screen.getByPlaceholderText(/admin:read/i), {
+      target: { value: "admin:write" },
+    });
+    const [addRoleButton] = screen.getAllByRole("button", { name: /^add$/i });
+    expect(addRoleButton).toBeDefined();
+    fireEvent.click(addRoleButton!);
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    expect(mocks.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        available_roles: ["user", "admin", "admin:write"],
+      }),
+    );
+  });
+
   it("adds OAuth provider configuration without a secret value", () => {
     render(<SystemConfigPage />);
 

@@ -72,6 +72,10 @@ That runtime-config flow is intentional. The dashboard is designed to be reconfi
 - enable or disable login methods such as passkeys, magic links, OTP, and OAuth
 - configure OAuth providers without entering provider client secrets in the browser
 
+Role management supports scoped role names such as `admin:read` and `admin:write`. Dashboard access
+accepts the legacy `admin` role, `admin:read`, or `admin:write`; mutating API requests still depend
+on the Seamless Auth API enforcing write scopes.
+
 #### OAuth Provider Configuration
 
 The dashboard edits the Seamless Auth API `oauth_providers` system config. OAuth is enabled by
