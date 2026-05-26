@@ -8,9 +8,10 @@ import { useAuth } from "@seamless-auth/react";
 import { Navigate, useLocation } from "react-router-dom";
 import LayoutSkeleton from "../components/LayoutSkeleton";
 import { getLastProtectedRoute } from "../lib/lastRoute";
+import { hasScopedRole } from "../lib/scopedRoles";
 
 export default function Unauthenticated() {
-  const { isAuthenticated, hasRole, user, loading } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
   const location = useLocation();
 
   const redirectTo =
@@ -21,7 +22,9 @@ export default function Unauthenticated() {
     return <LayoutSkeleton />;
   }
 
-  if (isAuthenticated && hasRole("admin")) {
+  const hasAdminReadAccess = hasScopedRole(user?.roles, "admin:read");
+
+  if (isAuthenticated && hasAdminReadAccess) {
     return <Navigate to={redirectTo} replace />;
   }
 
@@ -41,7 +44,7 @@ export default function Unauthenticated() {
           <p className="text-muted text-sm">Seamless Auth Dashboard</p>
         </div>
 
-        {isAuthenticated && !hasRole("admin") ? (
+        {isAuthenticated && !hasAdminReadAccess ? (
           <div className="text-sm text-[var(--highlight)]">
             Your account does not have admin access.
           </div>

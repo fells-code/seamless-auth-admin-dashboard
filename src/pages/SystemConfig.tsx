@@ -869,7 +869,7 @@ function AddRoleInput({
       <input
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="Add role (e.g. admin)"
+        placeholder="Add role (e.g. admin:read)"
         className="flex-1 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
         onKeyDown={(e) => {
           if (e.key === "Enter") {

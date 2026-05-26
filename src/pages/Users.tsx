@@ -22,6 +22,7 @@ import SearchInput from "../components/SearchInput";
 import CreateUserModal from "../components/CreateUserModal";
 import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
+import { hasScopedRole } from "../lib/scopedRoles";
 
 function formatTimeAgo(date?: string | null, now?: number) {
   if (!date) return "No recent activity";
@@ -69,7 +70,7 @@ export default function Users() {
   const total = data?.total ?? 0;
   const verifiedCount = users.filter((user) => user.verified).length;
   const adminCount = users.filter((user) =>
-    user.roles.includes("admin"),
+    hasScopedRole(user.roles, "admin:read"),
   ).length;
   const recentlyActiveCount = users.filter((user) => {
     if (!user.lastLogin) return false;

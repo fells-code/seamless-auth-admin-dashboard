@@ -9,13 +9,14 @@ import { Navigate, useLocation } from "react-router-dom";
 import AuthLoading from "./AuthLoading";
 import { useState, useEffect } from "react";
 import { saveLastProtectedRoute } from "../lib/lastRoute";
+import { hasScopedRole } from "../lib/scopedRoles";
 
 export default function RequireAuth({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, user, hasRole, loading } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
   const [ready, setReady] = useState(false);
   const location = useLocation();
 
@@ -35,7 +36,7 @@ export default function RequireAuth({
     return <AuthLoading />;
   }
 
-  if (!isAuthenticated || !hasRole("admin")) {
+  if (!isAuthenticated || !hasScopedRole(user?.roles, "admin:read")) {
     return (
       <Navigate to="/unauthenticated" replace state={{ from: currentPath }} />
     );

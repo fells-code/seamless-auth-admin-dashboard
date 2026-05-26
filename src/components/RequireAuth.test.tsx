@@ -111,7 +111,7 @@ describe("RequireAuth", () => {
     vi.useFakeTimers();
     authState.value = {
       isAuthenticated: true,
-      user: { id: "1" },
+      user: { id: "1", roles: ["admin:read"] },
       hasRole: (role: string) => role === "admin",
       loading: false,
     };
@@ -139,5 +139,31 @@ describe("RequireAuth", () => {
     });
 
     expect(container.querySelector(".opacity-100")).toBeInTheDocument();
+  });
+
+  it("allows admin write users into the dashboard", () => {
+    authState.value = {
+      isAuthenticated: true,
+      user: { id: "1", roles: ["admin:write"] },
+      hasRole: () => false,
+      loading: false,
+    };
+
+    render(
+      <MemoryRouter initialEntries={["/events"]}>
+        <Routes>
+          <Route
+            path="/events"
+            element={
+              <RequireAuth>
+                <div>Secret</div>
+              </RequireAuth>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Secret")).toBeInTheDocument();
   });
 });
