@@ -24,9 +24,9 @@ describe("scoped roles", () => {
   });
 
   it("checks any granted role against any required role", () => {
-    expect(hasScopedRole(["user", "admin:read"], ["admin:write", "admin:read"])).toBe(
-      true,
-    );
+    expect(
+      hasScopedRole(["user", "admin:read"], ["admin:write", "admin:read"]),
+    ).toBe(true);
     expect(hasScopedRole(["user"], ["admin:write", "admin:read"])).toBe(false);
   });
 });

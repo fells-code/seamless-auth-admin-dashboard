@@ -4,7 +4,10 @@
  * See LICENSE file in the project root for full license information
  */
 
-export function roleGrantsAccess(grantedRole: string, requiredRole: string): boolean {
+export function roleGrantsAccess(
+  grantedRole: string,
+  requiredRole: string,
+): boolean {
   const granted = grantedRole.trim();
   const required = requiredRole.trim();
 
@@ -55,7 +58,9 @@ export function hasScopedRole(
   const granted = grantedRoles.filter(
     (role): role is string => typeof role === "string",
   );
-  const required = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles];
+  const required = Array.isArray(requiredRoles)
+    ? requiredRoles
+    : [requiredRoles];
 
   return required.some((requiredRole) =>
     granted.some((grantedRole) => roleGrantsAccess(grantedRole, requiredRole)),
