@@ -15,6 +15,9 @@ This app is intended to run alongside the Seamless Auth API as part of a self-ho
 - review suspicious activity and anomaly signals
 - edit system configuration
 - configure allowed login methods and OAuth providers
+- configure account lockout policy
+- run admin-assisted device-replacement recovery
+- hide write controls from read-only admins
 - operate with runtime config injection in containerized environments
 
 ## Tech Stack
@@ -71,10 +74,11 @@ That runtime-config flow is intentional. The dashboard is designed to be reconfi
 - manage available roles and auth settings
 - enable or disable login methods such as passkeys, magic links, OTP, and OAuth
 - configure OAuth providers without entering provider client secrets in the browser
+- configure lockout policy for repeated failed login attempts
 
 Role management supports scoped role names such as `admin:read` and `admin:write`. Dashboard access
-accepts the legacy `admin` role, `admin:read`, or `admin:write`; mutating API requests still depend
-on the Seamless Auth API enforcing write scopes.
+accepts the legacy `admin` role, `admin:read`, or `admin:write`. Read-only admins can inspect
+users, sessions, organizations, events, and config, but destructive controls are hidden or disabled.
 
 #### OAuth Provider Configuration
 
@@ -91,8 +95,10 @@ Each provider record includes:
 - token URL
 - userinfo URL
 - requested scopes
-- JSON paths used to read provider subject, email, and name from the userinfo response
-- optional redirect URI
+- exact redirect URI allowlist
+- JSON paths used to read provider subject, email, email verification, and name from the userinfo response
+- account-linking policy
+- email verification policy
 - signup policy
 
 The dashboard intentionally does **not** collect provider client-secret values. Store those secrets
@@ -114,15 +120,32 @@ Example provider configuration:
   "userInfoUrl": "https://openidconnect.googleapis.com/v1/userinfo",
   "scopes": ["openid", "email", "profile"],
   "redirectUri": "https://app.example.com/oauth/callback",
+  "redirectUris": ["https://app.example.com/oauth/callback"],
   "subjectJsonPath": "sub",
   "emailJsonPath": "email",
+  "emailVerifiedJsonPath": "email_verified",
   "nameJsonPath": "name",
-  "allowSignup": true
+  "allowSignup": true,
+  "accountLinking": "email",
+  "requireEmailVerified": true
 }
 ```
 
 After saving config, clients can discover enabled providers with `GET /oauth/providers` and start
 login with `POST /oauth/:providerId/start`.
+
+#### Lockout Policy
+
+The dashboard edits the API `lockout_policy` system config. Operators can enable or disable
+lockout, set the failed-attempt threshold, set the counting window, and choose how long identified
+users remain locked. This complements route-level rate limits; it does not replace destination or
+IP-based abuse controls.
+
+#### Device Replacement Recovery
+
+The user detail page includes a device-replacement action for write admins. The API requires a
+fresh step-up session before it will revoke sessions, remove passkeys, and disable TOTP for the
+target user. The dashboard shows only the resulting counts and never displays credential secrets.
 
 ### Appearance
 

@@ -13,6 +13,7 @@ import {
   type SystemConfig,
 } from "../hooks/useSystemConfig";
 import { useUpdateSystemConfig } from "../hooks/useUpdateSystemConfig";
+import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import Skeleton from "../components/Skeleton";
 import RoleChips from "../components/RoleChips";
 import { Section } from "../components/Section";
@@ -54,6 +55,7 @@ const LOGIN_METHOD_OPTIONS: {
 export default function SystemConfigPage() {
   const { data, isLoading } = useSystemConfig();
   const update = useUpdateSystemConfig();
+  const { canWrite } = useAdminPermissions();
 
   const [draft, setDraft] = useState<Partial<SystemConfig>>({});
 
@@ -105,6 +107,7 @@ export default function SystemConfigPage() {
   };
 
   const save = () => {
+    if (!canWrite) return;
     update.mutate(form);
   };
 
@@ -149,6 +152,10 @@ export default function SystemConfigPage() {
                   label="OAuth providers"
                   value={`${form.oauth_providers.length}`}
                 />
+                <InfoPill
+                  label="Lockout"
+                  value={form.lockout_policy.enabled ? "Enabled" : "Disabled"}
+                />
               </div>
             </div>
 
@@ -185,7 +192,7 @@ export default function SystemConfigPage() {
         </div>
       </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <StatCard
           label="Available Roles"
           value={form.available_roles.length}
@@ -213,6 +220,19 @@ export default function SystemConfigPage() {
             form.passkey_login_fallback_enabled
               ? "Passkey fallback enabled"
               : "Passkey fallback disabled"
+          }
+        />
+        <StatCard
+          label="Lockout Policy"
+          value={
+            form.lockout_policy.enabled
+              ? `${form.lockout_policy.maxFailures}`
+              : "Off"
+          }
+          hint={
+            form.lockout_policy.enabled
+              ? `Failures per ${form.lockout_policy.windowSeconds}s window`
+              : "Account lockout disabled"
           }
         />
       </div>
@@ -341,6 +361,61 @@ export default function SystemConfigPage() {
       </Section>
 
       <Section
+        title="Lockout Policy"
+        description="Temporarily lock identified users after repeated failed login attempts."
+      >
+        <div className="space-y-5">
+          <CheckboxField
+            label="Enable Account Lockout"
+            description="Block login attempts for identified users after the configured failure threshold is reached."
+            checked={form.lockout_policy.enabled}
+            onChange={(checked) =>
+              updateField("lockout_policy", {
+                ...form.lockout_policy,
+                enabled: checked,
+              })
+            }
+          />
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <NumberInput
+              label="Max Failures"
+              value={form.lockout_policy.maxFailures}
+              helperText="Number of failed attempts before the user is locked."
+              onChange={(value) =>
+                updateField("lockout_policy", {
+                  ...form.lockout_policy,
+                  maxFailures: value,
+                })
+              }
+            />
+            <NumberInput
+              label="Window Seconds"
+              value={form.lockout_policy.windowSeconds}
+              helperText="How far back failed attempts are counted."
+              onChange={(value) =>
+                updateField("lockout_policy", {
+                  ...form.lockout_policy,
+                  windowSeconds: value,
+                })
+              }
+            />
+            <NumberInput
+              label="Lockout Seconds"
+              value={form.lockout_policy.lockoutSeconds}
+              helperText="How long the account should reject login attempts."
+              onChange={(value) =>
+                updateField("lockout_policy", {
+                  ...form.lockout_policy,
+                  lockoutSeconds: value,
+                })
+              }
+            />
+          </div>
+        </div>
+      </Section>
+
+      <Section
         title="WebAuthn / Origins"
         description="Relying-party identity and allowed origins must stay aligned with your real deployment surfaces."
       >
@@ -385,10 +460,14 @@ export default function SystemConfigPage() {
 
             <button
               onClick={save}
-              disabled={!isDirty || update.isPending}
+              disabled={!isDirty || update.isPending || !canWrite}
               className="btn btn-primary disabled:opacity-50"
             >
-              {update.isPending ? "Saving..." : "Save Changes"}
+              {!canWrite
+                ? "Read Only"
+                : update.isPending
+                  ? "Saving..."
+                  : "Save Changes"}
             </button>
           </div>
         </div>
@@ -496,6 +575,7 @@ function NumberInput({
     <Field label={label} helperText={helperText}>
       <input
         type="number"
+        aria-label={label}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
@@ -601,10 +681,14 @@ const emptyOAuthProvider: OAuthProviderConfig = {
   userInfoUrl: "",
   scopes: [],
   redirectUri: "",
+  redirectUris: [],
   subjectJsonPath: "sub",
   emailJsonPath: "email",
+  emailVerifiedJsonPath: "email_verified",
   nameJsonPath: "name",
   allowSignup: true,
+  accountLinking: "email",
+  requireEmailVerified: false,
 };
 
 function OAuthProvidersEditor({
@@ -626,6 +710,7 @@ function OAuthProvidersEditor({
       {
         ...draft,
         scopes: draft.scopes.filter(Boolean),
+        redirectUris: draft.redirectUris.filter(Boolean),
         redirectUri: draft.redirectUri || undefined,
         nameJsonPath: draft.nameJsonPath || undefined,
       },
@@ -694,6 +779,20 @@ function OAuthProvidersEditor({
           onChange={(value) => setDraft({ ...draft, redirectUri: value })}
         />
         <Input
+          label="Redirect URI Allowlist"
+          value={draft.redirectUris.join(", ")}
+          helperText="Comma-separated callback URLs. When present, OAuth starts only accept exact matches."
+          onChange={(value) =>
+            setDraft({
+              ...draft,
+              redirectUris: value
+                .split(",")
+                .map((uri) => uri.trim())
+                .filter(Boolean),
+            })
+          }
+        />
+        <Input
           label="Scopes"
           value={draft.scopes.join(", ")}
           helperText="Comma-separated scopes requested during OAuth authorization."
@@ -718,9 +817,42 @@ function OAuthProvidersEditor({
           onChange={(value) => setDraft({ ...draft, emailJsonPath: value })}
         />
         <Input
+          label="Email Verified JSON Path"
+          value={draft.emailVerifiedJsonPath}
+          onChange={(value) =>
+            setDraft({ ...draft, emailVerifiedJsonPath: value })
+          }
+        />
+        <Input
           label="Name JSON Path"
           value={draft.nameJsonPath ?? ""}
           onChange={(value) => setDraft({ ...draft, nameJsonPath: value })}
+        />
+        <Field
+          label="Account Linking"
+          helperText="Email linking reuses existing users; disabled requires an existing provider identity."
+        >
+          <select
+            value={draft.accountLinking}
+            onChange={(event) =>
+              setDraft({
+                ...draft,
+                accountLinking: event.target.value as "email" | "disabled",
+              })
+            }
+            className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+          >
+            <option value="email">Email linking</option>
+            <option value="disabled">Disabled</option>
+          </select>
+        </Field>
+        <CheckboxField
+          label="Require Verified Email"
+          description="Reject OAuth profiles when the configured email verification claim is not true."
+          checked={draft.requireEmailVerified}
+          onChange={(value) =>
+            setDraft({ ...draft, requireEmailVerified: value })
+          }
         />
         <div className="flex items-end">
           <button onClick={addProvider} className="btn btn-secondary">
@@ -766,6 +898,17 @@ function OAuthProvidersEditor({
               <span className="truncate">Client ID: {provider.clientId}</span>
               <span className="truncate">
                 Scopes: {provider.scopes.join(", ") || "None"}
+              </span>
+              <span className="truncate">
+                Redirects:{" "}
+                {(provider.redirectUris ?? []).length || "Origin fallback"}
+              </span>
+              <span className="truncate">
+                Linking: {provider.accountLinking ?? "email"}
+              </span>
+              <span className="truncate">
+                Verified email:{" "}
+                {provider.requireEmailVerified ? "required" : "optional"}
               </span>
               <span className="truncate">
                 Authorization: {provider.authorizationUrl}

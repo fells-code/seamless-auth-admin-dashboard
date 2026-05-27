@@ -14,6 +14,7 @@ import Skeleton from "../components/Skeleton";
 import StatCard from "../components/StatCard";
 import SearchInput from "../components/SearchInput";
 import { Section } from "../components/Section";
+import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import type { Session } from "../types/user";
 
 type ActivityFilter = "all" | "recent" | "expiring" | "idle";
@@ -86,6 +87,7 @@ function isExpiringSoon(session: Session) {
 export default function Sessions() {
   const { data, isLoading } = useSessions();
   const revoke = useRevokeSession();
+  const { canWrite } = useAdminPermissions();
 
   const [offset, setOffset] = useState(0);
   const [search, setSearch] = useState("");
@@ -259,7 +261,7 @@ export default function Sessions() {
         }
       >
         <Table<Session>
-          selectable
+          selectable={canWrite}
           limit={limit}
           offset={offset}
           total={filteredSessions.length}
@@ -313,21 +315,30 @@ export default function Sessions() {
             },
           ]}
           data={pagedSessions}
-          actions={[
-            {
-              icon: Trash2,
-              label: "Revoke",
-              variant: "danger",
-              onClick: (row) => revoke.mutate(row.id),
-            },
-          ]}
-          bulkActions={[
-            {
-              label: "Revoke Selected",
-              variant: "danger",
-              onClick: (rows) => rows.forEach((row) => revoke.mutate(row.id)),
-            },
-          ]}
+          actions={
+            canWrite
+              ? [
+                  {
+                    icon: Trash2,
+                    label: "Revoke",
+                    variant: "danger" as const,
+                    onClick: (row: Session) => revoke.mutate(row.id),
+                  },
+                ]
+              : []
+          }
+          bulkActions={
+            canWrite
+              ? [
+                  {
+                    label: "Revoke Selected",
+                    variant: "danger" as const,
+                    onClick: (rows: Session[]) =>
+                      rows.forEach((row) => revoke.mutate(row.id)),
+                  },
+                ]
+              : []
+          }
         />
       </Section>
     </div>
