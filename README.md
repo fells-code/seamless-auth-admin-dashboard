@@ -97,7 +97,8 @@ Each provider record includes:
 
 The dashboard intentionally does **not** collect provider client-secret values. Store those secrets
 on the Seamless Auth API host and reference them by environment variable name, for example
-`GOOGLE_CLIENT_SECRET`.
+`GOOGLE_CLIENT_SECRET`. Provider cards show only that a secret environment variable is configured;
+use the edit form when you need to change the configured environment variable name.
 
 Example provider configuration:
 

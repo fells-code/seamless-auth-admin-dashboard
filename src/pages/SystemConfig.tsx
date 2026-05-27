@@ -740,7 +740,7 @@ function OAuthProvidersEditor({
                 <div className="font-medium text-primary">{provider.name}</div>
                 <div className="text-sm text-muted">{provider.id}</div>
                 <div className="truncate text-xs text-muted">
-                  Secret env: {provider.clientSecretEnv}
+                  Secret env configured
                 </div>
               </div>
 
