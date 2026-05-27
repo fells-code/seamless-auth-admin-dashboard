@@ -231,7 +231,7 @@ The app is functional and meant for real use. The current focus is on consistenc
 
 Known areas still worth attention:
 
-- `AuthProvider` auth mode wiring is not fully aligned with runtime config support
+- The dashboard assumes the SeamlessAuth server adapter is mounted at `/auth`
 - the unauthenticated `Sign In` button still has no wired action
 - a few query invalidation paths remain narrower than ideal
 - chart components have lighter test coverage than the shared shell and utility layers

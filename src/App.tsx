@@ -23,7 +23,7 @@ import Profile from "./pages/Profile";
 
 export default function App() {
   return (
-    <AuthProvider apiHost={API_URL} mode="server">
+    <AuthProvider apiHost={API_URL}>
       <Routes>
         <Route path="/unauthenticated" element={<Unauthenticated />} />
 
