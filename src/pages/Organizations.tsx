@@ -21,6 +21,7 @@ import {
   type Organization,
   type OrganizationMembership,
 } from "../hooks/useOrganizations";
+import { useAdminPermissions } from "../hooks/useAdminPermissions";
 
 type OrganizationRow = Organization & Record<string, unknown>;
 type OrganizationMembershipRow = OrganizationMembership &
@@ -53,6 +54,7 @@ export default function Organizations() {
   const updateOrganization = useUpdateOrganization();
   const addMember = useAddOrganizationMember();
   const removeMember = useRemoveOrganizationMember();
+  const { canWrite } = useAdminPermissions();
 
   const organizations = useMemo(() => data?.organizations ?? [], [data]);
   const total = data?.total ?? organizations.length;
@@ -86,6 +88,7 @@ export default function Organizations() {
 
   const handleCreateOrganization = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!canWrite) return;
 
     const name = createName.trim();
     const slug = createSlug.trim();
@@ -106,7 +109,9 @@ export default function Organizations() {
 
   const handleAddMember = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!canWrite) return;
     if (!selectedOrganization) return;
+    if (!canWrite) return;
 
     const email = memberEmail.trim();
     if (!email) return;
@@ -220,31 +225,33 @@ export default function Organizations() {
           title="Organization Directory"
           description="Create and select organization records managed by this auth system."
           actions={
-            <form
-              onSubmit={handleCreateOrganization}
-              className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)_auto]"
-            >
-              <input
-                value={createName}
-                onChange={(event) => setCreateName(event.target.value)}
-                placeholder="Organization name"
-                className="min-w-0 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
-              />
-              <input
-                value={createSlug}
-                onChange={(event) => setCreateSlug(event.target.value)}
-                placeholder="Slug"
-                className="min-w-0 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
-              />
-              <button
-                type="submit"
-                disabled={createOrganization.isPending}
-                className="btn btn-primary inline-flex items-center justify-center gap-2"
+            canWrite ? (
+              <form
+                onSubmit={handleCreateOrganization}
+                className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)_auto]"
               >
-                <Plus size={16} />
-                Create
-              </button>
-            </form>
+                <input
+                  value={createName}
+                  onChange={(event) => setCreateName(event.target.value)}
+                  placeholder="Organization name"
+                  className="min-w-0 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                />
+                <input
+                  value={createSlug}
+                  onChange={(event) => setCreateSlug(event.target.value)}
+                  placeholder="Slug"
+                  className="min-w-0 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                />
+                <button
+                  type="submit"
+                  disabled={createOrganization.isPending}
+                  className="btn btn-primary inline-flex items-center justify-center gap-2"
+                >
+                  <Plus size={16} />
+                  Create
+                </button>
+              </form>
+            ) : undefined
           }
         >
           <Table<OrganizationRow>
@@ -310,6 +317,7 @@ export default function Organizations() {
               key={selectedOrganization.id}
               organization={selectedOrganization}
               isPending={updateOrganization.isPending}
+              canWrite={canWrite}
               onSave={(input) => updateOrganization.mutate(input)}
             />
           ) : (
@@ -328,40 +336,42 @@ export default function Organizations() {
             : "Select an organization to view memberships."
         }
         actions={
-          <form
-            onSubmit={handleAddMember}
-            className="grid gap-2 lg:grid-cols-[minmax(220px,1fr)_minmax(160px,0.6fr)_minmax(200px,0.8fr)_auto]"
-          >
-            <input
-              value={memberEmail}
-              onChange={(event) => setMemberEmail(event.target.value)}
-              placeholder="member@example.com"
-              disabled={!selectedOrganization}
-              className="min-w-0 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] disabled:opacity-60"
-            />
-            <input
-              value={memberRoles}
-              onChange={(event) => setMemberRoles(event.target.value)}
-              placeholder="Roles"
-              disabled={!selectedOrganization}
-              className="min-w-0 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] disabled:opacity-60"
-            />
-            <input
-              value={memberScopes}
-              onChange={(event) => setMemberScopes(event.target.value)}
-              placeholder="Scopes"
-              disabled={!selectedOrganization}
-              className="min-w-0 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] disabled:opacity-60"
-            />
-            <button
-              type="submit"
-              disabled={!selectedOrganization || addMember.isPending}
-              className="btn btn-primary inline-flex items-center justify-center gap-2"
+          canWrite ? (
+            <form
+              onSubmit={handleAddMember}
+              className="grid gap-2 lg:grid-cols-[minmax(220px,1fr)_minmax(160px,0.6fr)_minmax(200px,0.8fr)_auto]"
             >
-              <Plus size={16} />
-              Add
-            </button>
-          </form>
+              <input
+                value={memberEmail}
+                onChange={(event) => setMemberEmail(event.target.value)}
+                placeholder="member@example.com"
+                disabled={!selectedOrganization}
+                className="min-w-0 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] disabled:opacity-60"
+              />
+              <input
+                value={memberRoles}
+                onChange={(event) => setMemberRoles(event.target.value)}
+                placeholder="Roles"
+                disabled={!selectedOrganization}
+                className="min-w-0 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] disabled:opacity-60"
+              />
+              <input
+                value={memberScopes}
+                onChange={(event) => setMemberScopes(event.target.value)}
+                placeholder="Scopes"
+                disabled={!selectedOrganization}
+                className="min-w-0 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] disabled:opacity-60"
+              />
+              <button
+                type="submit"
+                disabled={!selectedOrganization || addMember.isPending}
+                className="btn btn-primary inline-flex items-center justify-center gap-2"
+              >
+                <Plus size={16} />
+                Add
+              </button>
+            </form>
+          ) : undefined
         }
       >
         {membersLoading ? (
@@ -412,14 +422,19 @@ export default function Organizations() {
                 ),
               },
             ]}
-            actions={[
-              {
-                icon: Trash2,
-                label: "Remove",
-                variant: "danger",
-                onClick: (row) => handleRemoveMember(row),
-              },
-            ]}
+            actions={
+              canWrite
+                ? [
+                    {
+                      icon: Trash2,
+                      label: "Remove",
+                      variant: "danger" as const,
+                      onClick: (row: OrganizationMembershipRow) =>
+                        handleRemoveMember(row),
+                    },
+                  ]
+                : []
+            }
           />
         )}
       </Section>
@@ -456,10 +471,12 @@ function StatusPanel({
 function SelectedOrganizationForm({
   organization,
   isPending,
+  canWrite,
   onSave,
 }: {
   organization: Organization;
   isPending: boolean;
+  canWrite: boolean;
   onSave: (input: {
     organizationId: string;
     name: string;
@@ -485,6 +502,7 @@ function SelectedOrganizationForm({
         <input
           value={editName}
           onChange={(event) => setEditName(event.target.value)}
+          disabled={!canWrite}
           className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
         />
       </Field>
@@ -493,6 +511,7 @@ function SelectedOrganizationForm({
         <input
           value={editSlug}
           onChange={(event) => setEditSlug(event.target.value)}
+          disabled={!canWrite}
           className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
         />
       </Field>
@@ -507,14 +526,20 @@ function SelectedOrganizationForm({
         <Detail label="Members" value={`${organization.memberCount ?? 0}`} />
       </div>
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="btn btn-secondary inline-flex items-center gap-2"
-      >
-        <Save size={16} />
-        Save
-      </button>
+      {canWrite ? (
+        <button
+          type="submit"
+          disabled={isPending}
+          className="btn btn-secondary inline-flex items-center gap-2"
+        >
+          <Save size={16} />
+          Save
+        </button>
+      ) : (
+        <div className="rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm text-muted">
+          Read-only admin access
+        </div>
+      )}
     </form>
   );
 }

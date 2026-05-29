@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   useOrganizations: vi.fn(),
   useRemoveOrganizationMember: vi.fn(),
   useUpdateOrganization: vi.fn(),
+  useAdminPermissions: vi.fn(),
 }));
 
 vi.mock("../hooks/useOrganizations", () => ({
@@ -28,6 +29,10 @@ vi.mock("../hooks/useOrganizations", () => ({
   useOrganizations: mocks.useOrganizations,
   useRemoveOrganizationMember: mocks.useRemoveOrganizationMember,
   useUpdateOrganization: mocks.useUpdateOrganization,
+}));
+
+vi.mock("../hooks/useAdminPermissions", () => ({
+  useAdminPermissions: mocks.useAdminPermissions,
 }));
 
 const organization = {
@@ -88,6 +93,10 @@ describe("Organizations", () => {
     mocks.useRemoveOrganizationMember.mockReturnValue({
       mutate: mocks.removeMember,
       isPending: false,
+    });
+    mocks.useAdminPermissions.mockReturnValue({
+      canRead: true,
+      canWrite: true,
     });
   });
 

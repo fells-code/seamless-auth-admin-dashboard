@@ -11,7 +11,11 @@ import { useUserDetail } from "../hooks/useUserDetail";
 import { useUserAnomalies } from "../hooks/useUserAnomalies";
 import { useUserTimeseries } from "../hooks/useUserTimeseries";
 import { useRevokeSession } from "../hooks/useRevokeSession";
+import { useRevokeAllUserSessions } from "../hooks/useRevokeAllUserSessions";
 import { useDeleteUser } from "../hooks/useDeleteUser";
+import { useDeviceReplacementRecovery } from "../hooks/useDeviceReplacementRecovery";
+import { useAdminPermissions } from "../hooks/useAdminPermissions";
+import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import Tabs from "../components/Tabs";
 import Table from "../components/Table";
 import Skeleton from "../components/Skeleton";
@@ -77,7 +81,11 @@ export default function UserDetail() {
   const { data: timeseries } = useUserTimeseries(data?.user?.id ?? "");
 
   const revokeSession = useRevokeSession();
+  const revokeAllUserSessions = useRevokeAllUserSessions();
   const deleteUser = useDeleteUser();
+  const deviceReplacement = useDeviceReplacementRecovery();
+  const { canWrite } = useAdminPermissions();
+  const ensureStepUp = useStepUpGuard();
 
   const [editing, setEditing] = useState(false);
   const [tab, setTab] = useState<
@@ -135,7 +143,23 @@ export default function UserDetail() {
       return;
     }
 
-    sessions.forEach((session) => revokeSession.mutate(session.id));
+    revokeAllUserSessions.mutate(user.id);
+  };
+
+  const prepareDeviceReplacement = async () => {
+    if (
+      !confirm(
+        "Prepare this user for device replacement by revoking sessions, removing passkeys, and disabling TOTP?",
+      )
+    ) {
+      return;
+    }
+
+    if (!(await ensureStepUp())) {
+      return;
+    }
+
+    deviceReplacement.mutate({ userId: user.id });
   };
 
   return (
@@ -228,26 +252,45 @@ export default function UserDetail() {
                     Quick actions
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => setEditing(true)}
-                      className="btn btn-primary"
-                    >
-                      Edit User
-                    </button>
-                    <button
-                      onClick={revokeAllSessions}
-                      className="btn btn-secondary"
-                    >
-                      Revoke Sessions
-                    </button>
-                    <button
-                      onClick={handleDeleteUser}
-                      className="btn btn-danger"
-                    >
-                      Delete User
-                    </button>
-                  </div>
+                  {canWrite ? (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => setEditing(true)}
+                        className="btn btn-primary"
+                      >
+                        Edit User
+                      </button>
+                      <button
+                        onClick={revokeAllSessions}
+                        className="btn btn-secondary"
+                      >
+                        Revoke Sessions
+                      </button>
+                      <button
+                        onClick={() => void prepareDeviceReplacement()}
+                        disabled={deviceReplacement.isPending}
+                        className="btn btn-secondary disabled:opacity-50"
+                      >
+                        Device Replacement
+                      </button>
+                      <button
+                        onClick={handleDeleteUser}
+                        className="btn btn-danger"
+                      >
+                        Delete User
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm text-muted">
+                      Read-only admin access
+                    </div>
+                  )}
+                  {deviceReplacement.isSuccess && (
+                    <div className="text-xs text-muted">
+                      Device replacement prepared:
+                      {` ${deviceReplacement.data.revokedSessions} sessions revoked, ${deviceReplacement.data.removedCredentials} passkeys removed, ${deviceReplacement.data.disabledTotpCredentials} TOTP credentials disabled.`}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -337,7 +380,7 @@ export default function UserDetail() {
           description="Current sessions for this user, including recency and expiry timing."
         >
           <Table<Session>
-            selectable
+            selectable={canWrite}
             emptyTitle="No sessions for this user"
             emptyDescription="This user currently has no active sessions to revoke or review."
             columns={[
@@ -385,22 +428,30 @@ export default function UserDetail() {
                 ),
               },
             ]}
-            actions={[
-              {
-                icon: ShieldOff,
-                label: "Revoke",
-                variant: "danger",
-                onClick: (row) => revokeSession.mutate(row.id),
-              },
-            ]}
-            bulkActions={[
-              {
-                label: "Revoke Selected",
-                variant: "danger",
-                onClick: (rows) =>
-                  rows.forEach((row) => revokeSession.mutate(row.id)),
-              },
-            ]}
+            actions={
+              canWrite
+                ? [
+                    {
+                      icon: ShieldOff,
+                      label: "Revoke",
+                      variant: "danger",
+                      onClick: (row: Session) => revokeSession.mutate(row.id),
+                    },
+                  ]
+                : []
+            }
+            bulkActions={
+              canWrite
+                ? [
+                    {
+                      label: "Revoke Selected",
+                      variant: "danger" as const,
+                      onClick: (rows: Session[]) =>
+                        rows.forEach((row) => revokeSession.mutate(row.id)),
+                    },
+                  ]
+                : []
+            }
             data={sessions}
           />
         </Section>
@@ -590,7 +641,7 @@ export default function UserDetail() {
         </div>
       )}
 
-      {editing && (
+      {editing && canWrite && (
         <EditUserModal user={user} onClose={() => setEditing(false)} />
       )}
     </div>

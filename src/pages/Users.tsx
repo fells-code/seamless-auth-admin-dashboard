@@ -23,6 +23,7 @@ import CreateUserModal from "../components/CreateUserModal";
 import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
 import { hasScopedRole } from "../lib/scopedRoles";
+import { useAdminPermissions } from "../hooks/useAdminPermissions";
 
 function formatTimeAgo(date?: string | null, now?: number) {
   if (!date) return "No recent activity";
@@ -56,6 +57,7 @@ function StatusBadge({ verified }: { verified: boolean }) {
 export default function Users() {
   const navigate = useNavigate();
   const deleteUser = useDeleteUser();
+  const { canWrite } = useAdminPermissions();
 
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -196,15 +198,17 @@ export default function Users() {
               />
             </div>
 
-            <button onClick={() => setOpen(true)} className="btn btn-primary">
-              Create User
-            </button>
+            {canWrite && (
+              <button onClick={() => setOpen(true)} className="btn btn-primary">
+                Create User
+              </button>
+            )}
           </div>
         }
       >
         <Table<User>
           data={users}
-          selectable
+          selectable={canWrite}
           limit={limit}
           offset={offset}
           total={total}
@@ -294,17 +298,21 @@ export default function Users() {
               label: "View",
               onClick: (row) => navigate(`/users/${row.id}`),
             },
-            {
-              icon: Trash2,
-              label: "Delete",
-              variant: "danger",
-              onClick: (row) => handleDeleteUser(row),
-            },
+            ...(canWrite
+              ? [
+                  {
+                    icon: Trash2,
+                    label: "Delete",
+                    variant: "danger" as const,
+                    onClick: (row: User) => handleDeleteUser(row),
+                  },
+                ]
+              : []),
           ]}
         />
       </Section>
 
-      {open && <CreateUserModal onClose={() => setOpen(false)} />}
+      {open && canWrite && <CreateUserModal onClose={() => setOpen(false)} />}
     </div>
   );
 }

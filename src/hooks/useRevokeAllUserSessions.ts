@@ -4,19 +4,19 @@
  * See LICENSE file in the project root for full license information
  */
 
-// src/hooks/useRevokeSession.ts
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
 
-export function useRevokeSession() {
+export function useRevokeAllUserSessions() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) =>
-      apiFetch(`/admin/sessions/by-id/${id}`, {
+    mutationFn: (userId: string) =>
+      apiFetch(`/admin/sessions/${userId}/revoke-all`, {
         method: "DELETE",
       }),
-    onSuccess: () => {
+    onSuccess: (_data, userId) => {
+      qc.invalidateQueries({ queryKey: ["user-detail", userId] });
       qc.invalidateQueries({ queryKey: ["sessions"] });
     },
   });

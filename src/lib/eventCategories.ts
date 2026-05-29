@@ -97,6 +97,8 @@ export const eventCategories: EventCategory[] = [
     label: "User Admin",
     value: "user",
     match: exact([
+      "admin_device_replacement_recovery",
+      "admin_session_revoked",
       "credentials_deleted",
       "internal_user_updated_by_owner",
       "user_created",

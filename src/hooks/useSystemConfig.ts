@@ -26,10 +26,21 @@ export type OAuthProviderConfig = {
   userInfoUrl: string;
   scopes: string[];
   redirectUri?: string;
+  redirectUris: string[];
   subjectJsonPath: string;
   emailJsonPath: string;
+  emailVerifiedJsonPath: string;
   nameJsonPath?: string;
   allowSignup: boolean;
+  accountLinking: "email" | "disabled";
+  requireEmailVerified: boolean;
+};
+
+export type LockoutPolicy = {
+  enabled: boolean;
+  maxFailures: number;
+  windowSeconds: number;
+  lockoutSeconds: number;
 };
 
 export type SystemConfig = {
@@ -43,6 +54,7 @@ export type SystemConfig = {
   login_methods: LoginMethod[];
   passkey_login_fallback_enabled: boolean;
   oauth_providers: OAuthProviderConfig[];
+  lockout_policy: LockoutPolicy;
   rpid: string;
   origins: string[];
 };

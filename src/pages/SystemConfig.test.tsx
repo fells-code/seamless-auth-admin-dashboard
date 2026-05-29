@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   mutate: vi.fn(),
   useSystemConfig: vi.fn(),
   useUpdateSystemConfig: vi.fn(),
+  useAdminPermissions: vi.fn(),
 }));
 
 vi.mock("../hooks/useSystemConfig", () => ({
@@ -20,6 +21,10 @@ vi.mock("../hooks/useSystemConfig", () => ({
 
 vi.mock("../hooks/useUpdateSystemConfig", () => ({
   useUpdateSystemConfig: mocks.useUpdateSystemConfig,
+}));
+
+vi.mock("../hooks/useAdminPermissions", () => ({
+  useAdminPermissions: mocks.useAdminPermissions,
 }));
 
 const baseConfig = {
@@ -33,6 +38,12 @@ const baseConfig = {
   login_methods: ["passkey", "magic_link"],
   passkey_login_fallback_enabled: true,
   oauth_providers: [],
+  lockout_policy: {
+    enabled: true,
+    maxFailures: 10,
+    windowSeconds: 900,
+    lockoutSeconds: 900,
+  },
   rpid: "example.com",
   origins: ["https://example.com"],
 };
@@ -47,6 +58,10 @@ describe("SystemConfigPage", () => {
     mocks.useUpdateSystemConfig.mockReturnValue({
       mutate: mocks.mutate,
       isPending: false,
+    });
+    mocks.useAdminPermissions.mockReturnValue({
+      canRead: true,
+      canWrite: true,
     });
   });
 
@@ -109,7 +124,10 @@ describe("SystemConfigPage", () => {
     fireEvent.change(screen.getByLabelText(/user info url/i), {
       target: { value: "https://openidconnect.googleapis.com/v1/userinfo" },
     });
-    fireEvent.change(screen.getByLabelText(/redirect uri/i), {
+    fireEvent.change(screen.getByLabelText(/^redirect uri$/i), {
+      target: { value: "https://example.com/oauth/callback" },
+    });
+    fireEvent.change(screen.getByLabelText(/redirect uri allowlist/i), {
       target: { value: "https://example.com/oauth/callback" },
     });
     fireEvent.change(screen.getByLabelText(/scopes/i), {
@@ -128,9 +146,45 @@ describe("SystemConfigPage", () => {
             clientId: "client-id",
             clientSecretEnv: "GOOGLE_CLIENT_SECRET",
             scopes: ["openid", "email", "profile"],
+            redirectUris: ["https://example.com/oauth/callback"],
+            emailVerifiedJsonPath: "email_verified",
+            accountLinking: "email",
+            requireEmailVerified: false,
           }),
         ],
       }),
     );
+  });
+
+  it("saves lockout policy changes", () => {
+    render(<SystemConfigPage />);
+
+    fireEvent.change(screen.getByLabelText(/max failures/i), {
+      target: { value: "5" },
+    });
+    fireEvent.change(screen.getByLabelText(/lockout seconds/i), {
+      target: { value: "600" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    expect(mocks.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lockout_policy: expect.objectContaining({
+          maxFailures: 5,
+          lockoutSeconds: 600,
+        }),
+      }),
+    );
+  });
+
+  it("does not expose an enabled save action to read-only admins", () => {
+    mocks.useAdminPermissions.mockReturnValue({
+      canRead: true,
+      canWrite: false,
+    });
+
+    render(<SystemConfigPage />);
+
+    expect(screen.getByRole("button", { name: /read only/i })).toBeDisabled();
   });
 });
