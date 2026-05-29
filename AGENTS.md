@@ -25,7 +25,7 @@ Important runtime details:
 - `index.html` loads `/config.js` before the app bundle
 - `entrypoint.sh` writes `window.__SEAMLESS_CONFIG__`
 - `src/lib/runtimeConfig.ts` reads runtime config first, then falls back to `import.meta.env`
-- `src/lib/api.ts` builds requests from `API_URL` and current auth mode
+- `src/lib/api.ts` builds requests from `API_URL` and the fixed `/auth` server-adapter path
 - `public/favicon.ico` is the primary favicon and is linked directly from `index.html`
 
 Treat runtime config injection as a real product requirement. Do not replace it with build-time-only config unless explicitly asked.
@@ -87,11 +87,11 @@ Current behavior:
 
 Important current-state note:
 
-- `src/lib/runtimeConfig.ts` supports runtime auth mode
-- `src/lib/api.ts` uses that auth mode
-- `src/App.tsx` still hardcodes `mode="server"` in `AuthProvider`
+- `src/lib/runtimeConfig.ts` supports runtime API URL injection
+- `src/lib/api.ts` always targets the server-adapter `/auth` path
+- `src/App.tsx` passes the API URL to `AuthProvider`
 
-Do not assume auth mode plumbing is fully consistent everywhere. If you change auth behavior, inspect all three files together.
+If you change auth behavior, inspect all three files together.
 
 ## Appearance And Theme System
 
@@ -197,7 +197,7 @@ These are current-state issues. Do not ignore them when working nearby.
 
 ### Runtime and UX inconsistencies
 
-- `AuthProvider` is still hardcoded to `mode="server"` even though runtime auth mode helpers exist
+- The dashboard assumes the SeamlessAuth server adapter is mounted at `/auth`
 - `src/pages/Unauthenticated.tsx` renders a `Sign In` button that still has no behavior
 - `src/components/Sidebar.tsx` footer version still shows `v0.0.5` while `package.json` is `0.0.8`
 - `index.html` includes `/config.js`, which produces a Vite build warning, but is intentional for runtime config injection

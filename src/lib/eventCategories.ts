@@ -81,7 +81,7 @@ export const eventCategories: EventCategory[] = [
   {
     label: "Session Tokens",
     value: "token",
-    match: startsWithAny(["bearer_token_", "cookie_token_", "refresh_token_"]),
+    match: startsWithAny(["bearer_token_", "refresh_token_"]),
   },
   {
     label: "Service Tokens",

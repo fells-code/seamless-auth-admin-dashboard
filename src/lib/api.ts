@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { getApiUrl, getAuthMode } from "./runtimeConfig";
+import { getApiUrl } from "./runtimeConfig";
 
 export const API_URL = getApiUrl();
 
@@ -16,9 +16,8 @@ export async function apiFetch<T>(
 
   headers.set("Content-Type", "application/json");
 
-  const adapater = getAuthMode() === "server" ? "auth" : "";
-
-  const res = await fetch(`${API_URL}${adapater}${path}`, {
+  const baseUrl = API_URL.replace(/\/+$/, "");
+  const res = await fetch(`${baseUrl}/auth${path}`, {
     credentials: "include",
     ...options,
     headers,
