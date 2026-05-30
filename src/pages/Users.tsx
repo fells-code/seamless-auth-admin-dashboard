@@ -24,6 +24,7 @@ import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
 import { hasScopedRole } from "../lib/scopedRoles";
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
+import { useStepUpGuard } from "../hooks/useStepUpGuard";
 
 function formatTimeAgo(date?: string | null, now?: number) {
   if (!date) return "No recent activity";
@@ -58,6 +59,7 @@ export default function Users() {
   const navigate = useNavigate();
   const deleteUser = useDeleteUser();
   const { canWrite } = useAdminPermissions();
+  const ensureStepUp = useStepUpGuard();
 
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -81,8 +83,12 @@ export default function Users() {
     );
   }).length;
 
-  const handleDeleteUser = (user: User) => {
+  const handleDeleteUser = async (user: User) => {
     if (!confirm(`Delete ${user.email}? This cannot be undone.`)) {
+      return;
+    }
+
+    if (!(await ensureStepUp())) {
       return;
     }
 
@@ -304,7 +310,7 @@ export default function Users() {
                     icon: Trash2,
                     label: "Delete",
                     variant: "danger" as const,
-                    onClick: (row: User) => handleDeleteUser(row),
+                    onClick: (row: User) => void handleDeleteUser(row),
                   },
                 ]
               : []),

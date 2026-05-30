@@ -128,8 +128,12 @@ export default function UserDetail() {
       : latest;
   }, null);
 
-  const handleDeleteUser = () => {
+  const handleDeleteUser = async () => {
     if (!confirm(`Delete ${user.email}? This cannot be undone.`)) {
+      return;
+    }
+
+    if (!(await ensureStepUp())) {
       return;
     }
 
@@ -138,12 +142,42 @@ export default function UserDetail() {
     });
   };
 
-  const revokeAllSessions = () => {
+  const revokeAllSessions = async () => {
     if (!confirm("Revoke all active sessions for this user?")) {
       return;
     }
 
+    if (!(await ensureStepUp())) {
+      return;
+    }
+
     revokeAllUserSessions.mutate(user.id);
+  };
+
+  const revokeUserSession = async (session: Session) => {
+    if (!confirm("Revoke this session?")) {
+      return;
+    }
+
+    if (!(await ensureStepUp())) {
+      return;
+    }
+
+    revokeSession.mutate({ id: session.id, userId: user.id });
+  };
+
+  const revokeSelectedSessions = async (selectedSessions: Session[]) => {
+    if (!confirm(`Revoke ${selectedSessions.length} selected sessions?`)) {
+      return;
+    }
+
+    if (!(await ensureStepUp())) {
+      return;
+    }
+
+    selectedSessions.forEach((session) =>
+      revokeSession.mutate({ id: session.id, userId: user.id }),
+    );
   };
 
   const prepareDeviceReplacement = async () => {
@@ -261,7 +295,7 @@ export default function UserDetail() {
                         Edit User
                       </button>
                       <button
-                        onClick={revokeAllSessions}
+                        onClick={() => void revokeAllSessions()}
                         className="btn btn-secondary"
                       >
                         Revoke Sessions
@@ -274,7 +308,7 @@ export default function UserDetail() {
                         Device Replacement
                       </button>
                       <button
-                        onClick={handleDeleteUser}
+                        onClick={() => void handleDeleteUser()}
                         className="btn btn-danger"
                       >
                         Delete User
@@ -435,7 +469,7 @@ export default function UserDetail() {
                       icon: ShieldOff,
                       label: "Revoke",
                       variant: "danger",
-                      onClick: (row: Session) => revokeSession.mutate(row.id),
+                      onClick: (row: Session) => void revokeUserSession(row),
                     },
                   ]
                 : []
@@ -447,7 +481,7 @@ export default function UserDetail() {
                       label: "Revoke Selected",
                       variant: "danger" as const,
                       onClick: (rows: Session[]) =>
-                        rows.forEach((row) => revokeSession.mutate(row.id)),
+                        void revokeSelectedSessions(rows),
                     },
                   ]
                 : []

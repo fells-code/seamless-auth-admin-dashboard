@@ -15,6 +15,7 @@ import StatCard from "../components/StatCard";
 import SearchInput from "../components/SearchInput";
 import { Section } from "../components/Section";
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
+import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import type { Session } from "../types/user";
 
 type ActivityFilter = "all" | "recent" | "expiring" | "idle";
@@ -88,6 +89,7 @@ export default function Sessions() {
   const { data, isLoading } = useSessions();
   const revoke = useRevokeSession();
   const { canWrite } = useAdminPermissions();
+  const ensureStepUp = useStepUpGuard();
 
   const [offset, setOffset] = useState(0);
   const [search, setSearch] = useState("");
@@ -133,6 +135,30 @@ export default function Sessions() {
     { value: "expiring", label: "Expiring soon", count: expiringSoonCount },
     { value: "idle", label: "Idle", count: idleCount },
   ];
+
+  const revokeSession = async (session: Session) => {
+    if (!confirm("Revoke this session?")) {
+      return;
+    }
+
+    if (!(await ensureStepUp())) {
+      return;
+    }
+
+    revoke.mutate(session.id);
+  };
+
+  const revokeSelectedSessions = async (selectedSessions: Session[]) => {
+    if (!confirm(`Revoke ${selectedSessions.length} selected sessions?`)) {
+      return;
+    }
+
+    if (!(await ensureStepUp())) {
+      return;
+    }
+
+    selectedSessions.forEach((session) => revoke.mutate(session.id));
+  };
 
   if (isLoading) {
     return (
@@ -322,7 +348,7 @@ export default function Sessions() {
                     icon: Trash2,
                     label: "Revoke",
                     variant: "danger" as const,
-                    onClick: (row: Session) => revoke.mutate(row.id),
+                    onClick: (row: Session) => void revokeSession(row),
                   },
                 ]
               : []
@@ -334,7 +360,7 @@ export default function Sessions() {
                     label: "Revoke Selected",
                     variant: "danger" as const,
                     onClick: (rows: Session[]) =>
-                      rows.forEach((row) => revoke.mutate(row.id)),
+                      void revokeSelectedSessions(rows),
                   },
                 ]
               : []

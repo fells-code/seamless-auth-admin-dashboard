@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Organizations from "./Organizations";
 
@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   useRemoveOrganizationMember: vi.fn(),
   useUpdateOrganization: vi.fn(),
   useAdminPermissions: vi.fn(),
+  useStepUpGuard: vi.fn(),
 }));
 
 vi.mock("../hooks/useOrganizations", () => ({
@@ -33,6 +34,10 @@ vi.mock("../hooks/useOrganizations", () => ({
 
 vi.mock("../hooks/useAdminPermissions", () => ({
   useAdminPermissions: mocks.useAdminPermissions,
+}));
+
+vi.mock("../hooks/useStepUpGuard", () => ({
+  useStepUpGuard: mocks.useStepUpGuard,
 }));
 
 const organization = {
@@ -98,6 +103,7 @@ describe("Organizations", () => {
       canRead: true,
       canWrite: true,
     });
+    mocks.useStepUpGuard.mockReturnValue(vi.fn().mockResolvedValue(true));
   });
 
   it("renders organizations and members", () => {
@@ -127,7 +133,7 @@ describe("Organizations", () => {
     );
   });
 
-  it("adds organization members", () => {
+  it("adds organization members after step-up", async () => {
     render(<Organizations />);
 
     fireEvent.change(screen.getByPlaceholderText("member@example.com"), {
@@ -141,14 +147,17 @@ describe("Organizations", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
 
-    expect(mocks.addMember).toHaveBeenCalledWith(
-      {
-        organizationId: "org-1",
-        email: "member@example.com",
-        roles: ["admin", "member"],
-        scopes: ["organization:read", "members:write"],
-      },
-      expect.any(Object),
+    await waitFor(() =>
+      expect(mocks.addMember).toHaveBeenCalledWith(
+        {
+          organizationId: "org-1",
+          email: "member@example.com",
+          roles: ["admin", "member"],
+          scopes: ["organization:read", "members:write"],
+        },
+        expect.any(Object),
+      ),
     );
+    expect(mocks.useStepUpGuard()).toHaveBeenCalled();
   });
 });

@@ -13,12 +13,17 @@ export function useDeleteUser() {
 
   return useMutation({
     mutationFn: (userId: string) =>
-      apiFetch("/admin/users", {
+      apiFetch(`/admin/users/${userId}`, {
         method: "DELETE",
-        body: JSON.stringify({ userId }),
       }),
-    onSuccess: () => {
+    onSuccess: (_data, userId) => {
       qc.invalidateQueries({ queryKey: ["users"] });
+      qc.invalidateQueries({ queryKey: ["sessions"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["events"] });
+      qc.removeQueries({ queryKey: ["user-detail", userId] });
+      qc.removeQueries({ queryKey: ["user-anomalies", userId] });
+      qc.removeQueries({ queryKey: ["user-timeseries", userId] });
     },
   });
 }

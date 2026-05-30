@@ -41,6 +41,7 @@ export function useDeviceReplacementRecovery() {
       qc.invalidateQueries({ queryKey: ["user-detail", variables.userId] });
       qc.invalidateQueries({ queryKey: ["sessions"] });
       qc.invalidateQueries({ queryKey: ["users"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
 }

@@ -18,6 +18,7 @@ export function useRevokeAllUserSessions() {
     onSuccess: (_data, userId) => {
       qc.invalidateQueries({ queryKey: ["user-detail", userId] });
       qc.invalidateQueries({ queryKey: ["sessions"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
 }

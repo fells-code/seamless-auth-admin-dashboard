@@ -14,6 +14,7 @@ import {
 } from "../hooks/useSystemConfig";
 import { useUpdateSystemConfig } from "../hooks/useUpdateSystemConfig";
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
+import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import Skeleton from "../components/Skeleton";
 import RoleChips from "../components/RoleChips";
 import { Section } from "../components/Section";
@@ -56,8 +57,10 @@ export default function SystemConfigPage() {
   const { data, isLoading } = useSystemConfig();
   const update = useUpdateSystemConfig();
   const { canWrite } = useAdminPermissions();
+  const ensureStepUp = useStepUpGuard();
 
   const [draft, setDraft] = useState<Partial<SystemConfig>>({});
+  const [stepUpPending, setStepUpPending] = useState(false);
 
   const form = useMemo<SystemConfig | null>(() => {
     if (!data) return null;
@@ -106,10 +109,22 @@ export default function SystemConfigPage() {
     setDraft({});
   };
 
-  const save = () => {
-    if (!canWrite) return;
-    update.mutate(form);
+  const save = async () => {
+    if (!canWrite || !form) return;
+
+    setStepUpPending(true);
+    try {
+      if (!(await ensureStepUp())) {
+        return;
+      }
+
+      update.mutate(form);
+    } finally {
+      setStepUpPending(false);
+    }
   };
+
+  const isSaving = update.isPending || stepUpPending;
 
   return (
     <div className="space-y-8">
@@ -452,22 +467,24 @@ export default function SystemConfigPage() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={reset}
-              disabled={!isDirty || update.isPending}
+              disabled={!isDirty || isSaving}
               className="btn btn-secondary disabled:opacity-50"
             >
               Discard
             </button>
 
             <button
-              onClick={save}
-              disabled={!isDirty || update.isPending || !canWrite}
+              onClick={() => void save()}
+              disabled={!isDirty || isSaving || !canWrite}
               className="btn btn-primary disabled:opacity-50"
             >
               {!canWrite
                 ? "Read Only"
-                : update.isPending
-                  ? "Saving..."
-                  : "Save Changes"}
+                : stepUpPending
+                  ? "Verifying..."
+                  : update.isPending
+                    ? "Saving..."
+                    : "Save Changes"}
             </button>
           </div>
         </div>

@@ -22,6 +22,7 @@ import {
   type OrganizationMembership,
 } from "../hooks/useOrganizations";
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
+import { useStepUpGuard } from "../hooks/useStepUpGuard";
 
 type OrganizationRow = Organization & Record<string, unknown>;
 type OrganizationMembershipRow = OrganizationMembership &
@@ -55,6 +56,7 @@ export default function Organizations() {
   const addMember = useAddOrganizationMember();
   const removeMember = useRemoveOrganizationMember();
   const { canWrite } = useAdminPermissions();
+  const ensureStepUp = useStepUpGuard();
 
   const organizations = useMemo(() => data?.organizations ?? [], [data]);
   const total = data?.total ?? organizations.length;
@@ -107,7 +109,7 @@ export default function Organizations() {
     );
   };
 
-  const handleAddMember = (event: FormEvent<HTMLFormElement>) => {
+  const handleAddMember = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canWrite) return;
     if (!selectedOrganization) return;
@@ -115,6 +117,10 @@ export default function Organizations() {
 
     const email = memberEmail.trim();
     if (!email) return;
+
+    if (!(await ensureStepUp())) {
+      return;
+    }
 
     addMember.mutate(
       {
@@ -133,11 +139,15 @@ export default function Organizations() {
     );
   };
 
-  const handleRemoveMember = (membership: OrganizationMembership) => {
+  const handleRemoveMember = async (membership: OrganizationMembership) => {
     if (!selectedOrganization) return;
 
     const label = membership.user?.email ?? membership.userId;
     if (!confirm(`Remove ${label} from ${selectedOrganization.name}?`)) {
+      return;
+    }
+
+    if (!(await ensureStepUp())) {
       return;
     }
 
@@ -338,7 +348,7 @@ export default function Organizations() {
         actions={
           canWrite ? (
             <form
-              onSubmit={handleAddMember}
+              onSubmit={(event) => void handleAddMember(event)}
               className="grid gap-2 lg:grid-cols-[minmax(220px,1fr)_minmax(160px,0.6fr)_minmax(200px,0.8fr)_auto]"
             >
               <input
@@ -430,7 +440,7 @@ export default function Organizations() {
                       label: "Remove",
                       variant: "danger" as const,
                       onClick: (row: OrganizationMembershipRow) =>
-                        handleRemoveMember(row),
+                        void handleRemoveMember(row),
                     },
                   ]
                 : []

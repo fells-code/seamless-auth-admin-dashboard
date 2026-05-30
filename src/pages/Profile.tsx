@@ -8,6 +8,7 @@ import { useAuth } from "@seamless-auth/react";
 import { useUserDetail } from "../hooks/useUserDetail";
 import { useRevokeSession } from "../hooks/useRevokeSession";
 import { useUpdateUser } from "../hooks/useUpdateUser";
+import { useStepUpGuard } from "../hooks/useStepUpGuard";
 
 import Table from "../components/Table";
 import Skeleton from "../components/Skeleton";
@@ -47,6 +48,7 @@ export default function Profile() {
   const { data, isLoading } = useUserDetail(user?.id);
   const revokeSession = useRevokeSession();
   const updateUser = useUpdateUser(user?.id);
+  const ensureStepUp = useStepUpGuard();
 
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -67,6 +69,18 @@ export default function Profile() {
 
   const save = () => {
     updateUser.mutate({ email, phone });
+  };
+
+  const revokeOwnSession = async (session: Session) => {
+    if (!confirm("Revoke this session?")) {
+      return;
+    }
+
+    if (!(await ensureStepUp())) {
+      return;
+    }
+
+    revokeSession.mutate({ id: session.id, userId: user?.id });
   };
 
   return (
@@ -130,7 +144,7 @@ export default function Profile() {
               icon: ShieldOff,
               label: "Revoke",
               variant: "danger",
-              onClick: (row) => revokeSession.mutate(row.id),
+              onClick: (row) => void revokeOwnSession(row),
             },
           ]}
           data={sessions.slice(offset, offset + limit)}

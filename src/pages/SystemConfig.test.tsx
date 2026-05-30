@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SystemConfigPage from "./SystemConfig";
 
@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   useSystemConfig: vi.fn(),
   useUpdateSystemConfig: vi.fn(),
   useAdminPermissions: vi.fn(),
+  useStepUpGuard: vi.fn(),
 }));
 
 vi.mock("../hooks/useSystemConfig", () => ({
@@ -25,6 +26,10 @@ vi.mock("../hooks/useUpdateSystemConfig", () => ({
 
 vi.mock("../hooks/useAdminPermissions", () => ({
   useAdminPermissions: mocks.useAdminPermissions,
+}));
+
+vi.mock("../hooks/useStepUpGuard", () => ({
+  useStepUpGuard: mocks.useStepUpGuard,
 }));
 
 const baseConfig = {
@@ -63,9 +68,10 @@ describe("SystemConfigPage", () => {
       canRead: true,
       canWrite: true,
     });
+    mocks.useStepUpGuard.mockReturnValue(vi.fn().mockResolvedValue(true));
   });
 
-  it("saves selected login policy fields", () => {
+  it("saves selected login policy fields after step-up", async () => {
     render(<SystemConfigPage />);
 
     fireEvent.click(screen.getByRole("checkbox", { name: /email otp/i }));
@@ -74,15 +80,31 @@ describe("SystemConfigPage", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
 
-    expect(mocks.mutate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        login_methods: ["passkey", "magic_link", "email_otp"],
-        passkey_login_fallback_enabled: false,
-      }),
+    await waitFor(() =>
+      expect(mocks.mutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          login_methods: ["passkey", "magic_link", "email_otp"],
+          passkey_login_fallback_enabled: false,
+        }),
+      ),
     );
+    expect(mocks.useStepUpGuard()).toHaveBeenCalled();
   });
 
-  it("adds scoped roles to the available role set", () => {
+  it("does not save config when step-up fails", async () => {
+    const ensureStepUp = vi.fn().mockResolvedValue(false);
+    mocks.useStepUpGuard.mockReturnValue(ensureStepUp);
+
+    render(<SystemConfigPage />);
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /email otp/i }));
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => expect(ensureStepUp).toHaveBeenCalled());
+    expect(mocks.mutate).not.toHaveBeenCalled();
+  });
+
+  it("adds scoped roles to the available role set", async () => {
     render(<SystemConfigPage />);
 
     fireEvent.change(screen.getByPlaceholderText(/admin:read/i), {
@@ -93,14 +115,16 @@ describe("SystemConfigPage", () => {
     fireEvent.click(addRoleButton!);
     fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
 
-    expect(mocks.mutate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        available_roles: ["user", "admin", "admin:write"],
-      }),
+    await waitFor(() =>
+      expect(mocks.mutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          available_roles: ["user", "admin", "admin:write"],
+        }),
+      ),
     );
   });
 
-  it("adds OAuth provider configuration without a secret value", () => {
+  it("adds OAuth provider configuration without a secret value", async () => {
     render(<SystemConfigPage />);
 
     fireEvent.change(screen.getByLabelText(/provider id/i), {
@@ -137,26 +161,28 @@ describe("SystemConfigPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /add provider/i }));
     fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
 
-    expect(mocks.mutate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        oauth_providers: [
-          expect.objectContaining({
-            id: "google",
-            name: "Google",
-            clientId: "client-id",
-            clientSecretEnv: "GOOGLE_CLIENT_SECRET",
-            scopes: ["openid", "email", "profile"],
-            redirectUris: ["https://example.com/oauth/callback"],
-            emailVerifiedJsonPath: "email_verified",
-            accountLinking: "email",
-            requireEmailVerified: false,
-          }),
-        ],
-      }),
+    await waitFor(() =>
+      expect(mocks.mutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          oauth_providers: [
+            expect.objectContaining({
+              id: "google",
+              name: "Google",
+              clientId: "client-id",
+              clientSecretEnv: "GOOGLE_CLIENT_SECRET",
+              scopes: ["openid", "email", "profile"],
+              redirectUris: ["https://example.com/oauth/callback"],
+              emailVerifiedJsonPath: "email_verified",
+              accountLinking: "email",
+              requireEmailVerified: false,
+            }),
+          ],
+        }),
+      ),
     );
   });
 
-  it("saves lockout policy changes", () => {
+  it("saves lockout policy changes", async () => {
     render(<SystemConfigPage />);
 
     fireEvent.change(screen.getByLabelText(/max failures/i), {
@@ -167,13 +193,15 @@ describe("SystemConfigPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
 
-    expect(mocks.mutate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        lockout_policy: expect.objectContaining({
-          maxFailures: 5,
-          lockoutSeconds: 600,
+    await waitFor(() =>
+      expect(mocks.mutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lockout_policy: expect.objectContaining({
+            maxFailures: 5,
+            lockoutSeconds: 600,
+          }),
         }),
-      }),
+      ),
     );
   });
 

@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { useUpdateUser } from "../hooks/useUpdateUser";
 import { useRoles } from "../hooks/useRoles";
+import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import RoleChips from "./RoleChips";
 import type { User } from "@seamless-auth/types";
 
@@ -21,15 +22,31 @@ export default function EditUserModal({
   const [email, setEmail] = useState(user.email);
   const [phone, setPhone] = useState(user.phone ?? "");
   const [roles, setRoles] = useState<string[]>(user.roles);
+  const [stepUpPending, setStepUpPending] = useState(false);
 
   const { data: roleData } = useRoles();
   const availableRoles = roleData?.roles ?? [];
 
   const updateUser = useUpdateUser(user.id);
+  const ensureStepUp = useStepUpGuard();
 
-  const submit = () => {
-    updateUser.mutate({ email, phone, roles }, { onSuccess: () => onClose() });
+  const submit = async () => {
+    setStepUpPending(true);
+    try {
+      if (!(await ensureStepUp())) {
+        return;
+      }
+
+      updateUser.mutate(
+        { email, phone, roles },
+        { onSuccess: () => onClose() },
+      );
+    } finally {
+      setStepUpPending(false);
+    }
   };
+
+  const isSaving = updateUser.isPending || stepUpPending;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -74,8 +91,12 @@ export default function EditUserModal({
             Cancel
           </button>
 
-          <button onClick={submit} className="btn btn-primary">
-            Save
+          <button
+            onClick={() => void submit()}
+            disabled={isSaving}
+            className="btn btn-primary disabled:opacity-50"
+          >
+            {stepUpPending ? "Verifying..." : "Save"}
           </button>
         </div>
       </div>

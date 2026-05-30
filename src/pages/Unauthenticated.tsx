@@ -5,7 +5,7 @@
  */
 
 import { useAuth } from "@seamless-auth/react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import LayoutSkeleton from "../components/LayoutSkeleton";
 import { getLastProtectedRoute } from "../lib/lastRoute";
 import { hasScopedRole } from "../lib/scopedRoles";
@@ -13,6 +13,7 @@ import { hasScopedRole } from "../lib/scopedRoles";
 export default function Unauthenticated() {
   const { isAuthenticated, user, loading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const redirectTo =
     (location.state as { from?: string } | null)?.from ??
@@ -56,7 +57,12 @@ export default function Unauthenticated() {
 
         {/* Action */}
         {!isAuthenticated && (
-          <button className="btn btn-primary w-full">Sign In</button>
+          <button
+            onClick={() => navigate("/login")}
+            className="btn btn-primary w-full"
+          >
+            Sign In
+          </button>
         )}
 
         {/* Footer hint */}

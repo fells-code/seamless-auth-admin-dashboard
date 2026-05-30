@@ -8,26 +8,40 @@
 import { useState } from "react";
 import { useCreateUser } from "../hooks/useCreateUser";
 import { useRoles } from "../hooks/useRoles";
+import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import RoleChips from "./RoleChips";
 
 export default function CreateUserModal({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [roles, setRoles] = useState<string[]>([]);
+  const [stepUpPending, setStepUpPending] = useState(false);
 
   const { data: roleData } = useRoles();
   const availableRoles = roleData?.roles ?? [];
 
   const createUser = useCreateUser();
+  const ensureStepUp = useStepUpGuard();
 
-  const submit = () => {
-    createUser.mutate(
-      { email, phone, roles },
-      {
-        onSuccess: () => onClose(),
-      },
-    );
+  const submit = async () => {
+    setStepUpPending(true);
+    try {
+      if (!(await ensureStepUp())) {
+        return;
+      }
+
+      createUser.mutate(
+        { email, phone, roles },
+        {
+          onSuccess: () => onClose(),
+        },
+      );
+    } finally {
+      setStepUpPending(false);
+    }
   };
+
+  const isSaving = createUser.isPending || stepUpPending;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -70,8 +84,12 @@ export default function CreateUserModal({ onClose }: { onClose: () => void }) {
             Cancel
           </button>
 
-          <button onClick={submit} className="btn btn-primary">
-            Create
+          <button
+            onClick={() => void submit()}
+            disabled={isSaving}
+            className="btn btn-primary disabled:opacity-50"
+          >
+            {stepUpPending ? "Verifying..." : "Create"}
           </button>
         </div>
       </div>

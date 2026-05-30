@@ -8,16 +8,33 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
 
+type RevokeSessionInput =
+  | string
+  | {
+      id: string;
+      userId?: string;
+    };
+
 export function useRevokeSession() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) =>
-      apiFetch(`/admin/sessions/by-id/${id}`, {
+    mutationFn: (input: RevokeSessionInput) => {
+      const id = typeof input === "string" ? input : input.id;
+
+      return apiFetch(`/admin/sessions/by-id/${id}`, {
         method: "DELETE",
-      }),
-    onSuccess: () => {
+      });
+    },
+    onSuccess: (_data, input) => {
+      const userId = typeof input === "string" ? undefined : input.userId;
+
       qc.invalidateQueries({ queryKey: ["sessions"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+
+      if (userId) {
+        qc.invalidateQueries({ queryKey: ["user-detail", userId] });
+      }
     },
   });
 }
