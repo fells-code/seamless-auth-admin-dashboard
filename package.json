@@ -23,7 +23,6 @@
     "@tailwindcss/vite": "^4.2.2",
     "@tanstack/react-query": "^5.94.5",
     "clsx": "^2.1.1",
-    "eslint-plugin-license-header": "^0.9.0",
     "lucide-react": "^0.577.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -33,6 +32,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "eslint-plugin-license-header": "^0.9.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
