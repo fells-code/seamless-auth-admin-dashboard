@@ -9,12 +9,20 @@ import { useUserDetail } from "../hooks/useUserDetail";
 import { useRevokeSession } from "../hooks/useRevokeSession";
 import { useUpdateUser } from "../hooks/useUpdateUser";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
+import { useAdminPermissions } from "../hooks/useAdminPermissions";
+import { useToast } from "../hooks/useToast";
 
 import Table from "../components/Table";
 import Skeleton from "../components/Skeleton";
 import { useState } from "react";
 import { Section } from "../components/Section";
 import { ShieldOff } from "lucide-react";
+import {
+  QueryErrorState,
+  ReadOnlyNotice,
+  StateMessage,
+} from "../components/StateMessage";
+import { getErrorMessage } from "../lib/errorMessage";
 
 /* ---------- Types ---------- */
 
@@ -45,10 +53,12 @@ export default function Profile() {
   const [offset, setOffset] = useState(0);
   const limit = 5;
 
-  const { data, isLoading } = useUserDetail(user?.id);
+  const { data, isLoading, isError, error, refetch } = useUserDetail(user?.id);
   const revokeSession = useRevokeSession();
   const updateUser = useUpdateUser(user?.id);
+  const { canWrite } = useAdminPermissions();
   const ensureStepUp = useStepUpGuard();
+  const toast = useToast();
 
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -61,14 +71,36 @@ export default function Profile() {
     setInitialized(true);
   }
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return <Skeleton className="h-40 rounded-xl" />;
+  }
+
+  if (isError || !data) {
+    return (
+      <QueryErrorState
+        title="Could not load profile"
+        error={error}
+        onRetry={() => void refetch()}
+      />
+    );
   }
 
   const { sessions, credentials } = data as UserDetailResponse;
 
   const save = () => {
-    updateUser.mutate({ email, phone });
+    if (!canWrite) return;
+
+    updateUser.mutate(
+      { email, phone },
+      {
+        onSuccess: () => {
+          toast.success("Profile updated", "Your profile changes were saved.");
+        },
+        onError: (error) => {
+          toast.error("Profile update failed", getErrorMessage(error));
+        },
+      },
+    );
   };
 
   const revokeOwnSession = async (session: Session) => {
@@ -80,7 +112,17 @@ export default function Profile() {
       return;
     }
 
-    revokeSession.mutate({ id: session.id, userId: user?.id });
+    revokeSession.mutate(
+      { id: session.id, userId: user?.id },
+      {
+        onSuccess: () => {
+          toast.success("Session revoked", "The selected session was revoked.");
+        },
+        onError: (error) => {
+          toast.error("Session revoke failed", getErrorMessage(error));
+        },
+      },
+    );
   };
 
   return (
@@ -95,12 +137,26 @@ export default function Profile() {
 
       {/* Account */}
       <Section title="Account">
+        {!canWrite && (
+          <ReadOnlyNotice description="You can review profile data, but this dashboard uses admin write access for profile edits and session revocation." />
+        )}
+        {updateUser.isError && (
+          <StateMessage
+            tone="error"
+            title="Profile update failed"
+            description={getErrorMessage(updateUser.error)}
+          />
+        )}
         <div className="space-y-4">
           <Input label="Email" value={email} onChange={setEmail} />
           <Input label="Phone" value={phone} onChange={setPhone} />
 
           <div className="flex justify-end">
-            <button onClick={save} className="btn btn-primary">
+            <button
+              onClick={save}
+              disabled={!canWrite || updateUser.isPending}
+              className="btn btn-primary disabled:opacity-50"
+            >
               Save Changes
             </button>
           </div>
@@ -109,6 +165,13 @@ export default function Profile() {
 
       {/* Sessions */}
       <Section title="Sessions">
+        {revokeSession.isError && (
+          <StateMessage
+            tone="error"
+            title="Session revoke failed"
+            description={getErrorMessage(revokeSession.error)}
+          />
+        )}
         <Table<Session>
           limit={limit}
           offset={offset}
@@ -139,14 +202,20 @@ export default function Profile() {
               ),
             },
           ]}
-          actions={[
-            {
-              icon: ShieldOff,
-              label: "Revoke",
-              variant: "danger",
-              onClick: (row) => void revokeOwnSession(row),
-            },
-          ]}
+          actions={
+            canWrite
+              ? [
+                  {
+                    icon: ShieldOff,
+                    label: "Revoke",
+                    variant: "danger",
+                    onClick: (row) => void revokeOwnSession(row),
+                  },
+                ]
+              : []
+          }
+          emptyTitle="No active sessions"
+          emptyDescription="This account does not currently have sessions in the admin detail feed."
           data={sessions.slice(offset, offset + limit)}
         />
       </Section>
@@ -167,6 +236,8 @@ export default function Profile() {
               ),
             },
           ]}
+          emptyTitle="No credentials"
+          emptyDescription="This account does not currently have credential records in the admin detail feed."
           data={credentials}
         />
       </Section>

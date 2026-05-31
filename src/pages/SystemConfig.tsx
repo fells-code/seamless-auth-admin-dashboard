@@ -15,10 +15,17 @@ import {
 import { useUpdateSystemConfig } from "../hooks/useUpdateSystemConfig";
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
+import { useToast } from "../hooks/useToast";
 import Skeleton from "../components/Skeleton";
 import RoleChips from "../components/RoleChips";
 import { Section } from "../components/Section";
 import StatCard from "../components/StatCard";
+import {
+  QueryErrorState,
+  ReadOnlyNotice,
+  StateMessage,
+} from "../components/StateMessage";
+import { getErrorMessage } from "../lib/errorMessage";
 
 const LOGIN_METHOD_OPTIONS: {
   value: LoginMethod;
@@ -54,10 +61,11 @@ const LOGIN_METHOD_OPTIONS: {
 ];
 
 export default function SystemConfigPage() {
-  const { data, isLoading } = useSystemConfig();
+  const { data, isLoading, isError, error, refetch } = useSystemConfig();
   const update = useUpdateSystemConfig();
   const { canWrite } = useAdminPermissions();
   const ensureStepUp = useStepUpGuard();
+  const toast = useToast();
 
   const [draft, setDraft] = useState<Partial<SystemConfig>>({});
   const [stepUpPending, setStepUpPending] = useState(false);
@@ -72,7 +80,7 @@ export default function SystemConfigPage() {
     return JSON.stringify(data) !== JSON.stringify(form);
   }, [data, form]);
 
-  if (isLoading || !form) {
+  if (isLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-40 rounded-[28px]" />
@@ -86,10 +94,22 @@ export default function SystemConfigPage() {
     );
   }
 
+  if (isError || !form) {
+    return (
+      <QueryErrorState
+        title="Could not load system configuration"
+        error={error}
+        onRetry={() => void refetch()}
+      />
+    );
+  }
+
   const updateField = <K extends keyof SystemConfig>(
     key: K,
     value: SystemConfig[K],
   ) => {
+    if (!canWrite) return;
+
     setDraft((prev) => {
       if (!data) {
         return { ...prev, [key]: value };
@@ -118,7 +138,18 @@ export default function SystemConfigPage() {
         return;
       }
 
-      update.mutate(form);
+      update.mutate(form, {
+        onSuccess: () => {
+          setDraft({});
+          toast.success(
+            "Configuration saved",
+            "System configuration changes were applied.",
+          );
+        },
+        onError: (error) => {
+          toast.error("Configuration save failed", getErrorMessage(error));
+        },
+      });
     } finally {
       setStepUpPending(false);
     }
@@ -251,6 +282,17 @@ export default function SystemConfigPage() {
           }
         />
       </div>
+
+      {!canWrite && (
+        <ReadOnlyNotice description="You can review configuration, but saving changes requires admin write access." />
+      )}
+      {update.isError && (
+        <StateMessage
+          tone="error"
+          title="Configuration save failed"
+          description={getErrorMessage(update.error)}
+        />
+      )}
 
       <Section
         title="General"

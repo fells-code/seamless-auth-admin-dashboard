@@ -6,10 +6,12 @@
 
 import { useCallback } from "react";
 import { useAuth } from "@seamless-auth/react";
+import { useToast } from "./useToast";
 
 export function useStepUpGuard() {
   const { refreshStepUpStatus, stepUpStatus, verifyStepUpWithPasskey } =
     useAuth();
+  const toast = useToast();
 
   return useCallback(
     async function ensureStepUp() {
@@ -24,11 +26,22 @@ export function useStepUpGuard() {
         }
 
         const result = await verifyStepUpWithPasskey();
+        if (!result.success) {
+          toast.error(
+            "Step-up verification failed",
+            "The action was not completed because passkey verification did not finish.",
+          );
+        }
+
         return result.success;
       } catch {
+        toast.error(
+          "Step-up verification failed",
+          "The action was not completed because the verification request failed.",
+        );
         return false;
       }
     },
-    [refreshStepUpStatus, stepUpStatus?.fresh, verifyStepUpWithPasskey],
+    [refreshStepUpStatus, stepUpStatus?.fresh, toast, verifyStepUpWithPasskey],
   );
 }

@@ -86,6 +86,10 @@ describe("SystemConfigPage", () => {
           login_methods: ["passkey", "magic_link", "email_otp"],
           passkey_login_fallback_enabled: false,
         }),
+        expect.objectContaining({
+          onError: expect.any(Function),
+          onSuccess: expect.any(Function),
+        }),
       ),
     );
     expect(mocks.useStepUpGuard()).toHaveBeenCalled();
@@ -119,6 +123,10 @@ describe("SystemConfigPage", () => {
       expect(mocks.mutate).toHaveBeenCalledWith(
         expect.objectContaining({
           available_roles: ["user", "admin", "admin:write"],
+        }),
+        expect.objectContaining({
+          onError: expect.any(Function),
+          onSuccess: expect.any(Function),
         }),
       ),
     );
@@ -178,6 +186,10 @@ describe("SystemConfigPage", () => {
             }),
           ],
         }),
+        expect.objectContaining({
+          onError: expect.any(Function),
+          onSuccess: expect.any(Function),
+        }),
       ),
     );
   });
@@ -200,6 +212,10 @@ describe("SystemConfigPage", () => {
             maxFailures: 5,
             lockoutSeconds: 600,
           }),
+        }),
+        expect.objectContaining({
+          onError: expect.any(Function),
+          onSuccess: expect.any(Function),
         }),
       ),
     );

@@ -25,7 +25,7 @@ export async function apiFetch<T>(
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`API error: ${res.status} ${text}`);
+    throw new Error(formatApiError(res.status, text, path));
   }
 
   if (res.status === 204) {
@@ -38,4 +38,17 @@ export async function apiFetch<T>(
   }
 
   return JSON.parse(text) as T;
+}
+
+function formatApiError(status: number, body: string, path: string) {
+  if (body.includes("missing bearer token")) {
+    return [
+      `API error: ${status} ${body}`,
+      "The Seamless Auth API expected an Authorization bearer token.",
+      "This dashboard should call the Seamless Auth server adapter, which reads the dashboard session cookie and forwards the bearer token upstream.",
+      `Check that API_URL points at the server-adapter origin and that the adapter forwards ${path}.`,
+    ].join(" ");
+  }
+
+  return `API error: ${status} ${body}`;
 }

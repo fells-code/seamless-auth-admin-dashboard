@@ -14,6 +14,7 @@ import Skeleton from "../components/Skeleton";
 import StatCard from "../components/StatCard";
 import Table from "../components/Table";
 import { Section } from "../components/Section";
+import { QueryErrorState } from "../components/StateMessage";
 
 type LoginStats = {
   success: number;
@@ -43,8 +44,20 @@ export default function Security() {
   const navigate = useNavigate();
   const [referenceNow] = useState(() => Date.now());
 
-  const { data: anomalies, isLoading: loadingAnomalies } = useAnomalies();
-  const { data: stats, isLoading: loadingStats } = useLoginStats();
+  const {
+    data: anomalies,
+    isLoading: loadingAnomalies,
+    isError: anomaliesError,
+    error: anomaliesErrorValue,
+    refetch: refetchAnomalies,
+  } = useAnomalies();
+  const {
+    data: stats,
+    isLoading: loadingStats,
+    isError: statsError,
+    error: statsErrorValue,
+    refetch: refetchStats,
+  } = useLoginStats();
 
   const suspiciousEvents: AuthEventPartial[] =
     anomalies?.suspiciousEvents ?? [];
@@ -94,6 +107,19 @@ export default function Security() {
         </div>
         <Skeleton className="h-[440px] rounded-2xl" />
       </div>
+    );
+  }
+
+  if (statsError || anomaliesError) {
+    return (
+      <QueryErrorState
+        title="Could not load security signals"
+        error={statsErrorValue ?? anomaliesErrorValue}
+        onRetry={() => {
+          void refetchStats();
+          void refetchAnomalies();
+        }}
+      />
     );
   }
 

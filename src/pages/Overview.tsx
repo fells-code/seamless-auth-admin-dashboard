@@ -15,6 +15,8 @@ import PieChart from "../components/PieChart";
 import Skeleton from "../components/Skeleton";
 import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
+import { QueryErrorState, StateMessage } from "../components/StateMessage";
+import { getErrorMessage } from "../lib/errorMessage";
 import { formatBytes } from "../lib/formatBytes";
 
 function formatPercent(value: number) {
@@ -24,9 +26,17 @@ function formatPercent(value: number) {
 export default function Overview() {
   const navigate = useNavigate();
 
-  const { data, isLoading } = useDashboard();
-  const { data: timeseries } = useAuthTimeseries();
-  const { data: grouped } = useGroupedEvents();
+  const { data, isLoading, isError, error, refetch } = useDashboard();
+  const {
+    data: timeseries,
+    isError: timeseriesError,
+    error: timeseriesErrorValue,
+  } = useAuthTimeseries();
+  const {
+    data: grouped,
+    isError: groupedError,
+    error: groupedErrorValue,
+  } = useGroupedEvents();
 
   const totalAttempts =
     (data?.loginSuccess24h ?? 0) + (data?.loginFailed24h ?? 0);
@@ -49,6 +59,16 @@ export default function Overview() {
 
   const securitySignalCount =
     grouped?.summary.find((item) => item.type === "security")?.count ?? 0;
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        title="Could not load overview metrics"
+        error={error}
+        onRetry={() => void refetch()}
+      />
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -177,7 +197,13 @@ export default function Overview() {
             </button>
           }
         >
-          {timeseries ? (
+          {timeseriesError ? (
+            <StateMessage
+              tone="error"
+              title="Login activity unavailable"
+              description={getErrorMessage(timeseriesErrorValue)}
+            />
+          ) : timeseries ? (
             <LineChart data={timeseries.timeseries} />
           ) : (
             <Skeleton className="h-72 rounded-2xl" />
@@ -196,7 +222,13 @@ export default function Overview() {
             </button>
           }
         >
-          {grouped ? (
+          {groupedError ? (
+            <StateMessage
+              tone="error"
+              title="Event distribution unavailable"
+              description={getErrorMessage(groupedErrorValue)}
+            />
+          ) : grouped ? (
             <PieChart data={grouped.summary} />
           ) : (
             <Skeleton className="h-72 rounded-2xl" />

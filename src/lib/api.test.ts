@@ -49,4 +49,17 @@ describe("apiFetch", () => {
 
     await expect(apiFetch("/admin/users/user_1")).resolves.toBeUndefined();
   });
+
+  it("explains missing bearer token responses from raw API routes", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: "missing bearer token" }), {
+        status: 401,
+      }),
+    );
+
+    await expect(apiFetch("/internal/auth-events/summary")).rejects.toThrow(
+      "Check that API_URL points at the server-adapter origin and that the adapter forwards /internal/auth-events/summary.",
+    );
+  });
 });

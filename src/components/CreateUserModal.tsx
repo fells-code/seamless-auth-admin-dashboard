@@ -10,6 +10,9 @@ import { useCreateUser } from "../hooks/useCreateUser";
 import { useRoles } from "../hooks/useRoles";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import RoleChips from "./RoleChips";
+import { StateMessage } from "./StateMessage";
+import { getErrorMessage } from "../lib/errorMessage";
+import { useToast } from "../hooks/useToast";
 
 export default function CreateUserModal({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState("");
@@ -22,6 +25,7 @@ export default function CreateUserModal({ onClose }: { onClose: () => void }) {
 
   const createUser = useCreateUser();
   const ensureStepUp = useStepUpGuard();
+  const toast = useToast();
 
   const submit = async () => {
     setStepUpPending(true);
@@ -33,7 +37,13 @@ export default function CreateUserModal({ onClose }: { onClose: () => void }) {
       createUser.mutate(
         { email, phone, roles },
         {
-          onSuccess: () => onClose(),
+          onSuccess: () => {
+            toast.success("User created", `${email} was added.`);
+            onClose();
+          },
+          onError: (error) => {
+            toast.error("User creation failed", getErrorMessage(error));
+          },
         },
       );
     } finally {
@@ -61,6 +71,13 @@ export default function CreateUserModal({ onClose }: { onClose: () => void }) {
 
         {/* Form */}
         <div className="space-y-4">
+          {createUser.isError && (
+            <StateMessage
+              tone="error"
+              title="User creation failed"
+              description={getErrorMessage(createUser.error)}
+            />
+          )}
           <Input label="Email" value={email} onChange={setEmail} />
 
           <Input label="Phone" value={phone} onChange={setPhone} />
@@ -86,7 +103,7 @@ export default function CreateUserModal({ onClose }: { onClose: () => void }) {
 
           <button
             onClick={() => void submit()}
-            disabled={isSaving}
+            disabled={isSaving || !email.trim() || roles.length === 0}
             className="btn btn-primary disabled:opacity-50"
           >
             {stepUpPending ? "Verifying..." : "Create"}

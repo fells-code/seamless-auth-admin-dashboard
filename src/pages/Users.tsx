@@ -22,9 +22,16 @@ import SearchInput from "../components/SearchInput";
 import CreateUserModal from "../components/CreateUserModal";
 import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
+import {
+  QueryErrorState,
+  ReadOnlyNotice,
+  StateMessage,
+} from "../components/StateMessage";
+import { getErrorMessage } from "../lib/errorMessage";
 import { hasScopedRole } from "../lib/scopedRoles";
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
+import { useToast } from "../hooks/useToast";
 
 function formatTimeAgo(date?: string | null, now?: number) {
   if (!date) return "No recent activity";
@@ -60,6 +67,7 @@ export default function Users() {
   const deleteUser = useDeleteUser();
   const { canWrite } = useAdminPermissions();
   const ensureStepUp = useStepUpGuard();
+  const toast = useToast();
 
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -68,7 +76,11 @@ export default function Users() {
 
   const limit = 10;
 
-  const { data, isLoading } = useUsers({ search, limit, offset });
+  const { data, isLoading, isError, error, refetch } = useUsers({
+    search,
+    limit,
+    offset,
+  });
 
   const users: User[] = data?.users ?? [];
   const total = data?.total ?? 0;
@@ -92,7 +104,14 @@ export default function Users() {
       return;
     }
 
-    deleteUser.mutate(user.id);
+    deleteUser.mutate(user.id, {
+      onSuccess: () => {
+        toast.success("User deleted", `${user.email} was removed.`);
+      },
+      onError: (error) => {
+        toast.error("User deletion failed", getErrorMessage(error));
+      },
+    });
   };
 
   if (isLoading) {
@@ -106,6 +125,16 @@ export default function Users() {
         </div>
         <Skeleton className="h-[440px] rounded-2xl" />
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        title="Could not load users"
+        error={error}
+        onRetry={() => void refetch()}
+      />
     );
   }
 
@@ -212,6 +241,14 @@ export default function Users() {
           </div>
         }
       >
+        {!canWrite && <ReadOnlyNotice />}
+        {deleteUser.isError && (
+          <StateMessage
+            tone="error"
+            title="User deletion failed"
+            description={getErrorMessage(deleteUser.error)}
+          />
+        )}
         <Table<User>
           data={users}
           selectable={canWrite}
@@ -225,7 +262,9 @@ export default function Users() {
           emptyDescription={
             search
               ? "Try a different search term or clear the filter to widen the result set."
-              : "Create your first user to start managing access from this dashboard."
+              : canWrite
+                ? "Create your first user to start managing access from this dashboard."
+                : "No user records are currently visible in this dashboard."
           }
           columns={[
             {

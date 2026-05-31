@@ -9,11 +9,13 @@ import { Loader2, ShieldCheck } from "lucide-react";
 import { useAuth, useAuthClient } from "@seamless-auth/react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getLastProtectedRoute } from "../lib/lastRoute";
+import { useToast } from "../hooks/useToast";
 
 export default function MagicLinkVerification() {
   const authClient = useAuthClient();
   const { markSignedIn, refreshSession } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [searchParams] = useSearchParams();
   const [error, setError] = useState("");
 
@@ -23,7 +25,9 @@ export default function MagicLinkVerification() {
 
     async function verify() {
       if (!token) {
-        setError("Missing magic-link token.");
+        const message = "Missing magic-link token.";
+        setError(message);
+        toast.error("Magic-link verification failed", message);
         return;
       }
 
@@ -39,13 +43,16 @@ export default function MagicLinkVerification() {
 
         markSignedIn();
         await refreshSession();
+        toast.success("Signed in", "Magic-link verification completed.");
 
         if (active) {
           navigate(getLastProtectedRoute(), { replace: true });
         }
       } catch {
         if (active) {
-          setError("Magic-link verification failed.");
+          const message = "Magic-link verification failed.";
+          setError(message);
+          toast.error("Magic-link verification failed", message);
         }
       }
     }
@@ -55,7 +62,7 @@ export default function MagicLinkVerification() {
     return () => {
       active = false;
     };
-  }, [authClient, markSignedIn, navigate, refreshSession, searchParams]);
+  }, [authClient, markSignedIn, navigate, refreshSession, searchParams, toast]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-base px-6 text-primary">

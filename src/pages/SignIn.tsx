@@ -21,6 +21,7 @@ import {
 } from "@seamless-auth/react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getLastProtectedRoute, resolveProtectedRoute } from "../lib/lastRoute";
+import { useToast } from "../hooks/useToast";
 
 const DEFAULT_LOGIN_METHODS: LoginMethod[] = [
   "passkey",
@@ -65,6 +66,7 @@ export default function SignIn() {
     usePasskeySupport();
   const location = useLocation();
   const navigate = useNavigate();
+  const toast = useToast();
   const magicCheckPending = useRef(false);
 
   const [identifier, setIdentifier] = useState("");
@@ -84,8 +86,9 @@ export default function SignIn() {
   const completeSignIn = useCallback(async () => {
     markSignedIn();
     await refreshSession();
+    toast.success("Signed in", "Admin session established.");
     navigate(redirectTo, { replace: true });
-  }, [markSignedIn, navigate, redirectTo, refreshSession]);
+  }, [markSignedIn, navigate, redirectTo, refreshSession, toast]);
 
   const runPasskeyLogin = useCallback(
     async (availableMethods: LoginMethod[]) => {
@@ -100,14 +103,14 @@ export default function SignIn() {
 
       setLoginMethods(availableMethods);
       setView("fallback");
-      setError(
-        result.mfaRequired
-          ? "Passkey sign-in needs another verification method."
-          : result.message || "Passkey sign-in could not be completed.",
-      );
+      const message = result.mfaRequired
+        ? "Passkey sign-in needs another verification method."
+        : result.message || "Passkey sign-in could not be completed.";
+      setError(message);
+      toast.error("Passkey sign-in failed", message);
       setBusy("idle");
     },
-    [authClient, completeSignIn],
+    [authClient, completeSignIn, toast],
   );
 
   const startLogin = async (preferPasskey = true) => {
@@ -131,7 +134,9 @@ export default function SignIn() {
       setLoginMethods(availableMethods);
 
       if (!response.ok) {
-        setError("Sign-in could not be started.");
+        const message = "Sign-in could not be started.";
+        setError(message);
+        toast.error("Sign-in failed", message);
         setBusy("idle");
         return;
       }
@@ -148,7 +153,9 @@ export default function SignIn() {
       setView("fallback");
       setBusy("idle");
     } catch {
-      setError("Sign-in could not be started.");
+      const message = "Sign-in could not be started.";
+      setError(message);
+      toast.error("Sign-in failed", message);
       setBusy("idle");
     }
   };
@@ -160,15 +167,20 @@ export default function SignIn() {
     try {
       const response = await authClient.requestMagicLink();
       if (!response.ok) {
-        setError("Magic link could not be sent.");
+        const message = "Magic link could not be sent.";
+        setError(message);
+        toast.error("Magic link failed", message);
         setBusy("idle");
         return;
       }
 
       setView("magic");
+      toast.success("Magic link sent", `Check ${identifier.trim()}.`);
       setBusy("idle");
     } catch {
-      setError("Magic link could not be sent.");
+      const message = "Magic link could not be sent.";
+      setError(message);
+      toast.error("Magic link failed", message);
       setBusy("idle");
     }
   };
@@ -180,16 +192,21 @@ export default function SignIn() {
     try {
       const response = await authClient.requestLoginEmailOtp();
       if (!response.ok) {
-        setError("Email code could not be sent.");
+        const message = "Email code could not be sent.";
+        setError(message);
+        toast.error("Email code failed", message);
         setBusy("idle");
         return;
       }
 
       setOtp("");
       setView("emailOtp");
+      toast.success("Email code sent", `Check ${identifier.trim()}.`);
       setBusy("idle");
     } catch {
-      setError("Email code could not be sent.");
+      const message = "Email code could not be sent.";
+      setError(message);
+      toast.error("Email code failed", message);
       setBusy("idle");
     }
   };
@@ -201,23 +218,30 @@ export default function SignIn() {
     try {
       const response = await authClient.requestLoginPhoneOtp();
       if (!response.ok) {
-        setError("Text message code could not be sent.");
+        const message = "Text message code could not be sent.";
+        setError(message);
+        toast.error("Text code failed", message);
         setBusy("idle");
         return;
       }
 
       setOtp("");
       setView("phoneOtp");
+      toast.success("Text code sent", `Check ${identifier.trim()}.`);
       setBusy("idle");
     } catch {
-      setError("Text message code could not be sent.");
+      const message = "Text message code could not be sent.";
+      setError(message);
+      toast.error("Text code failed", message);
       setBusy("idle");
     }
   };
 
   const verifyOtp = async () => {
     if (otp.trim().length < 6) {
-      setError("Enter the 6-character code.");
+      const message = "Enter the 6-character code.";
+      setError(message);
+      toast.warning("Verification code needed", message);
       return;
     }
 
@@ -232,14 +256,18 @@ export default function SignIn() {
           : await authClient.verifyLoginEmailOtp(otp.trim());
 
       if (!response.ok) {
-        setError("Code verification failed.");
+        const message = "Code verification failed.";
+        setError(message);
+        toast.error("Verification failed", message);
         setBusy("idle");
         return;
       }
 
       await completeSignIn();
     } catch {
-      setError("Code verification failed.");
+      const message = "Code verification failed.";
+      setError(message);
+      toast.error("Verification failed", message);
       setBusy("idle");
     }
   };

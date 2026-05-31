@@ -79,6 +79,7 @@ describe("CreateUserModal", () => {
 
     const [emailInput] = screen.getAllByRole("textbox");
     await user.type(emailInput, "new.user@example.com");
+    await user.click(screen.getByRole("button", { name: "admin" }));
     await user.click(screen.getByRole("button", { name: "Create" }));
 
     await waitFor(() => expect(ensureStepUp).toHaveBeenCalled());

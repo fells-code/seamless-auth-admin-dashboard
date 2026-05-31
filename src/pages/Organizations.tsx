@@ -12,6 +12,12 @@ import Skeleton from "../components/Skeleton";
 import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
 import {
+  QueryErrorState,
+  ReadOnlyNotice,
+  StateMessage,
+} from "../components/StateMessage";
+import { getErrorMessage } from "../lib/errorMessage";
+import {
   useAddOrganizationMember,
   useCreateOrganization,
   useOrganizationMembers,
@@ -23,6 +29,7 @@ import {
 } from "../hooks/useOrganizations";
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
+import { useToast } from "../hooks/useToast";
 
 type OrganizationRow = Organization & Record<string, unknown>;
 type OrganizationMembershipRow = OrganizationMembership &
@@ -50,13 +57,14 @@ function formatList(values?: string[]) {
 }
 
 export default function Organizations() {
-  const { data, isLoading } = useOrganizations();
+  const { data, isLoading, isError, error, refetch } = useOrganizations();
   const createOrganization = useCreateOrganization();
   const updateOrganization = useUpdateOrganization();
   const addMember = useAddOrganizationMember();
   const removeMember = useRemoveOrganizationMember();
   const { canWrite } = useAdminPermissions();
   const ensureStepUp = useStepUpGuard();
+  const toast = useToast();
 
   const organizations = useMemo(() => data?.organizations ?? [], [data]);
   const total = data?.total ?? organizations.length;
@@ -84,8 +92,13 @@ export default function Organizations() {
   const [memberRoles, setMemberRoles] = useState("member");
   const [memberScopes, setMemberScopes] = useState("");
 
-  const { data: memberData, isLoading: membersLoading } =
-    useOrganizationMembers(selectedOrganization?.id);
+  const {
+    data: memberData,
+    isLoading: membersLoading,
+    isError: membersError,
+    error: membersErrorValue,
+    refetch: refetchMembers,
+  } = useOrganizationMembers(selectedOrganization?.id);
   const members = memberData?.members ?? [];
 
   const handleCreateOrganization = (event: FormEvent<HTMLFormElement>) => {
@@ -104,9 +117,34 @@ export default function Organizations() {
           setSelectedOrganizationId(organization.id);
           setCreateName("");
           setCreateSlug("");
+          toast.success(
+            "Organization created",
+            `${organization.name} was added.`,
+          );
+        },
+        onError: (error) => {
+          toast.error("Organization creation failed", getErrorMessage(error));
         },
       },
     );
+  };
+
+  const handleUpdateOrganization = (input: {
+    organizationId: string;
+    name: string;
+    slug: string;
+  }) => {
+    updateOrganization.mutate(input, {
+      onSuccess: ({ organization }) => {
+        toast.success(
+          "Organization updated",
+          `${organization.name} was saved.`,
+        );
+      },
+      onError: (error) => {
+        toast.error("Organization update failed", getErrorMessage(error));
+      },
+    });
   };
 
   const handleAddMember = async (event: FormEvent<HTMLFormElement>) => {
@@ -134,6 +172,10 @@ export default function Organizations() {
           setMemberEmail("");
           setMemberRoles("member");
           setMemberScopes("");
+          toast.success("Member added", `${email} was added.`);
+        },
+        onError: (error) => {
+          toast.error("Member add failed", getErrorMessage(error));
         },
       },
     );
@@ -151,10 +193,20 @@ export default function Organizations() {
       return;
     }
 
-    removeMember.mutate({
-      organizationId: selectedOrganization.id,
-      userId: membership.userId,
-    });
+    removeMember.mutate(
+      {
+        organizationId: selectedOrganization.id,
+        userId: membership.userId,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Member removed", `${label} was removed.`);
+        },
+        onError: (error) => {
+          toast.error("Member removal failed", getErrorMessage(error));
+        },
+      },
+    );
   };
 
   if (isLoading) {
@@ -168,6 +220,16 @@ export default function Organizations() {
         </div>
         <Skeleton className="h-[520px] rounded-2xl" />
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        title="Could not load organizations"
+        error={error}
+        onRetry={() => void refetch()}
+      />
     );
   }
 
@@ -264,11 +326,23 @@ export default function Organizations() {
             ) : undefined
           }
         >
+          {!canWrite && <ReadOnlyNotice />}
+          {createOrganization.isError && (
+            <StateMessage
+              tone="error"
+              title="Organization creation failed"
+              description={getErrorMessage(createOrganization.error)}
+            />
+          )}
           <Table<OrganizationRow>
             data={organizations as OrganizationRow[]}
             total={total}
             emptyTitle="No organizations"
-            emptyDescription="Create an organization to start grouping users."
+            emptyDescription={
+              canWrite
+                ? "Create an organization to start grouping users."
+                : "No organization records are currently visible in this dashboard."
+            }
             columns={[
               {
                 key: "name",
@@ -322,13 +396,20 @@ export default function Organizations() {
           title="Selected Organization"
           description="Update the selected tenant record before managing its members."
         >
+          {updateOrganization.isError && (
+            <StateMessage
+              tone="error"
+              title="Organization update failed"
+              description={getErrorMessage(updateOrganization.error)}
+            />
+          )}
           {selectedOrganization ? (
             <SelectedOrganizationForm
               key={selectedOrganization.id}
               organization={selectedOrganization}
               isPending={updateOrganization.isPending}
               canWrite={canWrite}
-              onSave={(input) => updateOrganization.mutate(input)}
+              onSave={handleUpdateOrganization}
             />
           ) : (
             <div className="rounded-md border border-subtle bg-surface-alt p-4 text-sm text-muted">
@@ -384,8 +465,31 @@ export default function Organizations() {
           ) : undefined
         }
       >
+        {!canWrite && (
+          <ReadOnlyNotice description="You have read-only admin access. Membership add, edit, and remove controls are hidden." />
+        )}
+        {addMember.isError && (
+          <StateMessage
+            tone="error"
+            title="Member add failed"
+            description={getErrorMessage(addMember.error)}
+          />
+        )}
+        {removeMember.isError && (
+          <StateMessage
+            tone="error"
+            title="Member removal failed"
+            description={getErrorMessage(removeMember.error)}
+          />
+        )}
         {membersLoading ? (
           <Skeleton className="h-[320px] rounded-2xl" />
+        ) : membersError ? (
+          <QueryErrorState
+            title="Could not load organization members"
+            error={membersErrorValue}
+            onRetry={() => void refetchMembers()}
+          />
         ) : (
           <Table<OrganizationMembershipRow>
             data={members as OrganizationMembershipRow[]}

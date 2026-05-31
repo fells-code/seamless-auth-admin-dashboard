@@ -16,6 +16,7 @@ import { useDeleteUser } from "../hooks/useDeleteUser";
 import { useDeviceReplacementRecovery } from "../hooks/useDeviceReplacementRecovery";
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
+import { useToast } from "../hooks/useToast";
 import Tabs from "../components/Tabs";
 import Table from "../components/Table";
 import Skeleton from "../components/Skeleton";
@@ -24,6 +25,12 @@ import RiskBadge from "../components/RiskBadge";
 import MiniLineChart from "../components/MiniLineChart";
 import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
+import {
+  QueryErrorState,
+  ReadOnlyNotice,
+  StateMessage,
+} from "../components/StateMessage";
+import { getErrorMessage } from "../lib/errorMessage";
 import { calculateRiskScore } from "../lib/riskScore";
 import type {
   AuthEvent,
@@ -76,9 +83,17 @@ export default function UserDetail() {
   const navigate = useNavigate();
   const [referenceNow] = useState(() => Date.now());
 
-  const { data, isLoading } = useUserDetail(id!);
-  const { data: anomalies } = useUserAnomalies(id!);
-  const { data: timeseries } = useUserTimeseries(data?.user?.id ?? "");
+  const { data, isLoading, isError, error, refetch } = useUserDetail(id!);
+  const {
+    data: anomalies,
+    isError: anomaliesError,
+    error: anomaliesErrorValue,
+  } = useUserAnomalies(id!);
+  const {
+    data: timeseries,
+    isError: timeseriesError,
+    error: timeseriesErrorValue,
+  } = useUserTimeseries(data?.user?.id ?? "");
 
   const revokeSession = useRevokeSession();
   const revokeAllUserSessions = useRevokeAllUserSessions();
@@ -86,13 +101,14 @@ export default function UserDetail() {
   const deviceReplacement = useDeviceReplacementRecovery();
   const { canWrite } = useAdminPermissions();
   const ensureStepUp = useStepUpGuard();
+  const toast = useToast();
 
   const [editing, setEditing] = useState(false);
   const [tab, setTab] = useState<
     "Overview" | "Sessions" | "Credentials" | "Events" | "Security"
   >("Overview");
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-48 rounded-[28px]" />
@@ -103,6 +119,16 @@ export default function UserDetail() {
         </div>
         <Skeleton className="h-[440px] rounded-2xl" />
       </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <QueryErrorState
+        title="Could not load user detail"
+        error={error}
+        onRetry={() => void refetch()}
+      />
     );
   }
 
@@ -138,7 +164,13 @@ export default function UserDetail() {
     }
 
     deleteUser.mutate(user.id, {
-      onSuccess: () => navigate("/users"),
+      onSuccess: () => {
+        toast.success("User deleted", `${user.email} was removed.`);
+        navigate("/users");
+      },
+      onError: (error) => {
+        toast.error("User deletion failed", getErrorMessage(error));
+      },
     });
   };
 
@@ -151,7 +183,17 @@ export default function UserDetail() {
       return;
     }
 
-    revokeAllUserSessions.mutate(user.id);
+    revokeAllUserSessions.mutate(user.id, {
+      onSuccess: () => {
+        toast.success(
+          "Sessions revoked",
+          `All sessions for ${user.email} were revoked.`,
+        );
+      },
+      onError: (error) => {
+        toast.error("Session revoke failed", getErrorMessage(error));
+      },
+    });
   };
 
   const revokeUserSession = async (session: Session) => {
@@ -163,7 +205,17 @@ export default function UserDetail() {
       return;
     }
 
-    revokeSession.mutate({ id: session.id, userId: user.id });
+    revokeSession.mutate(
+      { id: session.id, userId: user.id },
+      {
+        onSuccess: () => {
+          toast.success("Session revoked", "The selected session was revoked.");
+        },
+        onError: (error) => {
+          toast.error("Session revoke failed", getErrorMessage(error));
+        },
+      },
+    );
   };
 
   const revokeSelectedSessions = async (selectedSessions: Session[]) => {
@@ -175,9 +227,19 @@ export default function UserDetail() {
       return;
     }
 
-    selectedSessions.forEach((session) =>
-      revokeSession.mutate({ id: session.id, userId: user.id }),
-    );
+    try {
+      await Promise.all(
+        selectedSessions.map((session) =>
+          revokeSession.mutateAsync({ id: session.id, userId: user.id }),
+        ),
+      );
+      toast.success(
+        "Sessions revoked",
+        `${selectedSessions.length} sessions were revoked.`,
+      );
+    } catch (error) {
+      toast.error("Session revoke failed", getErrorMessage(error));
+    }
   };
 
   const prepareDeviceReplacement = async () => {
@@ -193,7 +255,20 @@ export default function UserDetail() {
       return;
     }
 
-    deviceReplacement.mutate({ userId: user.id });
+    deviceReplacement.mutate(
+      { userId: user.id },
+      {
+        onSuccess: (result) => {
+          toast.success(
+            "Device replacement prepared",
+            `${result.revokedSessions} sessions revoked, ${result.removedCredentials} passkeys removed, ${result.disabledTotpCredentials} TOTP credentials disabled.`,
+          );
+        },
+        onError: (error) => {
+          toast.error("Device replacement failed", getErrorMessage(error));
+        },
+      },
+    );
   };
 
   return (
@@ -362,6 +437,34 @@ export default function UserDetail() {
           }
         />
       </div>
+
+      {!canWrite && (
+        <ReadOnlyNotice description="You can inspect this account, but edit, delete, session revoke, and recovery controls require admin write access." />
+      )}
+      {(deleteUser.isError ||
+        revokeSession.isError ||
+        revokeAllUserSessions.isError ||
+        deviceReplacement.isError) && (
+        <StateMessage
+          tone="error"
+          title="User action failed"
+          description={getErrorMessage(
+            deleteUser.error ??
+              revokeSession.error ??
+              revokeAllUserSessions.error ??
+              deviceReplacement.error,
+          )}
+        />
+      )}
+      {(anomaliesError || timeseriesError) && (
+        <StateMessage
+          tone="error"
+          title="Some user signals could not be loaded"
+          description={getErrorMessage(
+            anomaliesErrorValue ?? timeseriesErrorValue,
+          )}
+        />
+      )}
 
       <Tabs
         tabs={["Overview", "Sessions", "Credentials", "Events", "Security"]}

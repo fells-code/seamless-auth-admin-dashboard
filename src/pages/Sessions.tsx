@@ -14,8 +14,15 @@ import Skeleton from "../components/Skeleton";
 import StatCard from "../components/StatCard";
 import SearchInput from "../components/SearchInput";
 import { Section } from "../components/Section";
+import {
+  QueryErrorState,
+  ReadOnlyNotice,
+  StateMessage,
+} from "../components/StateMessage";
+import { getErrorMessage } from "../lib/errorMessage";
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
+import { useToast } from "../hooks/useToast";
 import type { Session } from "../types/user";
 
 type ActivityFilter = "all" | "recent" | "expiring" | "idle";
@@ -86,10 +93,11 @@ function isExpiringSoon(session: Session) {
 }
 
 export default function Sessions() {
-  const { data, isLoading } = useSessions();
+  const { data, isLoading, isError, error, refetch } = useSessions();
   const revoke = useRevokeSession();
   const { canWrite } = useAdminPermissions();
   const ensureStepUp = useStepUpGuard();
+  const toast = useToast();
 
   const [offset, setOffset] = useState(0);
   const [search, setSearch] = useState("");
@@ -145,7 +153,14 @@ export default function Sessions() {
       return;
     }
 
-    revoke.mutate(session.id);
+    revoke.mutate(session.id, {
+      onSuccess: () => {
+        toast.success("Session revoked", "The selected session was revoked.");
+      },
+      onError: (error) => {
+        toast.error("Session revoke failed", getErrorMessage(error));
+      },
+    });
   };
 
   const revokeSelectedSessions = async (selectedSessions: Session[]) => {
@@ -157,7 +172,17 @@ export default function Sessions() {
       return;
     }
 
-    selectedSessions.forEach((session) => revoke.mutate(session.id));
+    try {
+      await Promise.all(
+        selectedSessions.map((session) => revoke.mutateAsync(session.id)),
+      );
+      toast.success(
+        "Sessions revoked",
+        `${selectedSessions.length} sessions were revoked.`,
+      );
+    } catch (error) {
+      toast.error("Session revoke failed", getErrorMessage(error));
+    }
   };
 
   if (isLoading) {
@@ -171,6 +196,16 @@ export default function Sessions() {
         </div>
         <Skeleton className="h-[440px] rounded-2xl" />
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        title="Could not load sessions"
+        error={error}
+        onRetry={() => void refetch()}
+      />
     );
   }
 
@@ -286,6 +321,14 @@ export default function Sessions() {
           </div>
         }
       >
+        {!canWrite && <ReadOnlyNotice />}
+        {revoke.isError && (
+          <StateMessage
+            tone="error"
+            title="Session revoke failed"
+            description={getErrorMessage(revoke.error)}
+          />
+        )}
         <Table<Session>
           selectable={canWrite}
           limit={limit}

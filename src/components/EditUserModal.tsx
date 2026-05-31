@@ -10,6 +10,9 @@ import { useUpdateUser } from "../hooks/useUpdateUser";
 import { useRoles } from "../hooks/useRoles";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import RoleChips from "./RoleChips";
+import { StateMessage } from "./StateMessage";
+import { getErrorMessage } from "../lib/errorMessage";
+import { useToast } from "../hooks/useToast";
 import type { User } from "@seamless-auth/types";
 
 export default function EditUserModal({
@@ -29,6 +32,7 @@ export default function EditUserModal({
 
   const updateUser = useUpdateUser(user.id);
   const ensureStepUp = useStepUpGuard();
+  const toast = useToast();
 
   const submit = async () => {
     setStepUpPending(true);
@@ -39,7 +43,15 @@ export default function EditUserModal({
 
       updateUser.mutate(
         { email, phone, roles },
-        { onSuccess: () => onClose() },
+        {
+          onSuccess: () => {
+            toast.success("User updated", `${email} was saved.`);
+            onClose();
+          },
+          onError: (error) => {
+            toast.error("User update failed", getErrorMessage(error));
+          },
+        },
       );
     } finally {
       setStepUpPending(false);
@@ -68,6 +80,13 @@ export default function EditUserModal({
 
         {/* Form */}
         <div className="space-y-4">
+          {updateUser.isError && (
+            <StateMessage
+              tone="error"
+              title="User update failed"
+              description={getErrorMessage(updateUser.error)}
+            />
+          )}
           <Input label="Email" value={email} onChange={setEmail} />
 
           <Input label="Phone" value={phone} onChange={setPhone} />
@@ -93,7 +112,7 @@ export default function EditUserModal({
 
           <button
             onClick={() => void submit()}
-            disabled={isSaving}
+            disabled={isSaving || !email.trim() || roles.length === 0}
             className="btn btn-primary disabled:opacity-50"
           >
             {stepUpPending ? "Verifying..." : "Save"}

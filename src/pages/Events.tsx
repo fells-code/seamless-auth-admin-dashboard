@@ -13,6 +13,7 @@ import Skeleton from "../components/Skeleton";
 import EventFilters from "../components/EventFilters";
 import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
+import { QueryErrorState } from "../components/StateMessage";
 import { eventGroups } from "../lib/eventGroups";
 import { AuthEventTypeEnum } from "../types/authEventTypes";
 import type { AuthEvent } from "@seamless-auth/types";
@@ -91,7 +92,7 @@ export default function Events() {
     [filters.type],
   );
 
-  const { data, isLoading } = useEvents({
+  const { data, isLoading, isError, error, refetch } = useEvents({
     type: effectiveTypes,
     from: filters.from,
     to: filters.to,
@@ -129,6 +130,16 @@ export default function Events() {
       search: params.toString() ? `?${params.toString()}` : "",
     });
   };
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        title="Could not load events"
+        error={error}
+        onRetry={() => void refetch()}
+      />
+    );
+  }
 
   return (
     <div className="space-y-8">
