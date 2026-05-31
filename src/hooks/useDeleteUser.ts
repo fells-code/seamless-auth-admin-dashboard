@@ -13,8 +13,9 @@ export function useDeleteUser() {
 
   return useMutation({
     mutationFn: (userId: string) =>
-      apiFetch(`/admin/users/${userId}`, {
+      apiFetch("/admin/users", {
         method: "DELETE",
+        body: JSON.stringify({ userId }),
       }),
     onSuccess: (_data, userId) => {
       qc.invalidateQueries({ queryKey: ["users"] });

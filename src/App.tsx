@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/Layout";
 
 import Overview from "./pages/Overview";
@@ -15,27 +15,36 @@ import Security from "./pages/Security";
 import Organizations from "./pages/Organizations";
 import UserDetail from "./pages/UserDetail";
 import SystemConfig from "./pages/SystemConfig";
-import { AuthProvider, AuthRoutes } from "@seamless-auth/react";
+import { AuthProvider } from "@seamless-auth/react";
 import { API_URL } from "./lib/api";
 import RequireAuth from "./components/RequireAuth";
+import PublicAuthRoute from "./components/PublicAuthRoute";
 import Unauthenticated from "./pages/Unauthenticated";
 import Profile from "./pages/Profile";
-
-const AUTH_ROUTE_PATHS = [
-  "/login",
-  "/passKeyLogin",
-  "/verifyPhoneOTP",
-  "/verifyEmailOTP",
-  "/verify-magiclink",
-  "/registerPasskey",
-  "/magiclinks-sent",
-];
+import SignIn from "./pages/SignIn";
+import MagicLinkVerification from "./pages/MagicLinkVerification";
 
 export default function App() {
   return (
     <AuthProvider apiHost={API_URL}>
       <Routes>
         <Route path="/unauthenticated" element={<Unauthenticated />} />
+        <Route
+          path="/login"
+          element={
+            <PublicAuthRoute>
+              <SignIn />
+            </PublicAuthRoute>
+          }
+        />
+        <Route
+          path="/verify-magiclink"
+          element={
+            <PublicAuthRoute>
+              <MagicLinkVerification />
+            </PublicAuthRoute>
+          }
+        />
 
         <Route
           element={
@@ -55,17 +64,8 @@ export default function App() {
           <Route path="/profile" element={<Profile />} />
         </Route>
 
-        <Route path="*" element={<PublicAuthRoutes />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>
   );
-}
-
-function PublicAuthRoutes() {
-  const { pathname } = useLocation();
-  const isAuthRoute = AUTH_ROUTE_PATHS.some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`),
-  );
-
-  return isAuthRoute ? <AuthRoutes /> : <Navigate to="/" replace />;
 }

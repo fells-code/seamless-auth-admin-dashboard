@@ -48,8 +48,9 @@ describe("useDeleteUser", () => {
       await result.current.mutateAsync("user_1");
     });
 
-    expect(apiFetch).toHaveBeenCalledWith("/admin/users/user_1", {
+    expect(apiFetch).toHaveBeenCalledWith("/admin/users", {
       method: "DELETE",
+      body: JSON.stringify({ userId: "user_1" }),
     });
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["users"] });
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["sessions"] });

@@ -5,7 +5,11 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
-import { getLastProtectedRoute, saveLastProtectedRoute } from "./lastRoute";
+import {
+  getLastProtectedRoute,
+  resolveProtectedRoute,
+  saveLastProtectedRoute,
+} from "./lastRoute";
 
 describe("lastRoute helpers", () => {
   beforeEach(() => {
@@ -18,10 +22,13 @@ describe("lastRoute helpers", () => {
     expect(getLastProtectedRoute()).toBe("/users?query=alex#details");
   });
 
-  it("ignores unauthenticated and empty paths", () => {
+  it("ignores public auth and empty paths", () => {
     saveLastProtectedRoute("/sessions");
     saveLastProtectedRoute("");
     saveLastProtectedRoute("/unauthenticated");
+    saveLastProtectedRoute("/login");
+    saveLastProtectedRoute("/verify-magiclink?token=abc");
+    saveLastProtectedRoute("/registerPasskey");
 
     expect(getLastProtectedRoute()).toBe("/sessions");
   });
@@ -32,5 +39,20 @@ describe("lastRoute helpers", () => {
     sessionStorage.setItem("last-protected-route", "/unauthenticated");
 
     expect(getLastProtectedRoute()).toBe("/");
+
+    sessionStorage.setItem("last-protected-route", "/login?from=/users");
+
+    expect(getLastProtectedRoute()).toBe("/");
+  });
+
+  it("resolves route state only when it points at a protected route", () => {
+    expect(resolveProtectedRoute("/users/1", "/sessions")).toBe("/users/1");
+    expect(resolveProtectedRoute("/login", "/sessions")).toBe("/sessions");
+    expect(resolveProtectedRoute("https://example.com", "/sessions")).toBe(
+      "/sessions",
+    );
+    expect(resolveProtectedRoute("//example.com", "/sessions")).toBe(
+      "/sessions",
+    );
   });
 });
