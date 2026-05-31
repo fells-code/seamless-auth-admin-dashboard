@@ -14,9 +14,12 @@ This app is intended to run alongside the Seamless Auth API as part of a self-ho
 - filter and investigate authentication events
 - review suspicious activity and anomaly signals
 - edit system configuration
+- sign in with Seamless Auth headless-client flows, including passkeys, magic links, and OTP fallbacks
+- manage organizations and organization membership
 - configure allowed login methods and OAuth providers
 - configure account lockout policy
 - run admin-assisted device-replacement recovery
+- require step-up authentication before destructive or high-sensitivity actions
 - hide write controls from read-only admins
 - operate with runtime config injection in containerized environments
 
@@ -52,6 +55,24 @@ That runtime-config flow is intentional. The dashboard is designed to be reconfi
 
 - list, search, create, edit, and delete users
 - drill into individual user detail
+- require fresh step-up authentication before create, edit, delete, session revoke, and device-recovery actions
+
+Admin user deletion follows the Seamless Auth API contract:
+
+```http
+DELETE /admin/users
+Content-Type: application/json
+
+{ "userId": "user-id" }
+```
+
+When the server adapter is mounted at `/auth`, the dashboard sends this as `DELETE /auth/admin/users`.
+
+### Organizations
+
+- list and inspect organizations
+- create and update organizations
+- add, update, and remove organization members
 
 ### Sessions
 
@@ -255,9 +276,10 @@ The app is functional and meant for real use. The current focus is on consistenc
 Known areas still worth attention:
 
 - The dashboard assumes the SeamlessAuth server adapter is mounted at `/auth`
-- the unauthenticated `Sign In` button still has no wired action
+- the Seamless Auth server adapter and upstream API docs should stay aligned with dashboard route contracts, especially destructive admin mutations
 - a few query invalidation paths remain narrower than ideal
 - chart components have lighter test coverage than the shared shell and utility layers
+- page-level end-to-end coverage against a real Seamless Auth deployment is still limited
 
 ## License
 

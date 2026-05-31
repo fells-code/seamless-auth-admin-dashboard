@@ -62,16 +62,21 @@ Routing lives in `src/App.tsx`.
 Current route model:
 
 - `/unauthenticated`
+- `/login`
+- `/verify-magiclink`
 - `/`
 - `/users`
 - `/users/:id`
+- `/organizations`
 - `/sessions`
 - `/events`
 - `/security`
 - `/system`
 - `/profile`
 
-Authenticated routes are wrapped in `RequireAuth`, which requires the user to have the `admin` role.
+Public auth routes are wrapped in `PublicAuthRoute`. Authenticated dashboard routes are wrapped in
+`RequireAuth`, which requires `admin:read` access. The legacy `admin` role and `admin:write` satisfy
+that read check through `hasScopedRole`.
 
 ## Auth Model
 
@@ -81,8 +86,11 @@ Current behavior:
 
 - `AuthProvider` wraps the app
 - `RequireAuth` blocks rendering until auth state resolves
+- `PublicAuthRoute` keeps `/login` and `/verify-magiclink` available to unauthenticated users, but redirects already-authenticated admins back to the protected dashboard destination
+- `SignIn.tsx` uses the Seamless Auth headless client for passkey-first sign-in with magic-link, email OTP, and phone OTP fallbacks
 - protected route refreshes preserve the last visited route
-- non-admin or unauthenticated users are redirected to `/unauthenticated`
+- public auth routes are excluded from last-protected-route storage
+- non-admin or unauthenticated users trying to access dashboard routes are redirected to `/unauthenticated`
 - API requests are sent with `credentials: "include"`
 
 Important current-state note:
@@ -129,15 +137,24 @@ Existing hook style is simple and should remain simple:
 - use stable `queryKey`s
 - invalidate affected queries in mutation `onSuccess`
 
+Important current API contract:
+
+- `apiFetch` prepends the fixed `/auth` server-adapter path.
+- Admin user deletion calls `DELETE /admin/users` with `{ "userId": "..." }` in the JSON body, which becomes `DELETE /auth/admin/users` at the dashboard boundary.
+- Do not change user deletion back to `DELETE /admin/users/:userId`; that route is not part of the current Seamless Auth API contract.
+
 Prefer adding a new dedicated hook over inlining `fetch` inside a page.
 
 ## Page Responsibilities
 
 Current page intent:
 
+- `SignIn.tsx`: custom Seamless Auth headless-client sign-in flow for admins
+- `MagicLinkVerification.tsx`: magic-link callback verification and session refresh
 - `Overview.tsx`: operator landing page with stats, charts, and investigation entry points
 - `Users.tsx`: searchable user directory with create, edit, and delete actions
 - `UserDetail.tsx`: single-user overview, sessions, credentials, events, and anomalies
+- `Organizations.tsx`: organization directory, details, and membership management
 - `Sessions.tsx`: global session inventory and revoke actions
 - `Events.tsx`: auth event browsing and filtering, including grouped quick filters
 - `Security.tsx`: anomaly and login-stat visibility with drill-down links
@@ -198,9 +215,15 @@ These are current-state issues. Do not ignore them when working nearby.
 ### Runtime and UX inconsistencies
 
 - The dashboard assumes the SeamlessAuth server adapter is mounted at `/auth`
-- `src/pages/Unauthenticated.tsx` renders a `Sign In` button that still has no behavior
-- `src/components/Sidebar.tsx` footer version still shows `v0.0.5` while `package.json` is `0.0.8`
+- The unauthenticated access-required screen now routes to `/login`; keep that behavior intact when changing auth routes
+- `src/components/Sidebar.tsx` reads the footer version from `package.json`; avoid hardcoding versions there
 - `index.html` includes `/config.js`, which produces a Vite build warning, but is intentional for runtime config injection
+
+### API and adapter alignment
+
+- The dashboard talks to the Seamless Auth server adapter at `/auth/*`, while the upstream API routes are defined without that prefix
+- Destructive admin mutations should be checked against the upstream Seamless Auth API and the server adapter together before changing dashboard paths
+- `DELETE /auth/admin/users` expects a JSON body containing `userId`; the upstream API route is `DELETE /admin/users`
 
 ### Query invalidation and data flow
 
