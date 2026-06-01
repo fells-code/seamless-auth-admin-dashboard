@@ -203,6 +203,15 @@ npm run coverage
 npm run build
 ```
 
+## Release Preparation
+
+Commits to `main` run the release-preparation workflow. That workflow validates the dashboard, runs
+Changesets versioning, updates `CHANGELOG.md` and `package.json`, and opens or updates a version PR
+for review.
+
+The workflow does not publish packages, create GitHub releases, or push release tags. Releases are
+generated manually after the version PR has been reviewed and merged.
+
 ## Local Configuration
 
 You can provide config through Vite env vars for local development:

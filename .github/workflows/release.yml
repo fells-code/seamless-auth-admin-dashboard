@@ -1,4 +1,4 @@
-name: Release
+name: Prepare Release PR
 
 on:
   push:
@@ -8,18 +8,16 @@ on:
 
 permissions:
   contents: write
-  issues: write
   pull-requests: write
-  id-token: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: prepare-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  release:
+  prepare-release:
     if: github.repository == 'fells-code/seamless-auth-admin-dashboard'
-    name: Version or Publish Dashboard
+    name: Create or update Changesets version PR
     runs-on: ubuntu-latest
     env:
       HUSKY: 0
@@ -54,11 +52,11 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Version dashboard
+      - name: Create or update version PR
         uses: changesets/action@v1
         with:
           version: npm run version-packages
-          publish: npm run release:stable
-          createGithubReleases: true
+          title: "Version dashboard"
+          commit: "Version dashboard"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

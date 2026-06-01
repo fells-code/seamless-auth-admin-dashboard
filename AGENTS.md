@@ -178,6 +178,13 @@ Current scripts:
 - `npm run coverage`
 - `npm run build`
 
+Release workflow:
+
+- `.github/workflows/release.yml` prepares a Changesets version PR when changes land on `main`
+- it should run `npm run version-packages` through `changesets/action`
+- it should not run `changeset publish`, create GitHub releases, or push release tags
+- release generation is intentionally manual after the version PR is reviewed and merged
+
 Current test stack:
 
 - Vitest
