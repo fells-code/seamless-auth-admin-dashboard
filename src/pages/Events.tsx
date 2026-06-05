@@ -294,6 +294,8 @@ export default function Events() {
                 key: "type",
                 label: "Event",
                 sortable: true,
+                width: "large",
+                wrap: true,
                 render: (value, row) => (
                   <div className="flex flex-col">
                     <span className="text-sm font-medium text-primary">
@@ -308,6 +310,7 @@ export default function Events() {
               {
                 key: "user_id",
                 label: "User",
+                width: "small",
                 render: (value) =>
                   value ? (
                     <button
@@ -326,6 +329,8 @@ export default function Events() {
               {
                 key: "ip_address",
                 label: "Origin",
+                width: "medium",
+                wrap: true,
                 render: (value, row) => (
                   <div className="flex flex-col">
                     <span className="font-mono text-sm text-primary">
@@ -343,6 +348,8 @@ export default function Events() {
                 key: "created_at",
                 label: "Observed",
                 sortable: true,
+                width: "medium",
+                wrap: true,
                 render: (value) => (
                   <div className="flex flex-col">
                     <span className="text-sm text-primary">

@@ -348,6 +348,8 @@ export default function Organizations() {
                 key: "name",
                 label: "Organization",
                 sortable: true,
+                width: "wide",
+                wrap: true,
                 render: (value, row) => (
                   <button
                     type="button"
@@ -365,6 +367,8 @@ export default function Organizations() {
                 key: "memberCount",
                 label: "Members",
                 sortable: true,
+                width: "compact",
+                align: "center",
                 render: (value) => (
                   <span className="text-sm text-primary">
                     {Number(value ?? 0)}
@@ -375,6 +379,7 @@ export default function Organizations() {
                 key: "createdAt",
                 label: "Created",
                 sortable: true,
+                width: "medium",
                 render: (value) => (
                   <span className="text-sm text-muted">
                     {formatDate(value as string)}
@@ -500,6 +505,8 @@ export default function Organizations() {
               {
                 key: "user",
                 label: "User",
+                width: "wide",
+                wrap: true,
                 render: (_value, row) => (
                   <div className="flex flex-col">
                     <span className="font-medium text-primary">
@@ -514,11 +521,15 @@ export default function Organizations() {
               {
                 key: "roles",
                 label: "Roles",
+                width: "large",
+                wrap: true,
                 render: (value) => <BadgeList values={value as string[]} />,
               },
               {
                 key: "scopes",
                 label: "Scopes",
+                width: "large",
+                wrap: true,
                 render: (value) => (
                   <span className="text-sm text-muted">
                     {formatList(value as string[])}
@@ -529,6 +540,7 @@ export default function Organizations() {
                 key: "createdAt",
                 label: "Joined",
                 sortable: true,
+                width: "medium",
                 render: (value) => (
                   <span className="text-sm text-muted">
                     {formatDate(value as string)}

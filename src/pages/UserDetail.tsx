@@ -524,6 +524,8 @@ export default function UserDetail() {
               {
                 key: "ipAddress",
                 label: "Network",
+                width: "medium",
+                wrap: true,
                 render: (value, row) => (
                   <div className="flex flex-col">
                     <span className="font-mono text-sm text-primary">
@@ -538,6 +540,8 @@ export default function UserDetail() {
               {
                 key: "userAgent",
                 label: "Device",
+                width: "wide",
+                wrap: true,
                 render: (value) => (
                   <div className="flex flex-col">
                     <span className="text-sm font-medium text-primary">
@@ -553,6 +557,8 @@ export default function UserDetail() {
                 key: "lastUsedAt",
                 label: "Last Used",
                 sortable: true,
+                width: "medium",
+                wrap: true,
                 render: (value) => (
                   <div className="flex flex-col">
                     <span className="text-sm text-primary">
@@ -606,18 +612,22 @@ export default function UserDetail() {
               {
                 key: "deviceType",
                 label: "Device",
+                width: "large",
+                wrap: true,
                 render: (value) => (
                   <span className="text-sm text-primary">
                     {(value as string) ?? "Unknown device"}
                   </span>
                 ),
               },
-              { key: "browser", label: "Browser" },
-              { key: "platform", label: "Platform" },
+              { key: "browser", label: "Browser", width: "medium" },
+              { key: "platform", label: "Platform", width: "medium" },
               {
                 key: "createdAt",
                 label: "Created",
                 sortable: true,
+                width: "medium",
+                wrap: true,
                 render: (value) => (
                   <div className="flex flex-col">
                     <span className="text-sm text-primary">
@@ -655,6 +665,8 @@ export default function UserDetail() {
               {
                 key: "type",
                 label: "Event",
+                width: "large",
+                wrap: true,
                 render: (value) => (
                   <span className="text-sm font-medium text-primary">
                     {value as string}
@@ -664,6 +676,7 @@ export default function UserDetail() {
               {
                 key: "ip_address",
                 label: "IP",
+                width: "medium",
                 render: (value) => (
                   <span className="font-mono text-sm text-primary">
                     {(value as string) ?? "Unknown IP"}
@@ -674,6 +687,8 @@ export default function UserDetail() {
                 key: "created_at",
                 label: "Observed",
                 sortable: true,
+                width: "medium",
+                wrap: true,
                 render: (value) => (
                   <div className="flex flex-col">
                     <span className="text-sm text-primary">
@@ -742,6 +757,8 @@ export default function UserDetail() {
                 {
                   key: "type",
                   label: "Signal",
+                  width: "large",
+                  wrap: true,
                   render: (value) => (
                     <span className="text-sm font-medium text-[var(--highlight)]">
                       {value as string}
@@ -751,6 +768,7 @@ export default function UserDetail() {
                 {
                   key: "ip_address",
                   label: "IP",
+                  width: "medium",
                   render: (value) => (
                     <span className="font-mono text-sm text-primary">
                       {(value as string) ?? "Unknown IP"}
@@ -760,6 +778,8 @@ export default function UserDetail() {
                 {
                   key: "created_at",
                   label: "Observed",
+                  width: "medium",
+                  wrap: true,
                   render: (value) => (
                     <div className="flex flex-col">
                       <span className="text-sm text-primary">

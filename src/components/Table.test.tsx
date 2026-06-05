@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { Pencil } from "lucide-react";
@@ -58,6 +58,64 @@ describe("Table", () => {
       screen.getAllByText(/Alice|Charlie/).map((cell) => cell.textContent),
     ).toEqual(["Alice", "Charlie"]);
     expect(screen.getByText("Sorted by name asc")).toBeInTheDocument();
+  });
+
+  it("keeps column headers and rows in the same horizontal scroll region", () => {
+    render(<Table<TestRow> columns={columns} data={rows} />);
+
+    const region = screen.getByRole("region", { name: "Table content" });
+    const headerGrid = within(region)
+      .getByRole("button", { name: /Name/i })
+      .closest(".grid") as HTMLElement;
+    const rowGrid = within(region)
+      .getByText("Charlie")
+      .closest(".grid") as HTMLElement;
+
+    expect(region).toContainElement(rowGrid);
+    expect(headerGrid.parentElement).toContainElement(rowGrid);
+    expect(headerGrid.style.gridTemplateColumns).toBe(
+      rowGrid.style.gridTemplateColumns,
+    );
+    expect(headerGrid.parentElement).toHaveStyle({ minWidth: "332px" });
+  });
+
+  it("supports compact column widths, wrapped cells, and sticky actions", () => {
+    render(
+      <Table<TestRow>
+        columns={[
+          { key: "name", label: "Name", width: "wide", wrap: true },
+          { key: "role", label: "Role", width: "compact", align: "right" },
+        ]}
+        data={rows}
+        actions={[
+          {
+            icon: Pencil,
+            label: "Edit row",
+            onClick: vi.fn(),
+          },
+        ]}
+      />,
+    );
+
+    const region = screen.getByRole("region", { name: "Table content" });
+    const headerGrid = within(region)
+      .getByRole("button", { name: "Name" })
+      .closest(".grid") as HTMLElement;
+    const wrappedCell = within(region).getByText("Charlie").closest("div");
+    const alignedCell = within(region).getByText("Viewer").closest("div");
+    const headerActions = within(region).getByText("Actions");
+    const rowAction = within(region)
+      .getAllByRole("button", { name: "Edit row" })[0]
+      .closest("div");
+
+    expect(headerGrid.style.gridTemplateColumns).toBe(
+      "minmax(220px, 1.35fr) minmax(72px, 0.35fr) 64px",
+    );
+    expect(headerGrid.parentElement).toHaveStyle({ minWidth: "412px" });
+    expect(wrappedCell).toHaveClass("whitespace-normal");
+    expect(alignedCell).toHaveClass("text-right");
+    expect(headerActions).toHaveClass("sticky", "right-0");
+    expect(rowAction).toHaveClass("sticky", "right-0");
   });
 
   it("invokes row actions and pagination callbacks", async () => {
