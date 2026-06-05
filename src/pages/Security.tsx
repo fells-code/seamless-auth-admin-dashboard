@@ -270,6 +270,8 @@ export default function Security() {
             {
               key: "type",
               label: "Signal",
+              width: "large",
+              wrap: true,
               render: (value, row) => (
                 <div className="flex flex-col">
                   <span className="text-sm font-medium text-[var(--highlight)]">
@@ -286,6 +288,8 @@ export default function Security() {
             {
               key: "ip_address",
               label: "Origin",
+              width: "wide",
+              wrap: true,
               render: (value, row) => (
                 <div className="flex flex-col">
                   <span className="font-mono text-sm text-primary">
@@ -301,6 +305,8 @@ export default function Security() {
               key: "created_at",
               label: "Observed",
               sortable: true,
+              width: "medium",
+              wrap: true,
               render: (value) => (
                 <div className="flex flex-col">
                   <span className="text-sm text-primary">

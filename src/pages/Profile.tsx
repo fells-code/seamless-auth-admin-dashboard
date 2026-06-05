@@ -181,20 +181,21 @@ export default function Profile() {
             {
               key: "ipAddress",
               label: "IP",
+              width: "medium",
               render: (v) => <span className="font-mono text-sm">{v}</span>,
             },
             {
               key: "userAgent",
               label: "Device",
-              render: (v) => (
-                <span className="text-sm text-muted truncate max-w-[200px]">
-                  {v}
-                </span>
-              ),
+              width: "wide",
+              wrap: true,
+              render: (v) => <span className="text-sm text-muted">{v}</span>,
             },
             {
               key: "lastUsedAt",
               label: "Last Used",
+              width: "medium",
+              wrap: true,
               render: (v) => (
                 <span className="text-sm text-muted">
                   {new Date(v).toLocaleString()}
@@ -224,11 +225,13 @@ export default function Profile() {
       <Section title="Credentials">
         <Table<Credential>
           columns={[
-            { key: "deviceType", label: "Device" },
-            { key: "browser", label: "Browser" },
+            { key: "deviceType", label: "Device", width: "large", wrap: true },
+            { key: "browser", label: "Browser", width: "medium" },
             {
               key: "createdAt",
               label: "Created",
+              width: "medium",
+              wrap: true,
               render: (v) => (
                 <span className="text-sm text-muted">
                   {new Date(v).toLocaleString()}

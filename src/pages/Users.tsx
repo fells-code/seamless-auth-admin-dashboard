@@ -271,6 +271,8 @@ export default function Users() {
               key: "email",
               label: "Identity",
               sortable: true,
+              width: "wide",
+              wrap: true,
               render: (value, row) => (
                 <button
                   onClick={() => navigate(`/users/${row.id}`)}
@@ -287,6 +289,8 @@ export default function Users() {
             {
               key: "roles",
               label: "Access",
+              width: "large",
+              wrap: true,
               render: (roles) => (
                 <div className="flex flex-wrap gap-1">
                   {(roles as string[]).length > 0 ? (
@@ -310,12 +314,16 @@ export default function Users() {
               key: "verified",
               label: "State",
               sortable: true,
+              width: "compact",
+              align: "center",
               render: (value) => <StatusBadge verified={Boolean(value)} />,
             },
             {
               key: "lastLogin",
               label: "Last Active",
               sortable: true,
+              width: "medium",
+              wrap: true,
               render: (value) => (
                 <div className="flex flex-col">
                   <span className="text-sm text-primary">

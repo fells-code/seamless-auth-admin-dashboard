@@ -342,6 +342,8 @@ export default function Sessions() {
               key: "ipAddress",
               label: "Network",
               sortable: true,
+              width: "medium",
+              wrap: true,
               render: (value, row) => (
                 <div className="flex flex-col">
                   <span className="font-mono text-sm text-primary">
@@ -356,6 +358,8 @@ export default function Sessions() {
             {
               key: "userAgent",
               label: "Device",
+              width: "wide",
+              wrap: true,
               render: (value) => (
                 <div className="flex flex-col">
                   <span className="text-sm font-medium text-primary">
@@ -371,6 +375,8 @@ export default function Sessions() {
               key: "lastUsedAt",
               label: "Last Seen",
               sortable: true,
+              width: "medium",
+              wrap: true,
               render: (value, row) => (
                 <div className="flex flex-col">
                   <span className="text-sm text-primary">
