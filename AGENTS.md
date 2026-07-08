@@ -4,6 +4,51 @@ This file is for coding agents working in the Seamless Auth Admin Dashboard repo
 
 It describes the codebase as it exists today. Use it to preserve the strongest current patterns, avoid known traps, and make changes that fit the repo instead of fighting it.
 
+## Working Standards (fells-code baseline)
+
+These rules apply to every repository in the fells-code org. Repo-specific
+guidance may extend them but must not contradict them.
+
+### Attribution
+
+- Commit and open PRs solely under the repository owner's identity. Never
+  commit under an agent or assistant identity.
+- Never attribute work to an AI assistant: no `Co-Authored-By: Claude` (or any
+  assistant) trailers, no "Generated with" / "Created with Claude" notes, and no
+  assistant branding or emoji anywhere in commit messages, PR or issue titles
+  and descriptions, changesets, code comments, or docs.
+
+### Comments
+
+- Comment only when the code genuinely needs explaining: a non-obvious reason, a
+  gotcha, or an invariant. Never narrate what the code plainly does.
+
+### TODOs
+
+- Every `TODO`/`FIXME` must reference a ticket, e.g. `// TODO(#123): ...`.
+  Do not leave a bare TODO. If no ticket exists, create one first.
+
+### Commits & branches
+
+- Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `ci:`, `test:`).
+- Descriptive branch names (`feat/...`, `fix/...`); never a `claude/` or other
+  tool-generated prefix.
+
+### Public-facing text
+
+- No em dashes in commit messages, code comments, PR or issue text, changesets,
+  or docs. Use a comma, parentheses, or a separate sentence.
+
+### Before declaring work done
+
+- All code quality checks must pass before you open a PR or call the work done:
+  tests, linting, type checks, and formatting. Run them and report the real
+  output; do not open a PR while any check is failing.
+- Typical commands: `npm run typecheck`, `npm run lint`, `npm run format:check`
+  (or `npm run format`), and `npm test`. Never claim a change works without
+  running them.
+- Match the surrounding code's style, naming, and comment density.
+
 ## Purpose
 
 This project is a React/Vite admin dashboard for operating a Seamless Auth deployment.
