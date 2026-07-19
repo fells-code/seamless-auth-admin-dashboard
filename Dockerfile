@@ -13,17 +13,27 @@ COPY . .
 RUN npm run build
 
 
-FROM nginx:alpine@sha256:4a73073bd557c65b759505da037898b61f1be6cbcc3c2c3aeac22d2a470c1752
+# Unprivileged nginx: runs as user nginx (uid 101) and listens on 8080 so the
+# container never needs root or a privileged port.
+FROM nginxinc/nginx-unprivileged:alpine@sha256:a718212f9cf21e241f14067333000a3f0930292f5354fe0db269e9a2a2596b9e
+
+USER root
 
 COPY ./nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
 
-EXPOSE 80
+# The entrypoint writes config.js into the web root at start, so the non-root
+# nginx user must own that directory.
+RUN chmod +x /entrypoint.sh \
+  && chown -R nginx:nginx /usr/share/nginx/html
+
+USER nginx
+
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/health || exit 1
 
 CMD ["/entrypoint.sh"]
