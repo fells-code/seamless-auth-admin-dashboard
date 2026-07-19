@@ -73,4 +73,35 @@ describe("apiFetch", () => {
       "Check that API_URL points at the server-adapter origin and that the adapter forwards /internal/auth-events/summary.",
     );
   });
+
+  it("hides raw server error bodies behind a friendly message and logs the detail", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const fetchMock = vi.mocked(fetch);
+    const rawBody =
+      "Error: connect ECONNREFUSED 10.0.3.14:5432 at Connection._connect";
+    fetchMock.mockResolvedValue(new Response(rawBody, { status: 500 }));
+
+    const error = await apiFetch("/admin/users").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(Error);
+    const message = (error as Error).message;
+    expect(message).toBe(
+      "The Seamless Auth API had a problem. Try again shortly.",
+    );
+    expect(message).not.toContain(rawBody);
+    expect(consoleError).toHaveBeenCalledWith(expect.stringContaining(rawBody));
+
+    consoleError.mockRestore();
+  });
+
+  it("maps a 403 to a permission message", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(new Response("forbidden", { status: 403 }));
+
+    await expect(apiFetch("/admin/users")).rejects.toThrow(
+      "You do not have permission to perform this action.",
+    );
+  });
 });
