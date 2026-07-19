@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MagicLinkVerification from "./MagicLinkVerification";
@@ -56,11 +56,15 @@ describe("MagicLinkVerification", () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() =>
-      expect(mocks.client.verifyMagicLink).toHaveBeenCalledWith("abc123"),
-    );
+    // The component awaits refreshSession before navigating, so waiting only for
+    // verifyMagicLink to be called leaves the redirect still pending. Wait for
+    // the destination itself, then assert the steps that must precede it.
+    expect(
+      await screen.findByText("Dashboard destination"),
+    ).toBeInTheDocument();
+
+    expect(mocks.client.verifyMagicLink).toHaveBeenCalledWith("abc123");
     expect(mocks.auth.markSignedIn).toHaveBeenCalled();
     expect(mocks.auth.refreshSession).toHaveBeenCalled();
-    expect(screen.getByText("Dashboard destination")).toBeInTheDocument();
   });
 });
