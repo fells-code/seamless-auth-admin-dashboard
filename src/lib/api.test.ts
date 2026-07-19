@@ -96,6 +96,77 @@ describe("apiFetch", () => {
     consoleError.mockRestore();
   });
 
+  it("surfaces an actionable validation message from a 409", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: "User already exists" }), {
+        status: 409,
+      }),
+    );
+
+    await expect(apiFetch("/admin/users")).rejects.toThrow(
+      "User already exists",
+    );
+  });
+
+  it("surfaces a validation message sent under the message field", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          message: "Organization must keep at least one owner",
+        }),
+        { status: 400 },
+      ),
+    );
+
+    await expect(apiFetch("/admin/organizations")).rejects.toThrow(
+      "Organization must keep at least one owner",
+    );
+  });
+
+  it("does not surface machine codes as user-facing text", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: "step_up_failed" }), {
+        status: 400,
+      }),
+    );
+
+    await expect(apiFetch("/admin/users")).rejects.toThrow(
+      "The request was invalid. Check the values and try again.",
+    );
+  });
+
+  it("does not surface upstream text for server errors", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: "Internal server error" }), {
+        status: 500,
+      }),
+    );
+
+    await expect(apiFetch("/admin/users")).rejects.toThrow(
+      "The Seamless Auth API had a problem. Try again shortly.",
+    );
+
+    consoleError.mockRestore();
+  });
+
+  it("does not surface unstructured error bodies", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(
+      new Response("<html>Gateway problem</html>", { status: 400 }),
+    );
+
+    await expect(apiFetch("/admin/users")).rejects.toThrow(
+      "The request was invalid. Check the values and try again.",
+    );
+  });
+
   it("maps a 403 to a permission message", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValue(new Response("forbidden", { status: 403 }));
