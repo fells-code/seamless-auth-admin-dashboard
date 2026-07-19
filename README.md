@@ -35,7 +35,13 @@ This app is intended to run alongside the Seamless Auth API as part of a self-ho
 
 ## Runtime Model
 
-This dashboard is built as static assets and served by nginx.
+This dashboard is built as static assets. It supports two deployment modes that
+share one codebase.
+
+### Root build (nginx / Amplify)
+
+The default build serves the dashboard from its own root (`/`) with the API base
+resolved from runtime config or a baked `VITE_API_URL`.
 
 Runtime configuration is injected at container startup:
 
@@ -44,6 +50,38 @@ Runtime configuration is injected at container startup:
 - `src/lib/runtimeConfig.ts` reads runtime config first, then falls back to `import.meta.env`
 
 That runtime-config flow is intentional. The dashboard is designed to be reconfigured per environment without rebuilding the frontend image.
+
+Build it with:
+
+```bash
+npm run build
+```
+
+### Same-origin `/admin` build (auth instance)
+
+Each Seamless Auth instance can serve the dashboard at `/admin` on its own domain,
+same origin as the auth API. Same origin means passkeys and CORS just work. See
+[seamless-iac#37](https://github.com/fells-code/seamless-iac/issues/37) for the
+deployment decision.
+
+Build it with:
+
+```bash
+npm run build:admin
+```
+
+That script sets two build vars:
+
+- `VITE_BASE_PATH=/admin/`: Vite emits assets under `/admin/` and the React Router
+  basename is set to `/admin`, so client-side routes and deep links resolve there.
+- `VITE_SAME_ORIGIN=true`: `src/lib/runtimeConfig.ts` derives the auth API base from
+  `window.location.origin` instead of `VITE_API_URL`, so requests stay same-origin.
+
+Runtime `config.js` injection still takes precedence when present, so a same-origin
+build can still be pointed at an explicit API base if needed.
+
+The auth server serves `index.html` for unknown `/admin/*` routes (SPA history
+fallback), so deep links into the dashboard work on refresh.
 
 ## Features
 
@@ -201,6 +239,7 @@ npm run typecheck
 npm test
 npm run coverage
 npm run build
+npm run build:admin
 ```
 
 ## Release Preparation

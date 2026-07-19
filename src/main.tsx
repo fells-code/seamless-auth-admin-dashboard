@@ -11,6 +11,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import ThemeProvider from "./components/ThemeProvider";
 import ToastProvider from "./components/ToastProvider";
+import { getBasePath } from "./lib/runtimeConfig";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -20,7 +21,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <ThemeProvider>
       <ToastProvider>
         <QueryClientProvider client={queryClient}>
-          <BrowserRouter>
+          <BrowserRouter basename={getBasePath()}>
             <App />
           </BrowserRouter>
         </QueryClientProvider>
