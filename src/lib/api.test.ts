@@ -50,6 +50,17 @@ describe("apiFetch", () => {
     await expect(apiFetch("/admin/users/user_1")).resolves.toBeUndefined();
   });
 
+  it("throws a clear error when a successful response is not valid JSON", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(
+      new Response("<html>oops</html>", { status: 200 }),
+    );
+
+    await expect(apiFetch("/admin/users")).rejects.toThrow(
+      "API error: 200 response from /admin/users was not valid JSON",
+    );
+  });
+
   it("explains missing bearer token responses from raw API routes", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValue(
