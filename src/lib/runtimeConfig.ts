@@ -26,6 +26,24 @@ function isSameOriginMode(): boolean {
  * 3. Baked `VITE_API_URL` for the standalone build
  */
 export function getApiUrl(): string {
+  const resolved = resolveApiUrl();
+
+  if (!resolved) {
+    throw new Error(
+      "Seamless Auth API URL is not configured. Provide one of: " +
+        "window.__SEAMLESS_CONFIG__.API_URL (runtime config.js), " +
+        "VITE_SAME_ORIGIN=true, or a baked VITE_API_URL at build time.",
+    );
+  }
+
+  if (!isValidHttpUrl(resolved)) {
+    throw new Error(`Seamless Auth API URL is not a valid URL: ${resolved}`);
+  }
+
+  return resolved;
+}
+
+function resolveApiUrl(): string | undefined {
   if (window.__SEAMLESS_CONFIG__?.API_URL) {
     return window.__SEAMLESS_CONFIG__.API_URL;
   }
@@ -35,6 +53,15 @@ export function getApiUrl(): string {
   }
 
   return import.meta.env.VITE_API_URL;
+}
+
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 /**
