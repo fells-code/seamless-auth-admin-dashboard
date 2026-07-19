@@ -1,5 +1,5 @@
 [![Publish Docker Image](https://github.com/fells-code/seamless-auth-admin-dashboard/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/fells-code/seamless-auth-admin-dashboard/actions/workflows/docker-publish.yml)
-[![Coverage](https://img.shields.io/badge/coverage-58.1%25-red)](#testing)
+[![Coverage](https://img.shields.io/badge/coverage-66.1%25-orange)](#testing)
 
 # Seamless Auth Dashboard
 
