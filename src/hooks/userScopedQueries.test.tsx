@@ -10,6 +10,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useUserDetail } from "./useUserDetail";
 import { useUserAnomalies } from "./useUserAnomalies";
+import { useUserTimeseries } from "./useUserTimeseries";
 
 const apiFetch = vi.hoisted(() => vi.fn());
 
@@ -41,6 +42,11 @@ const userScopedHooks = [
     name: "useUserAnomalies",
     use: useUserAnomalies,
     path: "/admin/users/user_1/anomalies",
+  },
+  {
+    name: "useUserTimeseries",
+    use: useUserTimeseries,
+    path: "/internal/auth-events/timeseries?interval=hour&userId=user_1",
   },
 ];
 

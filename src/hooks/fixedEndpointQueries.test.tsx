@@ -8,10 +8,14 @@ import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useAnomalies } from "./useAnomalies";
 import { useAuthTimeseries } from "./useAuthTimeseries";
 import { useDashboard } from "./useDashboard";
+import { useEventSummary } from "./useEventSummary";
+import { useLoginStats } from "./useLoginStats";
 import { useRoles } from "./useRoles";
 import { useSessions } from "./useSessions";
+import { useSystemConfig } from "./useSystemConfig";
 
 const apiFetch = vi.hoisted(() => vi.fn());
 
@@ -45,6 +49,26 @@ const fixedEndpointHooks = [
     name: "useAuthTimeseries",
     use: useAuthTimeseries,
     path: "/internal/auth-events/timeseries?interval=hour",
+  },
+  {
+    name: "useSystemConfig",
+    use: useSystemConfig,
+    path: "/system-config/admin",
+  },
+  {
+    name: "useAnomalies",
+    use: useAnomalies,
+    path: "/internal/security/anomalies",
+  },
+  {
+    name: "useEventSummary",
+    use: useEventSummary,
+    path: "/internal/auth-events/summary",
+  },
+  {
+    name: "useLoginStats",
+    use: useLoginStats,
+    path: "/internal/auth-events/login-stats",
   },
 ];
 
