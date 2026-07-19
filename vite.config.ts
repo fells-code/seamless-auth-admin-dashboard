@@ -21,7 +21,12 @@ export default defineConfig(({ mode }) => {
       coverage: {
         provider: "v8",
         reporter: ["text", "html", "json-summary"],
-        include: ["src/components/**/*.tsx", "src/lib/**/*.ts"],
+        include: [
+          "src/components/**/*.tsx",
+          "src/hooks/**/*.ts",
+          "src/lib/**/*.ts",
+          "src/pages/**/*.tsx",
+        ],
         exclude: [
           "src/main.tsx",
           "src/App.tsx",
