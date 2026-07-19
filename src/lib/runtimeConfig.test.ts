@@ -34,6 +34,19 @@ describe("getApiUrl", () => {
 
     expect(getApiUrl()).toBe("https://baked.example.com");
   });
+
+  it("throws a clear error when no API URL is configured", () => {
+    vi.stubEnv("VITE_SAME_ORIGIN", "");
+    vi.stubEnv("VITE_API_URL", "");
+
+    expect(() => getApiUrl()).toThrow(/not configured/i);
+  });
+
+  it("throws when the configured API URL is not a valid http(s) URL", () => {
+    window.__SEAMLESS_CONFIG__ = { API_URL: "not-a-url" };
+
+    expect(() => getApiUrl()).toThrow(/not a valid URL/i);
+  });
 });
 
 describe("getBasePath", () => {
