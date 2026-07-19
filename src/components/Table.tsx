@@ -9,14 +9,7 @@ import clsx from "clsx";
 import { ArrowDown, ArrowUp, ArrowUpDown, Inbox } from "lucide-react";
 
 type ColumnWidth =
-  | "compact"
-  | "small"
-  | "medium"
-  | "large"
-  | "wide"
-  | "fluid"
-  | number
-  | string;
+  "compact" | "small" | "medium" | "large" | "wide" | "fluid" | number | string;
 
 type Column<T, K extends keyof T = keyof T> = {
   key: K;

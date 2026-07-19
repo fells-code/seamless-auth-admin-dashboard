@@ -31,12 +31,7 @@ const DEFAULT_LOGIN_METHODS: LoginMethod[] = [
 
 type LoginView = "identifier" | "fallback" | "emailOtp" | "phoneOtp" | "magic";
 type BusyState =
-  | "idle"
-  | "starting"
-  | "passkey"
-  | "magic"
-  | "emailOtp"
-  | "phoneOtp";
+  "idle" | "starting" | "passkey" | "magic" | "emailOtp" | "phoneOtp";
 
 type LoginStartBody = {
   loginMethods?: LoginMethod[];
