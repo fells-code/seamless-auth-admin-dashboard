@@ -61,7 +61,59 @@ function formatApiError(status: number, body: string, path: string) {
     ].join(" ");
   }
 
-  return friendlyStatusMessage(status);
+  return safeApiMessage(status, body) ?? friendlyStatusMessage(status);
+}
+
+// Statuses where the API's own message is operator-actionable validation
+// feedback ("User already exists"). Auth and rate-limit statuses keep the
+// friendly wording instead, and 5xx never surfaces upstream text.
+const MESSAGE_SURFACING_STATUSES = new Set([400, 404, 409, 422]);
+const MAX_SURFACED_MESSAGE_LENGTH = 200;
+
+/**
+ * Pull a user-safe message out of a structured API error body, if there is one.
+ *
+ * The API answers with JSON such as `{ error: "User already exists" }`, but the
+ * same field also carries machine codes ("step_up_failed") and server internals,
+ * so the value is only surfaced when it looks like operator-facing prose.
+ */
+function safeApiMessage(status: number, body: string): string | undefined {
+  if (!MESSAGE_SURFACING_STATUSES.has(status)) {
+    return undefined;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    // Unstructured bodies (proxy HTML, stack traces) are never safe to render.
+    return undefined;
+  }
+
+  if (typeof parsed !== "object" || parsed === null) {
+    return undefined;
+  }
+
+  const fields = parsed as Record<string, unknown>;
+  const candidate = fields.error ?? fields.message;
+
+  if (typeof candidate !== "string") {
+    return undefined;
+  }
+
+  const message = candidate.trim();
+
+  if (!message || message.length > MAX_SURFACED_MESSAGE_LENGTH) {
+    return undefined;
+  }
+
+  // Machine codes like "step_up_failed" have no whitespace and are not written
+  // for humans, so fall back to the friendly status message for those.
+  if (!/\s/.test(message)) {
+    return undefined;
+  }
+
+  return message;
 }
 
 function friendlyStatusMessage(status: number): string {
