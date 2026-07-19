@@ -38,7 +38,7 @@ This app is intended to run alongside the Seamless Auth API as part of a self-ho
 This dashboard is built as static assets. It supports two deployment modes that
 share one codebase.
 
-### Root build (nginx / Amplify)
+### Root build
 
 The default build serves the dashboard from its own root (`/`) with the API base
 resolved from runtime config or a baked `VITE_API_URL`.
