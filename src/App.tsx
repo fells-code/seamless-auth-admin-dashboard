@@ -16,7 +16,7 @@ import Organizations from "./pages/Organizations";
 import UserDetail from "./pages/UserDetail";
 import SystemConfig from "./pages/SystemConfig";
 import { AuthProvider } from "@seamless-auth/react";
-import { API_URL } from "./lib/api";
+import { getApiUrl } from "./lib/runtimeConfig";
 import RequireAuth from "./components/RequireAuth";
 import PublicAuthRoute from "./components/PublicAuthRoute";
 import Unauthenticated from "./pages/Unauthenticated";
@@ -26,7 +26,7 @@ import MagicLinkVerification from "./pages/MagicLinkVerification";
 
 export default function App() {
   return (
-    <AuthProvider apiHost={API_URL}>
+    <AuthProvider apiHost={getApiUrl()}>
       <Routes>
         <Route path="/unauthenticated" element={<Unauthenticated />} />
         <Route

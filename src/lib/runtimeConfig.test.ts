@@ -42,6 +42,15 @@ describe("getApiUrl", () => {
     expect(() => getApiUrl()).toThrow(/not configured/i);
   });
 
+  it("is not called just by importing the api module", async () => {
+    vi.stubEnv("VITE_SAME_ORIGIN", "");
+    vi.stubEnv("VITE_API_URL", "");
+
+    // Resolution has to stay lazy: a module-scope call would throw on import and
+    // take down every module that transitively imports the api client.
+    await expect(import("./api")).resolves.toBeDefined();
+  });
+
   it("throws when the configured API URL is not a valid http(s) URL", () => {
     window.__SEAMLESS_CONFIG__ = { API_URL: "not-a-url" };
 
