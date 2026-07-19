@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldAlert } from "lucide-react";
 import { useAuth, useAuthClient } from "@seamless-auth/react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getLastProtectedRoute } from "../lib/lastRoute";
@@ -67,9 +67,13 @@ export default function MagicLinkVerification() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-base px-6 text-primary">
       <div className="w-full max-w-md rounded-2xl border border-subtle bg-surface p-6 text-center shadow-lg">
-        <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-surface-alt text-[var(--primary)]">
+        <div
+          className={`mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-surface-alt ${
+            error ? "text-[var(--highlight)]" : "text-[var(--primary)]"
+          }`}
+        >
           {error ? (
-            <ShieldCheck size={22} />
+            <ShieldAlert size={22} />
           ) : (
             <Loader2 className="animate-spin" size={22} />
           )}
