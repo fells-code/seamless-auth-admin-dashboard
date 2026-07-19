@@ -91,9 +91,15 @@ describe("SignIn", () => {
       }),
     );
     expect(mocks.client.loginWithPasskey).toHaveBeenCalled();
-    await waitFor(() => expect(mocks.auth.refreshSession).toHaveBeenCalled());
+
+    // Navigation happens after refreshSession resolves, so wait for the
+    // destination rather than for the call alone.
+    expect(
+      await screen.findByText("Protected destination"),
+    ).toBeInTheDocument();
+
+    expect(mocks.auth.refreshSession).toHaveBeenCalled();
     expect(mocks.auth.markSignedIn).toHaveBeenCalled();
-    expect(screen.getByText("Protected destination")).toBeInTheDocument();
   });
 
   it("falls back to email OTP when passkeys are unavailable", async () => {
@@ -121,7 +127,13 @@ describe("SignIn", () => {
     await waitFor(() =>
       expect(mocks.client.verifyLoginEmailOtp).toHaveBeenCalledWith("123456"),
     );
-    await waitFor(() => expect(mocks.auth.refreshSession).toHaveBeenCalled());
-    expect(screen.getByText("Protected destination")).toBeInTheDocument();
+
+    // Navigation happens after refreshSession resolves, so wait for the
+    // destination rather than for the call alone.
+    expect(
+      await screen.findByText("Protected destination"),
+    ).toBeInTheDocument();
+
+    expect(mocks.auth.refreshSession).toHaveBeenCalled();
   });
 });
