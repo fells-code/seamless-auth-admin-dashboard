@@ -23,9 +23,14 @@ export default function RequireAuth({
   const currentPath = `${location.pathname}${location.search}${location.hash}`;
 
   useEffect(() => {
-    if (user !== undefined) {
-      setTimeout(() => setReady(true), 100);
+    if (user === undefined) {
+      return;
     }
+
+    // Flip on the next animation frame so the opacity-0 state paints first and
+    // the fade-in transition actually runs, rather than relying on a fixed delay.
+    const frame = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(frame);
   }, [user]);
 
   useEffect(() => {

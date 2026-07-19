@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { act, render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import RequireAuth from "./RequireAuth";
@@ -107,8 +107,7 @@ describe("RequireAuth", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders admin content and fades it in after the ready delay", () => {
-    vi.useFakeTimers();
+  it("renders admin content and fades it in on the next frame", async () => {
     authState.value = {
       isAuthenticated: true,
       user: { id: "1", roles: ["admin:read"] },
@@ -134,11 +133,9 @@ describe("RequireAuth", () => {
     expect(screen.getByText("Secret")).toBeInTheDocument();
     expect(container.querySelector(".opacity-0")).toBeInTheDocument();
 
-    act(() => {
-      vi.advanceTimersByTime(100);
+    await waitFor(() => {
+      expect(container.querySelector(".opacity-100")).toBeInTheDocument();
     });
-
-    expect(container.querySelector(".opacity-100")).toBeInTheDocument();
   });
 
   it("allows admin write users into the dashboard", () => {
