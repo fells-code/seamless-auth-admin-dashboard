@@ -6,7 +6,7 @@ import tailwindcss from "@tailwindcss/vite";
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   // Load VITE_* vars from .env files and the shell so the Vite base path can be
-  // set per build (root build vs auth-instance /admin). VITE_BASE_PATH and
+  // set per build (root build vs auth-instance /console). VITE_BASE_PATH and
   // VITE_SAME_ORIGIN reach client code through import.meta.env directly.
   const env = loadEnv(mode, process.cwd(), "VITE_");
   const basePath = env.VITE_BASE_PATH || "/";

@@ -42,9 +42,9 @@ describe("getBasePath", () => {
     expect(getBasePath()).toBe("/");
   });
 
-  it("strips the trailing slash for the /admin build", () => {
-    vi.stubEnv("VITE_BASE_PATH", "/admin/");
-    expect(getBasePath()).toBe("/admin");
+  it("strips the trailing slash for the /console build", () => {
+    vi.stubEnv("VITE_BASE_PATH", "/console/");
+    expect(getBasePath()).toBe("/console");
   });
 
   it("treats a missing base path as root", () => {

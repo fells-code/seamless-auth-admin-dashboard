@@ -40,7 +40,7 @@ export function getApiUrl(): string {
 /**
  * Router basename derived from the Vite base path.
  *
- * `VITE_BASE_PATH` defaults to `/` for the root build and is set to `/admin/`
+ * `VITE_BASE_PATH` defaults to `/` for the root build and is set to `/console/`
  * for the auth-instance build. React Router wants no trailing slash, except for
  * the root where `/` is required.
  */

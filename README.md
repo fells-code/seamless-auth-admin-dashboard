@@ -57,30 +57,31 @@ Build it with:
 npm run build
 ```
 
-### Same-origin `/admin` build (auth instance)
+### Same-origin `/console` build (auth instance)
 
-Each Seamless Auth instance can serve the dashboard at `/admin` on its own domain,
-same origin as the auth API. Same origin means passkeys and CORS just work. See
-[seamless-iac#37](https://github.com/fells-code/seamless-iac/issues/37) for the
-deployment decision.
+Each Seamless Auth instance can serve the dashboard at `/console` on its own
+domain, same origin as the auth API. Same origin means passkeys and CORS just
+work. See [seamless-iac#37](https://github.com/fells-code/seamless-iac/issues/37)
+for the deployment decision.
 
 Build it with:
 
 ```bash
-npm run build:admin
+npm run build:console
 ```
 
 That script sets two build vars:
 
-- `VITE_BASE_PATH=/admin/`: Vite emits assets under `/admin/` and the React Router
-  basename is set to `/admin`, so client-side routes and deep links resolve there.
+- `VITE_BASE_PATH=/console/`: Vite emits assets under `/console/` and the React
+  Router basename is set to `/console`, so client-side routes and deep links
+  resolve there.
 - `VITE_SAME_ORIGIN=true`: `src/lib/runtimeConfig.ts` derives the auth API base from
   `window.location.origin` instead of `VITE_API_URL`, so requests stay same-origin.
 
 Runtime `config.js` injection still takes precedence when present, so a same-origin
 build can still be pointed at an explicit API base if needed.
 
-The auth server serves `index.html` for unknown `/admin/*` routes (SPA history
+The auth server serves `index.html` for unknown `/console/*` routes (SPA history
 fallback), so deep links into the dashboard work on refresh.
 
 ## Features
@@ -239,7 +240,7 @@ npm run typecheck
 npm test
 npm run coverage
 npm run build
-npm run build:admin
+npm run build:console
 ```
 
 ## Release Preparation
