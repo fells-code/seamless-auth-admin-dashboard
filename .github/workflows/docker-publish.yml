@@ -17,7 +17,39 @@ env:
   IMAGE_NAME: fells-code/seamless-auth-admin-dashboard
 
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Run Tests with Coverage
+        run: npm run coverage
+
+      - name: Run type checks
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
   build-and-publish:
+    needs: verify
     runs-on: ubuntu-latest
 
     steps:
