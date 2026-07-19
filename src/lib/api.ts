@@ -37,7 +37,13 @@ export async function apiFetch<T>(
     return undefined as T;
   }
 
-  return JSON.parse(text) as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(
+      `API error: ${res.status} response from ${path} was not valid JSON`,
+    );
+  }
 }
 
 function formatApiError(status: number, body: string, path: string) {
