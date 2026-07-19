@@ -27,12 +27,18 @@ export default defineConfig(({ mode }) => {
           "src/lib/**/*.ts",
           "src/pages/**/*.tsx",
         ],
-        exclude: [
-          "src/main.tsx",
-          "src/App.tsx",
-          "src/lib/api.ts",
-          "src/lib/runtimeConfig.ts",
-        ],
+        // Only the entry points stay out: they wire the app together and have
+        // no logic worth asserting.
+        exclude: ["src/main.tsx", "src/App.tsx"],
+        // Set a few points under the current numbers so ordinary refactoring
+        // does not trip CI while a real drop in coverage still does. Raise these
+        // as coverage improves rather than lowering them to fit a regression.
+        thresholds: {
+          lines: 64,
+          statements: 62,
+          functions: 60,
+          branches: 52,
+        },
       },
     },
   };
