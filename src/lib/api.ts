@@ -47,14 +47,42 @@ export async function apiFetch<T>(
 }
 
 function formatApiError(status: number, body: string, path: string) {
+  // Keep the raw upstream detail in the console for debugging, but never render
+  // it in the UI where it could leak backend internals.
+  if (body) {
+    console.error(`API error ${status} on ${path}: ${body}`);
+  }
+
   if (body.includes("missing bearer token")) {
     return [
-      `API error: ${status} ${body}`,
       "The Seamless Auth API expected an Authorization bearer token.",
       "This dashboard should call the Seamless Auth server adapter, which reads the dashboard session cookie and forwards the bearer token upstream.",
       `Check that API_URL points at the server-adapter origin and that the adapter forwards ${path}.`,
     ].join(" ");
   }
 
-  return `API error: ${status} ${body}`;
+  return friendlyStatusMessage(status);
+}
+
+function friendlyStatusMessage(status: number): string {
+  switch (status) {
+    case 400:
+      return "The request was invalid. Check the values and try again.";
+    case 401:
+      return "Your session has expired. Sign in again.";
+    case 403:
+      return "You do not have permission to perform this action.";
+    case 404:
+      return "The requested resource was not found.";
+    case 409:
+      return "That change conflicts with the current state. Refresh and try again.";
+    case 429:
+      return "Too many requests. Wait a moment and try again.";
+  }
+
+  if (status >= 500) {
+    return "The Seamless Auth API had a problem. Try again shortly.";
+  }
+
+  return `The request failed (status ${status}).`;
 }
