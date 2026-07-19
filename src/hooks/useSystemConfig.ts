@@ -9,11 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
 
 export type LoginMethod =
-  | "passkey"
-  | "magic_link"
-  | "email_otp"
-  | "phone_otp"
-  | "oauth";
+  "passkey" | "magic_link" | "email_otp" | "phone_otp" | "oauth";
 
 export type OAuthProviderConfig = {
   id: string;
