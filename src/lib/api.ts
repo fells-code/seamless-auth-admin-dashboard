@@ -6,8 +6,6 @@
 
 import { getApiUrl } from "./runtimeConfig";
 
-export const API_URL = getApiUrl();
-
 export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
@@ -16,7 +14,10 @@ export async function apiFetch<T>(
 
   headers.set("Content-Type", "application/json");
 
-  const baseUrl = API_URL.replace(/\/+$/, "");
+  // Resolved per request rather than at module scope. getApiUrl throws when the
+  // app is misconfigured, and doing that at import time takes down every module
+  // that transitively imports this one, including in tests.
+  const baseUrl = getApiUrl().replace(/\/+$/, "");
   const res = await fetch(`${baseUrl}/auth${path}`, {
     credentials: "include",
     ...options,
