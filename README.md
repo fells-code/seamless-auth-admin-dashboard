@@ -61,8 +61,7 @@ npm run build
 
 Each Seamless Auth instance can serve the dashboard at `/console` on its own
 domain, same origin as the auth API. Same origin means passkeys and CORS just
-work. See [seamless-iac#37](https://github.com/fells-code/seamless-iac/issues/37)
-for the deployment decision.
+work.
 
 Build it with:
 
