@@ -84,6 +84,22 @@ build can still be pointed at an explicit API base if needed.
 The auth server serves `index.html` for unknown `/console/*` routes (SPA history
 fallback), so deep links into the dashboard work on refresh.
 
+## Security Model
+
+Authorization in this dashboard is client-side and exists only for user
+experience: hiding controls, redirecting unauthenticated visitors, and avoiding
+dead ends. It is not a security boundary.
+
+- `RequireAuth` gates routes on `admin:read` and `useAdminPermissions` toggles
+  read and write UI, but both run in the browser and can be bypassed by anyone
+  with the bundle.
+- `hasScopedRole` (`src/lib/scopedRoles.ts`) mirrors the server's role scoping so
+  the UI reflects likely outcomes. It is a convenience, not enforcement.
+
+Every protected action must be authorized by the Seamless Auth API. The API is
+the single enforcement point, and the dashboard assumes it rejects any request
+the current session is not entitled to make, regardless of what the UI shows.
+
 ## Features
 
 ### Overview

@@ -41,6 +41,8 @@ export default function RequireAuth({
     return <AuthLoading />;
   }
 
+  // UX-only guard: the Seamless Auth API is the real enforcement point. This
+  // redirect just avoids showing an admin shell to users who cannot use it.
   if (!isAuthenticated || !hasScopedRole(user?.roles, "admin:read")) {
     return (
       <Navigate to="/unauthenticated" replace state={{ from: currentPath }} />

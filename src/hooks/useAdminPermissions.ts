@@ -7,6 +7,8 @@
 import { useAuth } from "@seamless-auth/react";
 import { hasScopedRole } from "../lib/scopedRoles";
 
+// UX-only: these flags toggle controls in the UI. The Seamless Auth API still
+// authorizes every request, so a spoofed flag grants no real access.
 export function useAdminPermissions() {
   const { user } = useAuth();
 

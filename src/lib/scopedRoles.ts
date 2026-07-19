@@ -4,6 +4,8 @@
  * See LICENSE file in the project root for full license information
  */
 
+// Mirrors the server's role scoping to drive UI decisions only. This is not a
+// security boundary; the Seamless Auth API enforces authorization on requests.
 export function roleGrantsAccess(
   grantedRole: string,
   requiredRole: string,
