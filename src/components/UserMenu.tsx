@@ -21,16 +21,6 @@ function getInitials(email: string) {
     .join("");
 }
 
-function timeAgo(date?: string) {
-  if (!date) return "unknown";
-  const diff = Date.now() - new Date(date).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
-}
-
 export default function UserMenu() {
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
@@ -73,9 +63,6 @@ export default function UserMenu() {
         {/* Info */}
         <div className="hidden text-left sm:block">
           <div className="text-sm font-medium">{user.email}</div>
-          <div className="text-xs text-[var(--text-muted)]">
-            last login: {timeAgo(user.lastLogin)}
-          </div>
         </div>
       </button>
 

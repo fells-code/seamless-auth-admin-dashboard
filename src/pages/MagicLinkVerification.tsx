@@ -32,8 +32,8 @@ export default function MagicLinkVerification() {
       }
 
       try {
-        const response = await authClient.verifyMagicLink(token);
-        if (!response.ok) {
+        const { error } = await authClient.verifyMagicLink(token);
+        if (error) {
           throw new Error("Magic-link verification failed.");
         }
 

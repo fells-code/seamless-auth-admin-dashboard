@@ -9,6 +9,7 @@ const PUBLIC_AUTH_ROUTE_PATHS = [
   "/unauthenticated",
   "/login",
   "/verify-magiclink",
+  "/oauth/callback",
   "/passKeyLogin",
   "/verifyPhoneOTP",
   "/verifyEmailOTP",

@@ -23,6 +23,7 @@ import Unauthenticated from "./pages/Unauthenticated";
 import Profile from "./pages/Profile";
 import SignIn from "./pages/SignIn";
 import MagicLinkVerification from "./pages/MagicLinkVerification";
+import OAuthCallback from "./pages/OAuthCallback";
 
 export default function App() {
   return (
@@ -42,6 +43,14 @@ export default function App() {
           element={
             <PublicAuthRoute>
               <MagicLinkVerification />
+            </PublicAuthRoute>
+          }
+        />
+        <Route
+          path="/oauth/callback"
+          element={
+            <PublicAuthRoute>
+              <OAuthCallback />
             </PublicAuthRoute>
           }
         />

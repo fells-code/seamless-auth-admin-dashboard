@@ -20,20 +20,21 @@ export function useStepUpGuard() {
       }
 
       try {
-        const status = await refreshStepUpStatus();
+        const { data: status } = await refreshStepUpStatus();
         if (status?.fresh) {
           return true;
         }
 
-        const result = await verifyStepUpWithPasskey();
-        if (!result.success) {
+        const { data: verified, error } = await verifyStepUpWithPasskey();
+        const ok = !error && Boolean(verified?.fresh);
+        if (!ok) {
           toast.error(
             "Step-up verification failed",
             "The action was not completed because passkey verification did not finish.",
           );
         }
 
-        return result.success;
+        return ok;
       } catch {
         toast.error(
           "Step-up verification failed",

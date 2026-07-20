@@ -38,7 +38,10 @@ describe("useStepUpGuard", () => {
   });
 
   it("refreshes step-up status before starting a passkey challenge", async () => {
-    authState.value.refreshStepUpStatus.mockResolvedValue({ fresh: true });
+    authState.value.refreshStepUpStatus.mockResolvedValue({
+      data: { fresh: true },
+      error: null,
+    });
 
     const { result } = renderHook(() => useStepUpGuard());
 
@@ -48,9 +51,13 @@ describe("useStepUpGuard", () => {
   });
 
   it("runs passkey step-up when no fresh status is available", async () => {
-    authState.value.refreshStepUpStatus.mockResolvedValue({ fresh: false });
+    authState.value.refreshStepUpStatus.mockResolvedValue({
+      data: { fresh: false },
+      error: null,
+    });
     authState.value.verifyStepUpWithPasskey.mockResolvedValue({
-      success: true,
+      data: { fresh: true },
+      error: null,
     });
 
     const { result } = renderHook(() => useStepUpGuard());
