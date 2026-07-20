@@ -264,6 +264,7 @@ export default function Security() {
         }
       >
         <Table<AuthEventPartial>
+          label="Suspicious activity"
           emptyTitle="No suspicious activity detected"
           emptyDescription="The anomaly feed is currently quiet, which is a good time to review the broader event stream or system configuration."
           columns={[

@@ -179,6 +179,7 @@ export default function Profile() {
           />
         )}
         <Table<Session>
+          label="Your sessions"
           limit={limit}
           offset={offset}
           total={sessions.length}
@@ -230,6 +231,7 @@ export default function Profile() {
       {/* Credentials */}
       <Section title="Credentials">
         <Table<Credential>
+          label="Your passkeys"
           columns={[
             { key: "deviceType", label: "Device", width: "large", wrap: true },
             { key: "browser", label: "Browser", width: "medium" },

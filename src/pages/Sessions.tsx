@@ -343,6 +343,10 @@ export default function Sessions() {
           />
         )}
         <Table<Session>
+          label="Active sessions"
+          rowLabel={(session) =>
+            session.ipAddress ? `session from ${session.ipAddress}` : "session"
+          }
           selectable={canWrite}
           limit={limit}
           offset={effectiveOffset}

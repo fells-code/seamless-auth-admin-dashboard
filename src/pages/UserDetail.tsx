@@ -517,6 +517,7 @@ export default function UserDetail() {
           description="Current sessions for this user, including recency and expiry timing."
         >
           <Table<Session>
+            label="User sessions"
             selectable={canWrite}
             emptyTitle="No sessions for this user"
             emptyDescription="This user currently has no active sessions to revoke or review."
@@ -606,6 +607,7 @@ export default function UserDetail() {
           description="Registered credential and device details associated with this user."
         >
           <Table<Credential>
+            label="User passkeys"
             emptyTitle="No credentials found"
             emptyDescription="This user does not currently have credential records in the dashboard feed."
             columns={[
@@ -659,6 +661,7 @@ export default function UserDetail() {
           }
         >
           <Table<AuthEvent>
+            label="User events"
             emptyTitle="No events returned"
             emptyDescription="No events were returned for this user in the current detail record."
             columns={[
@@ -751,6 +754,7 @@ export default function UserDetail() {
             description="Detailed suspicious events tied to this user."
           >
             <Table<AuthEvent>
+              label="Related events"
               emptyTitle="No suspicious activity detected"
               emptyDescription="This user currently has no suspicious events in the anomaly feed."
               columns={[

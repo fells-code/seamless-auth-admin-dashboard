@@ -113,6 +113,8 @@ export default function Table<T extends Record<string, unknown>>({
   offset = 0,
   onPageChange,
   rowKey,
+  label = "Results",
+  rowLabel,
 }: {
   columns: Column<T>[];
   data: T[];
@@ -126,6 +128,10 @@ export default function Table<T extends Record<string, unknown>>({
   offset?: number;
   onPageChange?: (offset: number) => void;
   rowKey?: (row: T) => string;
+  /** Names the table for assistive technology. */
+  label?: string;
+  /** Names a row's select checkbox. Defaults to its position. */
+  rowLabel?: (row: T, index: number) => string;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<keyof T | null>(null);
@@ -337,67 +343,108 @@ export default function Table<T extends Record<string, unknown>>({
           ref={scrollRegionRef}
           className="overflow-x-auto"
           role="region"
-          aria-label="Table content"
+          aria-label={`${label} content`}
+          // Read-only tables contain no focusable cells, so without this the
+          // horizontally scrolled columns are unreachable by keyboard.
+          tabIndex={0}
         >
           <div
             className="min-w-full"
+            role="table"
+            aria-label={label}
+            aria-colcount={tableColumnCount}
+            aria-rowcount={displayTotal}
             style={{
               minWidth: tableMinWidth,
             }}
           >
             <div
+              role="row"
               className="grid w-full items-center gap-3 border-b border-subtle bg-surface px-4 py-3 text-xs uppercase tracking-[0.18em] text-subtle"
               style={{
                 gridTemplateColumns: gridTemplate,
               }}
             >
               {selectable && (
-                <input
-                  ref={headerCheckboxRef}
-                  type="checkbox"
-                  checked={selectedKeys.size === data.length && data.length > 0}
-                  onChange={toggleAll}
-                  className="accent-[var(--primary)]"
-                />
+                <span role="columnheader">
+                  <input
+                    ref={headerCheckboxRef}
+                    type="checkbox"
+                    aria-label="Select all rows"
+                    checked={
+                      selectedKeys.size === data.length && data.length > 0
+                    }
+                    onChange={toggleAll}
+                    className="accent-[var(--primary)]"
+                  />
+                </span>
               )}
 
               {columns.map((col) => {
-                const SortIcon =
-                  sortKey !== col.key
-                    ? ArrowUpDown
-                    : direction === "asc"
-                      ? ArrowUp
-                      : ArrowDown;
+                const isSorted = sortKey === col.key;
+                const SortIcon = !isSorted
+                  ? ArrowUpDown
+                  : direction === "asc"
+                    ? ArrowUp
+                    : ArrowDown;
 
                 return (
-                  <button
+                  <div
                     key={String(col.key)}
-                    type="button"
+                    role="columnheader"
+                    // Only the sorted column reports a direction; the rest
+                    // advertise that sorting is available.
+                    aria-sort={
+                      !col.sortable
+                        ? undefined
+                        : isSorted
+                          ? direction === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                    }
                     className={clsx(
                       "flex min-w-0 items-center gap-1",
                       getAlignmentClass(col.align),
-                      !col.sortable && "cursor-default",
-                      col.sortable && "transition hover:text-primary",
                     )}
-                    onClick={() => col.sortable && handleSort(col.key)}
                   >
-                    <span className={clsx(!col.wrap && "truncate")}>
-                      {col.label}
-                    </span>
-                    {col.sortable && <SortIcon size={12} />}
-                  </button>
+                    {col.sortable ? (
+                      <button
+                        type="button"
+                        onClick={() => handleSort(col.key)}
+                        className="flex min-w-0 items-center gap-1 transition hover:text-primary"
+                      >
+                        <span className={clsx(!col.wrap && "truncate")}>
+                          {col.label}
+                        </span>
+                        <SortIcon size={12} />
+                      </button>
+                    ) : (
+                      // Not a button: a non-sortable header used to be a tab
+                      // stop that did nothing when activated.
+                      <span className={clsx(!col.wrap && "truncate")}>
+                        {col.label}
+                      </span>
+                    )}
+                  </div>
                 );
               })}
 
               {actions.length > 0 && (
-                <div className="sticky right-0 z-40 bg-surface text-right shadow-[-18px_0_24px_-24px_rgba(15,23,42,0.9)]">
+                <div
+                  role="columnheader"
+                  className="sticky right-0 z-40 bg-surface text-right shadow-[-18px_0_24px_-24px_rgba(15,23,42,0.9)]"
+                >
                   Actions
                 </div>
               )}
             </div>
 
             {hasRows && (
-              <div className="divide-y divide-[color:var(--border)]/70">
+              <div
+                role="rowgroup"
+                className="divide-y divide-[color:var(--border)]/70"
+              >
                 {sortedData.map((row, i) => {
                   const key = keyByRow.get(row) ?? String(i);
                   const isSelected = selectedKeys.has(key);
@@ -405,6 +452,7 @@ export default function Table<T extends Record<string, unknown>>({
                   return (
                     <div
                       key={key}
+                      role="row"
                       className={clsx(
                         "grid w-full items-center gap-3 bg-surface px-4 py-3 transition-all",
                         "hover:bg-[color:var(--surface-alt)]/45",
@@ -416,17 +464,23 @@ export default function Table<T extends Record<string, unknown>>({
                       }}
                     >
                       {selectable && (
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleSelect(key)}
-                          className="accent-[var(--primary)]"
-                        />
+                        <span role="cell">
+                          <input
+                            type="checkbox"
+                            aria-label={`Select ${
+                              rowLabel ? rowLabel(row, i) : `row ${i + 1}`
+                            }`}
+                            checked={isSelected}
+                            onChange={() => toggleSelect(key)}
+                            className="accent-[var(--primary)]"
+                          />
+                        </span>
                       )}
 
                       {columns.map((col) => (
                         <div
                           key={String(col.key)}
+                          role="cell"
                           className={clsx(
                             "min-w-0 text-sm text-primary",
                             getAlignmentClass(col.align),
@@ -442,15 +496,28 @@ export default function Table<T extends Record<string, unknown>>({
                       ))}
 
                       {actions.length > 0 && (
-                        <div className="sticky right-0 z-30 flex justify-end gap-2 bg-inherit shadow-[-18px_0_24px_-24px_rgba(15,23,42,0.9)]">
+                        <div
+                          role="cell"
+                          className="sticky right-0 z-30 flex justify-end gap-2 bg-inherit shadow-[-18px_0_24px_-24px_rgba(15,23,42,0.9)]"
+                        >
                           {actions.map((action, idx) => {
                             const Icon = action.icon;
 
                             return (
                               <button
                                 key={idx}
+                                type="button"
                                 onClick={() => action.onClick(row)}
                                 title={action.label}
+                                aria-label={
+                                  action.label
+                                    ? `${action.label} ${
+                                        rowLabel
+                                          ? rowLabel(row, i)
+                                          : `row ${i + 1}`
+                                      }`
+                                    : undefined
+                                }
                                 className={clsx(
                                   "rounded-md p-1.5 transition",
                                   action.variant === "danger"
