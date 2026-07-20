@@ -5,27 +5,30 @@ on:
     types:
       - opened
       - reopened
-      - synchronize
       - ready_for_review
 
 permissions:
   contents: read
 
 jobs:
-  require-star:
+  star-nudge:
     runs-on: ubuntu-latest
+    # This is a nudge, not a gate. Even an unexpected failure (the starred list
+    # is read from the unauthenticated API, which is rate limited per runner IP)
+    # must never turn a contributor's pull request red.
+    continue-on-error: true
 
     steps:
-      - name: Check contributor has starred repository
+      - name: Invite the contributor to star the repository
         env:
           CONTRIBUTOR: ${{ github.event.pull_request.user.login }}
           OWNER: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
 
           if [[ "$CONTRIBUTOR" == *"[bot]" ]]; then
-            echo "Bot pull request detected; skipping star requirement."
+            echo "Bot pull request detected; nothing to say."
             exit 0
           fi
 
@@ -33,9 +36,12 @@ jobs:
           found=0
 
           while true; do
-            response="$(curl -fsSL \
+            if ! response="$(curl -fsSL \
               -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/users/${CONTRIBUTOR}/starred?per_page=100&page=${page}")"
+              "https://api.github.com/users/${CONTRIBUTOR}/starred?per_page=100&page=${page}")"; then
+              echo "Could not read the starred list (rate limited or unavailable); skipping the nudge."
+              exit 0
+            fi
 
             count="$(node -e '
               const fs = require("fs");
@@ -54,6 +60,11 @@ jobs:
               console.log(found ? "1" : "0");
             ' "$OWNER" "$REPO" <<<"$response")"
 
+            # Default to "no nudge needed" if parsing ever returns nothing, so a
+            # malformed payload cannot wedge the loop.
+            count="${count:-0}"
+            match="${match:-0}"
+
             if [[ "$match" == "1" ]]; then
               found=1
               break
@@ -67,9 +78,18 @@ jobs:
           done
 
           if [[ "$found" == "1" ]]; then
-            echo "${CONTRIBUTOR} has starred ${OWNER}/${REPO}."
+            echo "${CONTRIBUTOR} has starred ${OWNER}/${REPO}. Thank you."
+            echo "Thanks for starring ${OWNER}/${REPO}, and thanks for the pull request." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
-          echo "::error title=Repository star required::Please star ${OWNER}/${REPO} before opening a pull request."
-          exit 1
+          # A nudge, never a gate: contributions are welcome whether or not
+          # anyone stars the repository.
+          echo "::notice title=Enjoying this project?::If it is useful to you, consider starring ${OWNER}/${REPO}. Not required to contribute."
+          {
+            echo "### Thanks for the pull request"
+            echo
+            echo "If this project is useful to you, consider giving [${OWNER}/${REPO}](https://github.com/${OWNER}/${REPO}) a star. It helps others find it."
+            echo
+            echo "This is only a nudge. It never blocks a pull request."
+          } >> "$GITHUB_STEP_SUMMARY"

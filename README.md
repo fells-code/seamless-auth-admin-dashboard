@@ -345,6 +345,17 @@ Known areas still worth attention:
 - chart components have lighter test coverage than the shared shell and utility layers
 - page-level end-to-end coverage against a real Seamless Auth deployment is still limited
 
+## Contributing
+
+Contributions are welcome. Start with the
+[organization contributing guide](https://github.com/fells-code/.github/blob/main/CONTRIBUTING.md),
+then read `AGENTS.md` in this repository for the architecture, the conventions
+it enforces, and the checks to run before opening a pull request.
+
+If this dashboard is useful to you, consider starring the repository. It helps
+other people find the project. A workflow leaves the same reminder on new pull
+requests, but it is only a nudge and never blocks a contribution.
+
 ## License
 
 AGPL-3.0
