@@ -6,6 +6,7 @@
 
 // src/components/EditUserModal.tsx
 import { useId, useState } from "react";
+import Dialog from "./Dialog";
 import { useUpdateUser } from "../hooks/useUpdateUser";
 import { useRoles } from "../hooks/useRoles";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
@@ -61,23 +62,12 @@ export default function EditUserModal({
   const isSaving = updateUser.isPending || stepUpPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Modal */}
-      <div className="relative w-full max-w-md rounded-xl border border-subtle bg-surface p-6 shadow-lg transition-all">
-        {/* Header */}
-        <div className="mb-5">
-          <h2 className="text-lg font-semibold tracking-tight">Edit User</h2>
-          <p className="text-subtle text-xs mt-1">
-            Update user details and roles
-          </p>
-        </div>
-
+    <Dialog
+      title="Edit User"
+      description="Update user details and roles"
+      onClose={onClose}
+    >
+      <>
         {/* Form */}
         <div className="space-y-4">
           {updateUser.isError && (
@@ -118,8 +108,8 @@ export default function EditUserModal({
             {stepUpPending ? "Verifying..." : "Save"}
           </button>
         </div>
-      </div>
-    </div>
+      </>
+    </Dialog>
   );
 }
 

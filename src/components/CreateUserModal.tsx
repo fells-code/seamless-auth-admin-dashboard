@@ -6,6 +6,7 @@
 
 // src/components/CreateUserModal.tsx
 import { useId, useState } from "react";
+import Dialog from "./Dialog";
 import { useCreateUser } from "../hooks/useCreateUser";
 import { useRoles } from "../hooks/useRoles";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
@@ -54,21 +55,12 @@ export default function CreateUserModal({ onClose }: { onClose: () => void }) {
   const isSaving = createUser.isPending || stepUpPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Modal */}
-      <div className="relative w-full max-w-md rounded-xl border border-subtle bg-surface p-6 shadow-lg space-y-5">
-        {/* Header */}
-        <div className="space-y-1">
-          <h2 className="text-lg font-semibold tracking-tight">Create User</h2>
-          <p className="text-subtle text-xs">Add a new user and assign roles</p>
-        </div>
-
+    <Dialog
+      title="Create User"
+      description="Add a new user and assign roles"
+      onClose={onClose}
+    >
+      <>
         {/* Form */}
         <div className="space-y-4">
           {createUser.isError && (
@@ -109,8 +101,8 @@ export default function CreateUserModal({ onClose }: { onClose: () => void }) {
             {stepUpPending ? "Verifying..." : "Create"}
           </button>
         </div>
-      </div>
-    </div>
+      </>
+    </Dialog>
   );
 }
 

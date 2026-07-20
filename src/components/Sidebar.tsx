@@ -4,6 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
+import { useEffect, useRef } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   X,
@@ -107,6 +108,32 @@ function SidebarContent({
 }
 
 export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
+  const drawerRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    const opener = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    drawerRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        onClose?.();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown, true);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown, true);
+      document.body.style.overflow = previousOverflow;
+      opener?.focus?.();
+    };
+  }, [mobileOpen, onClose]);
+
   return (
     <>
       <aside className="hidden h-full w-64 flex-col border-r border-subtle bg-surface px-4 py-5 xl:flex">
@@ -114,15 +141,23 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
       </aside>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 xl:hidden" role="dialog" aria-modal>
-          <button
-            type="button"
+        <div className="fixed inset-0 z-50 xl:hidden">
+          {/* Presentational backdrop. A full-viewport button was a screen-sized
+              tab stop; Escape and the close control are the keyboard paths out. */}
+          <div
             className="absolute inset-0 bg-black/45"
-            aria-label="Close navigation menu"
             onClick={onClose}
+            aria-hidden="true"
           />
 
-          <aside className="relative z-10 flex h-full w-[min(20rem,85vw)] flex-col border-r border-subtle bg-surface px-4 py-5 shadow-2xl">
+          <aside
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+            tabIndex={-1}
+            className="relative z-10 flex h-full w-[min(20rem,85vw)] flex-col border-r border-subtle bg-surface px-4 py-5 shadow-2xl"
+          >
             <div className="mb-5 flex items-center justify-between px-2">
               <div>
                 <div className="text-lg font-semibold tracking-tight">
