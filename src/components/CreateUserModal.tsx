@@ -5,7 +5,7 @@
  */
 
 // src/components/CreateUserModal.tsx
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useCreateUser } from "../hooks/useCreateUser";
 import { useRoles } from "../hooks/useRoles";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
@@ -125,13 +125,19 @@ function Input({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const id = useId();
+
   return (
     <div className="space-y-1">
-      <label className="text-xs text-muted uppercase tracking-wide">
+      <label
+        htmlFor={id}
+        className="text-xs text-muted uppercase tracking-wide"
+      >
         {label}
       </label>
 
       <input
+        id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"

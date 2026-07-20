@@ -97,4 +97,15 @@ describe("CreateUserModal", () => {
     await user.click(container.querySelector(".absolute.inset-0")!);
     expect(onClose).toHaveBeenCalledTimes(2);
   });
+
+  it("associates every field with its visible label", () => {
+    render(<CreateUserModal onClose={vi.fn()} />);
+
+    // getByLabelText resolves the accessible name the way a screen reader does,
+    // so this fails if the label is rendered but not associated with the input.
+    for (const name of [/email/i, /phone/i]) {
+      const field = screen.getByLabelText(name);
+      expect(field.tagName).toBe("INPUT");
+    }
+  });
 });

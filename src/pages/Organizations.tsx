@@ -306,12 +306,14 @@ export default function Organizations() {
                   value={createName}
                   onChange={(event) => setCreateName(event.target.value)}
                   placeholder="Organization name"
+                  aria-label="Organization name"
                   className="min-w-0 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                 />
                 <input
                   value={createSlug}
                   onChange={(event) => setCreateSlug(event.target.value)}
                   placeholder="Slug"
+                  aria-label="Organization slug"
                   className="min-w-0 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                 />
                 <button
@@ -441,6 +443,7 @@ export default function Organizations() {
                 value={memberEmail}
                 onChange={(event) => setMemberEmail(event.target.value)}
                 placeholder="member@example.com"
+                aria-label="Member email"
                 disabled={!selectedOrganization}
                 className="min-w-0 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] disabled:opacity-60"
               />
@@ -448,6 +451,7 @@ export default function Organizations() {
                 value={memberRoles}
                 onChange={(event) => setMemberRoles(event.target.value)}
                 placeholder="Roles"
+                aria-label="Member roles"
                 disabled={!selectedOrganization}
                 className="min-w-0 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] disabled:opacity-60"
               />
@@ -455,6 +459,7 @@ export default function Organizations() {
                 value={memberScopes}
                 onChange={(event) => setMemberScopes(event.target.value)}
                 placeholder="Scopes"
+                aria-label="Member scopes"
                 disabled={!selectedOrganization}
                 className="min-w-0 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] disabled:opacity-60"
               />

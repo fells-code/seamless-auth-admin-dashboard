@@ -103,6 +103,7 @@ export default function EventFilters({
           <div className="grid w-full gap-2 sm:grid-cols-2">
             <input
               type="datetime-local"
+              aria-label="Range start"
               value={value.from ?? ""}
               onChange={(e) => onChange({ ...value, from: e.target.value })}
               className="min-h-10 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm"
@@ -110,6 +111,7 @@ export default function EventFilters({
 
             <input
               type="datetime-local"
+              aria-label="Range end"
               value={value.to ?? ""}
               onChange={(e) => onChange({ ...value, to: e.target.value })}
               className="min-h-10 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm"

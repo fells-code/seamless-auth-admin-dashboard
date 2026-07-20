@@ -36,4 +36,21 @@ describe("SearchInput", () => {
 
     expect(onChange).toHaveBeenLastCalledWith("");
   });
+
+  it("names the field and the clear control", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+
+    render(
+      <SearchInput value="ada" onChange={onChange} label="Search users" />,
+    );
+
+    // A placeholder is not an accessible name, so this asserts the real label.
+    expect(screen.getByLabelText("Search users")).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: /clear search users/i }),
+    );
+    expect(onChange).toHaveBeenCalledWith("");
+  });
 });
