@@ -210,4 +210,51 @@ describe("Sessions", () => {
       "Not allowed",
     );
   });
+
+  it("falls back to a valid page when a revoke empties the current one", () => {
+    // 11 sessions over a page size of 10, so the last page holds exactly one.
+    const many = Array.from({ length: 11 }, (_, index) => ({
+      id: `session_${index + 1}`,
+      ipAddress: `10.0.0.${index + 1}`,
+      userAgent: "Mozilla/5.0 Firefox/125.0",
+      lastUsedAt: new Date(now - 60_000).toISOString(),
+      expiresAt: new Date(now + 86_400_000).toISOString(),
+    }));
+
+    mocks.useSessions.mockReturnValue({
+      data: { sessions: many, total: many.length },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: mocks.refetch,
+    });
+
+    const { rerender } = renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+
+    // The eleventh session is alone on the second page.
+    expect(screen.getByText("10.0.0.11")).toBeInTheDocument();
+
+    // Revoking it shrinks the list so that page no longer exists.
+    mocks.useSessions.mockReturnValue({
+      data: { sessions: many.slice(0, 10), total: 10 },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: mocks.refetch,
+    });
+
+    rerender(
+      <MemoryRouter>
+        <Sessions />
+      </MemoryRouter>,
+    );
+
+    // Rows are shown rather than an empty view contradicting the row count.
+    expect(
+      screen.queryByText("No sessions match this view"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("10.0.0.1")).toBeInTheDocument();
+  });
 });
