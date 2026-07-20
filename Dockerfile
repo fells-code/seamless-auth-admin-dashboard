@@ -20,6 +20,7 @@ FROM nginxinc/nginx-unprivileged:alpine@sha256:a718212f9cf21e241f14067333000a3f0
 USER root
 
 COPY ./nginx.conf /etc/nginx/conf.d/default.conf
+COPY ./security-headers.conf /etc/nginx/security-headers.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 COPY entrypoint.sh /entrypoint.sh
