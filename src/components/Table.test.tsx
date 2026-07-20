@@ -147,4 +147,79 @@ describe("Table", () => {
     expect(onEdit).toHaveBeenCalledWith(rows[0]);
     expect(onPageChange).toHaveBeenCalledWith(20);
   });
+
+  it("keeps a bulk action pointed at the row that was selected across pages", async () => {
+    const user = userEvent.setup();
+    const onBulk = vi.fn();
+
+    type IdRow = { id: string; name: string };
+    const pageOne: IdRow[] = [
+      { id: "session_a", name: "A" },
+      { id: "session_b", name: "B" },
+    ];
+    const pageTwo: IdRow[] = [
+      { id: "session_c", name: "C" },
+      { id: "session_d", name: "D" },
+    ];
+
+    const { rerender } = render(
+      <Table
+        columns={[{ key: "name", label: "Name" }]}
+        data={pageOne}
+        selectable
+        bulkActions={[{ label: "Revoke Selected", onClick: onBulk }]}
+      />,
+    );
+
+    // Select the first row on page one.
+    const checkboxes = screen.getAllByRole("checkbox");
+    await user.click(checkboxes[1]);
+    expect(screen.getByText("1 selected for bulk action")).toBeInTheDocument();
+
+    // Page to a completely different set of rows.
+    rerender(
+      <Table
+        columns={[{ key: "name", label: "Name" }]}
+        data={pageTwo}
+        selectable
+        bulkActions={[{ label: "Revoke Selected", onClick: onBulk }]}
+      />,
+    );
+
+    // The stale selection must not resolve to whatever now sits at that index.
+    expect(
+      screen.queryByText(/selected for bulk action/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("tracks the selected row through a re-sort", async () => {
+    const user = userEvent.setup();
+    const onBulk = vi.fn();
+
+    type IdRow = { id: string; name: string };
+    const data: IdRow[] = [
+      { id: "row_charlie", name: "Charlie" },
+      { id: "row_alice", name: "Alice" },
+    ];
+
+    render(
+      <Table
+        columns={[{ key: "name", label: "Name", sortable: true }]}
+        data={data}
+        selectable
+        bulkActions={[{ label: "Revoke Selected", onClick: onBulk }]}
+      />,
+    );
+
+    // Select Charlie, which renders first before sorting.
+    await user.click(screen.getAllByRole("checkbox")[1]);
+
+    // Sorting reorders the rows underneath the selection.
+    await user.click(screen.getByRole("button", { name: /name/i }));
+    await user.click(screen.getByRole("button", { name: "Revoke Selected" }));
+
+    expect(onBulk).toHaveBeenCalledWith([
+      { id: "row_charlie", name: "Charlie" },
+    ]);
+  });
 });

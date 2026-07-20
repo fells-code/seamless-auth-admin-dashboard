@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import { ArrowDown, ArrowUp, ArrowUpDown, Inbox } from "lucide-react";
 
@@ -87,6 +87,19 @@ function getAlignmentClass(align: Column<Record<string, unknown>>["align"]) {
   return "justify-start text-left";
 }
 
+/**
+ * Stable identity for a row. Falls back to the index only when the row has no
+ * usable id, which is safe for display but not for selection, so pass `rowKey`
+ * explicitly on any table that offers bulk actions over id-less rows.
+ */
+function defaultRowKey(row: Record<string, unknown>, index: number): string {
+  const id = row.id;
+
+  return typeof id === "string" || typeof id === "number"
+    ? String(id)
+    : String(index);
+}
+
 export default function Table<T extends Record<string, unknown>>({
   columns,
   data,
@@ -99,6 +112,7 @@ export default function Table<T extends Record<string, unknown>>({
   limit = 20,
   offset = 0,
   onPageChange,
+  rowKey,
 }: {
   columns: Column<T>[];
   data: T[];
@@ -111,8 +125,9 @@ export default function Table<T extends Record<string, unknown>>({
   limit?: number;
   offset?: number;
   onPageChange?: (offset: number) => void;
+  rowKey?: (row: T) => string;
 }) {
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<keyof T | null>(null);
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
   const [scrollState, setScrollState] = useState({
@@ -123,32 +138,53 @@ export default function Table<T extends Record<string, unknown>>({
   const headerCheckboxRef = useRef<HTMLInputElement | null>(null);
   const scrollRegionRef = useRef<HTMLDivElement | null>(null);
 
-  const toggleSelect = (index: number) => {
-    const next = new Set(selected);
+  // Selection is keyed by row identity, never by position. Indices are reused
+  // when the page, sort order, or filter changes, which would silently point a
+  // bulk action at whichever row now sits at that index.
+  const keyByRow = useMemo(() => {
+    const keys = new Map<T, string>();
 
-    if (next.has(index)) {
-      next.delete(index);
+    data.forEach((row, index) => {
+      keys.set(row, rowKey ? rowKey(row) : defaultRowKey(row, index));
+    });
+
+    return keys;
+  }, [data, rowKey]);
+
+  // Keys left over from a previous page are ignored rather than resolved, so a
+  // stale selection can never address a row the operator did not pick.
+  const selectedKeys = useMemo(() => {
+    const visible = new Set(keyByRow.values());
+
+    return new Set([...selected].filter((key) => visible.has(key)));
+  }, [selected, keyByRow]);
+
+  const toggleSelect = (key: string) => {
+    const next = new Set(selectedKeys);
+
+    if (next.has(key)) {
+      next.delete(key);
     } else {
-      next.add(index);
+      next.add(key);
     }
 
     setSelected(next);
   };
 
   const toggleAll = () => {
-    if (selected.size === data.length) {
+    if (selectedKeys.size === data.length) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(data.map((_, i) => i)));
+      setSelected(new Set(keyByRow.values()));
     }
   };
 
   useEffect(() => {
     if (headerCheckboxRef.current) {
       headerCheckboxRef.current.indeterminate =
-        selected.size > 0 && selected.size < data.length;
+        selectedKeys.size > 0 && selectedKeys.size < data.length;
     }
-  }, [selected, data.length]);
+  }, [selectedKeys, data.length]);
 
   const handleSort = (key: keyof T) => {
     if (sortKey === key) {
@@ -241,7 +277,10 @@ export default function Table<T extends Record<string, unknown>>({
     };
   }, [tableMinWidth, updateScrollState]);
 
-  const selectedRows: T[] = [...selected].map((i) => sortedData[i]);
+  const selectedRows: T[] = sortedData.filter((row) => {
+    const key = keyByRow.get(row);
+    return key !== undefined && selectedKeys.has(key);
+  });
   const hasRows = sortedData.length > 0;
   const displayTotal = total ?? sortedData.length;
   const rangeStart = hasRows ? offset + 1 : 0;
@@ -249,10 +288,10 @@ export default function Table<T extends Record<string, unknown>>({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-subtle bg-surface shadow-[0_1px_0_rgba(255,255,255,0.35)_inset]">
-      {selected.size > 0 && bulkActions.length > 0 && (
+      {selectedKeys.size > 0 && bulkActions.length > 0 && (
         <div className="flex flex-col gap-3 border-b border-subtle bg-surface-alt px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-muted">
-            {selected.size} selected for bulk action
+            {selectedKeys.size} selected for bulk action
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -316,7 +355,7 @@ export default function Table<T extends Record<string, unknown>>({
                 <input
                   ref={headerCheckboxRef}
                   type="checkbox"
-                  checked={selected.size === data.length && data.length > 0}
+                  checked={selectedKeys.size === data.length && data.length > 0}
                   onChange={toggleAll}
                   className="accent-[var(--primary)]"
                 />
@@ -360,11 +399,12 @@ export default function Table<T extends Record<string, unknown>>({
             {hasRows && (
               <div className="divide-y divide-[color:var(--border)]/70">
                 {sortedData.map((row, i) => {
-                  const isSelected = selected.has(i);
+                  const key = keyByRow.get(row) ?? String(i);
+                  const isSelected = selectedKeys.has(key);
 
                   return (
                     <div
-                      key={i}
+                      key={key}
                       className={clsx(
                         "grid w-full items-center gap-3 bg-surface px-4 py-3 transition-all",
                         "hover:bg-[color:var(--surface-alt)]/45",
@@ -379,7 +419,7 @@ export default function Table<T extends Record<string, unknown>>({
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          onChange={() => toggleSelect(i)}
+                          onChange={() => toggleSelect(key)}
                           className="accent-[var(--primary)]"
                         />
                       )}
