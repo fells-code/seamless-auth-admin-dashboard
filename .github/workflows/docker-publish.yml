@@ -2,9 +2,6 @@ name: Publish Docker Image
 
 on:
   push:
-    branches:
-      - dev
-      - beta
     tags:
       - "v*"
 
@@ -75,13 +72,7 @@ jobs:
             # version tags (v1.2.3)
             type=ref,event=tag
 
-            # dev branch → :dev
-            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/dev' }}
-
-            # beta branch → :beta
-            type=raw,value=beta,enable=${{ github.ref == 'refs/heads/beta' }}
-
-            # latest ONLY on version tags
+            # latest tracks the newest version tag
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
       - name: Build and push Docker image
