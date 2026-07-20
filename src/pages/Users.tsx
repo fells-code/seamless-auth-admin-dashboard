@@ -6,6 +6,7 @@
 
 import type { ComponentType } from "react";
 import { useState } from "react";
+import clsx from "clsx";
 import {
   ArrowRight,
   ShieldCheck,
@@ -30,6 +31,7 @@ import {
 import { getErrorMessage } from "../lib/errorMessage";
 import { hasScopedRole } from "../lib/scopedRoles";
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import { useToast } from "../hooks/useToast";
 
@@ -75,9 +77,10 @@ export default function Users() {
   const [referenceNow] = useState(() => Date.now());
 
   const limit = 10;
+  const debouncedSearch = useDebouncedValue(search);
 
-  const { data, isLoading, isError, error, refetch } = useUsers({
-    search,
+  const { data, isLoading, isFetching, isError, error, refetch } = useUsers({
+    search: debouncedSearch,
     limit,
     offset,
   });
@@ -249,120 +252,131 @@ export default function Users() {
             description={getErrorMessage(deleteUser.error)}
           />
         )}
-        <Table<User>
-          data={users}
-          selectable={canWrite}
-          limit={limit}
-          offset={offset}
-          total={total}
-          onPageChange={setOffset}
-          emptyTitle={
-            search ? "No users match this search" : "No users in the directory"
-          }
-          emptyDescription={
-            search
-              ? "Try a different search term or clear the filter to widen the result set."
-              : canWrite
-                ? "Create your first user to start managing access from this dashboard."
-                : "No user records are currently visible in this dashboard."
-          }
-          columns={[
-            {
-              key: "email",
-              label: "Identity",
-              sortable: true,
-              width: "wide",
-              wrap: true,
-              render: (value, row) => (
-                <button
-                  onClick={() => navigate(`/users/${row.id}`)}
-                  className="flex w-full flex-col text-left transition hover:opacity-80"
-                >
-                  <span className="font-medium text-primary">{value}</span>
-                  <span className="text-xs text-muted">
-                    {row.phone ?? "No phone on record"}
-                  </span>
-                  <span className="truncate text-xs text-muted">{row.id}</span>
-                </button>
-              ),
-            },
-            {
-              key: "roles",
-              label: "Access",
-              width: "large",
-              wrap: true,
-              render: (roles) => (
-                <div className="flex flex-wrap gap-1">
-                  {(roles as string[]).length > 0 ? (
-                    (roles as string[]).map((role) => (
-                      <span
-                        key={role}
-                        className="rounded-full border border-subtle bg-surface-alt px-2 py-0.5 text-xs text-primary"
-                      >
-                        {role}
+        {/* Results stay on screen while a new search or page loads, so the
+            surrounding shell and the search box keep focus. */}
+        <div
+          aria-busy={isFetching}
+          className={clsx("transition-opacity", isFetching && "opacity-60")}
+        >
+          <Table<User>
+            data={users}
+            selectable={canWrite}
+            limit={limit}
+            offset={offset}
+            total={total}
+            onPageChange={setOffset}
+            emptyTitle={
+              search
+                ? "No users match this search"
+                : "No users in the directory"
+            }
+            emptyDescription={
+              search
+                ? "Try a different search term or clear the filter to widen the result set."
+                : canWrite
+                  ? "Create your first user to start managing access from this dashboard."
+                  : "No user records are currently visible in this dashboard."
+            }
+            columns={[
+              {
+                key: "email",
+                label: "Identity",
+                sortable: true,
+                width: "wide",
+                wrap: true,
+                render: (value, row) => (
+                  <button
+                    onClick={() => navigate(`/users/${row.id}`)}
+                    className="flex w-full flex-col text-left transition hover:opacity-80"
+                  >
+                    <span className="font-medium text-primary">{value}</span>
+                    <span className="text-xs text-muted">
+                      {row.phone ?? "No phone on record"}
+                    </span>
+                    <span className="truncate text-xs text-muted">
+                      {row.id}
+                    </span>
+                  </button>
+                ),
+              },
+              {
+                key: "roles",
+                label: "Access",
+                width: "large",
+                wrap: true,
+                render: (roles) => (
+                  <div className="flex flex-wrap gap-1">
+                    {(roles as string[]).length > 0 ? (
+                      (roles as string[]).map((role) => (
+                        <span
+                          key={role}
+                          className="rounded-full border border-subtle bg-surface-alt px-2 py-0.5 text-xs text-primary"
+                        >
+                          {role}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-muted">
+                        No roles assigned
                       </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-muted">
-                      No roles assigned
-                    </span>
-                  )}
-                </div>
-              ),
-            },
-            {
-              key: "verified",
-              label: "State",
-              sortable: true,
-              width: "compact",
-              align: "center",
-              render: (value) => <StatusBadge verified={Boolean(value)} />,
-            },
-            {
-              key: "lastLogin",
-              label: "Last Active",
-              sortable: true,
-              width: "medium",
-              wrap: true,
-              render: (value) => (
-                <div className="flex flex-col">
-                  <span className="text-sm text-primary">
-                    {formatTimeAgo(
-                      value as string | null | undefined,
-                      referenceNow,
                     )}
-                  </span>
-                  {value ? (
-                    <span className="text-xs text-muted">
-                      {new Date(value as string).toLocaleString()}
+                  </div>
+                ),
+              },
+              {
+                key: "verified",
+                label: "State",
+                sortable: true,
+                width: "compact",
+                align: "center",
+                render: (value) => <StatusBadge verified={Boolean(value)} />,
+              },
+              {
+                key: "lastLogin",
+                label: "Last Active",
+                sortable: true,
+                width: "medium",
+                wrap: true,
+                render: (value) => (
+                  <div className="flex flex-col">
+                    <span className="text-sm text-primary">
+                      {formatTimeAgo(
+                        value as string | null | undefined,
+                        referenceNow,
+                      )}
                     </span>
-                  ) : (
-                    <span className="text-xs text-muted">
-                      No login recorded
-                    </span>
-                  )}
-                </div>
-              ),
-            },
-          ]}
-          actions={[
-            {
-              icon: ArrowRight,
-              label: "View",
-              onClick: (row) => navigate(`/users/${row.id}`),
-            },
-            ...(canWrite
-              ? [
-                  {
-                    icon: Trash2,
-                    label: "Delete",
-                    variant: "danger" as const,
-                    onClick: (row: User) => void handleDeleteUser(row),
-                  },
-                ]
-              : []),
-          ]}
-        />
+                    {value ? (
+                      <span className="text-xs text-muted">
+                        {new Date(value as string).toLocaleString()}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted">
+                        No login recorded
+                      </span>
+                    )}
+                  </div>
+                ),
+              },
+            ]}
+            actions={[
+              {
+                icon: ArrowRight,
+                label: "View",
+                onClick: (row) => navigate(`/users/${row.id}`),
+              },
+              ...(canWrite
+                ? [
+                    {
+                      icon: Trash2,
+                      label: "Delete",
+                      variant: "danger" as const,
+                      onClick: (row: User) => void handleDeleteUser(row),
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        </div>
       </Section>
 
       {open && canWrite && <CreateUserModal onClose={() => setOpen(false)} />}
