@@ -17,6 +17,7 @@ import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import { useToast } from "../hooks/useToast";
 import Skeleton from "../components/Skeleton";
+import RemovableChips from "../components/RemovableChips";
 import RoleChips from "../components/RoleChips";
 import { Section } from "../components/Section";
 import StatCard from "../components/StatCard";
@@ -123,6 +124,33 @@ export default function SystemConfigPage() {
 
       return { ...prev, [key]: value };
     });
+  };
+
+  const removeAvailableRole = (role: string) => {
+    if (!canWrite || !form) return;
+
+    if (
+      !confirm(
+        `Remove "${role}" from the available roles? It will no longer be assignable, and it will be removed from the default roles.`,
+      )
+    ) {
+      return;
+    }
+
+    updateField(
+      "available_roles",
+      form.available_roles.filter((value) => value !== role),
+    );
+
+    // A role that is no longer available must not stay a default, or every new
+    // user keeps receiving a role the configuration no longer offers, with no
+    // chip left in the UI to clear it.
+    if (form.default_roles.includes(role)) {
+      updateField(
+        "default_roles",
+        form.default_roles.filter((value) => value !== role),
+      );
+    }
   };
 
   const reset = () => {
@@ -316,10 +344,12 @@ export default function SystemConfigPage() {
               Available Roles
             </label>
 
-            <RoleChips
-              roles={form.available_roles}
-              selected={form.available_roles}
-              onChange={(roles) => updateField("available_roles", roles)}
+            <RemovableChips
+              values={form.available_roles}
+              disabled={!canWrite}
+              onRemove={removeAvailableRole}
+              removeLabel={(role) => `Remove ${role} from available roles`}
+              emptyLabel="No roles are defined yet. Add one below."
             />
 
             <AddRoleInput

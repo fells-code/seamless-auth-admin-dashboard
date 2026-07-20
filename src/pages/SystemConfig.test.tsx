@@ -231,4 +231,55 @@ describe("SystemConfigPage", () => {
 
     expect(screen.getByRole("button", { name: /read only/i })).toBeDisabled();
   });
+
+  it("requires confirmation before removing an available role", async () => {
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => false),
+    );
+
+    render(<SystemConfigPage />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove user from available roles" }),
+    );
+
+    // Dismissing the confirmation must leave the role in place, so the control
+    // for it is still rendered and nothing was staged for saving.
+    expect(
+      screen.getByRole("button", { name: "Remove user from available roles" }),
+    ).toBeInTheDocument();
+    expect(mocks.mutate).not.toHaveBeenCalled();
+
+    vi.unstubAllGlobals();
+  });
+
+  it("drops a removed role from the default roles as well", async () => {
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true),
+    );
+
+    render(<SystemConfigPage />);
+
+    // "user" is both an available role and a default role.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove user from available roles" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    // Leaving it in default_roles would keep assigning a role the config no
+    // longer offers, with no chip left in the UI to clear it.
+    await waitFor(() =>
+      expect(mocks.mutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          available_roles: ["admin"],
+          default_roles: [],
+        }),
+        expect.anything(),
+      ),
+    );
+
+    vi.unstubAllGlobals();
+  });
 });
