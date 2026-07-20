@@ -282,4 +282,23 @@ describe("SystemConfigPage", () => {
 
     vi.unstubAllGlobals();
   });
+
+  it("associates config fields and the role input with their labels", () => {
+    render(<SystemConfigPage />);
+
+    // Rendered through the shared Field and Input helpers.
+    expect(screen.getByLabelText(/app name/i).tagName).toBe("INPUT");
+    expect(screen.getByLabelText(/rate limit/i).tagName).toBe("INPUT");
+
+    // Previously reachable only by its placeholder.
+    expect(screen.getByLabelText(/add a role/i).tagName).toBe("INPUT");
+  });
+
+  it("exposes the login method checkboxes as a named group", () => {
+    render(<SystemConfigPage />);
+
+    expect(
+      screen.getByRole("group", { name: /enabled login methods/i }),
+    ).toBeInTheDocument();
+  });
 });

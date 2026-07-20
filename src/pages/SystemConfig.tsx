@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { KeyRound, ShieldCheck, TimerReset, Waypoints } from "lucide-react";
 import {
   useSystemConfig,
@@ -609,17 +609,41 @@ function FocusPanel({
 function Field({
   label,
   helperText,
+  htmlFor,
   children,
 }: {
   label: string;
   helperText?: string;
+  htmlFor?: string;
   children: React.ReactNode;
 }) {
+  const labelId = useId();
+
+  // With a single control, the text is a real label. A group of controls has
+  // nothing to point at, so it becomes a group name instead of an orphan label.
+  if (htmlFor) {
+    return (
+      <div className="space-y-2">
+        <label
+          htmlFor={htmlFor}
+          className="text-xs uppercase tracking-[0.18em] text-muted"
+        >
+          {label}
+        </label>
+        {children}
+        {helperText && <p className="text-sm text-muted">{helperText}</p>}
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-2">
-      <label className="text-xs uppercase tracking-[0.18em] text-muted">
+    <div className="space-y-2" role="group" aria-labelledby={labelId}>
+      <div
+        id={labelId}
+        className="text-xs uppercase tracking-[0.18em] text-muted"
+      >
         {label}
-      </label>
+      </div>
       {children}
       {helperText && <p className="text-sm text-muted">{helperText}</p>}
     </div>
@@ -637,10 +661,12 @@ function Input({
   onChange: (v: string) => void;
   helperText?: string;
 }) {
+  const id = useId();
+
   return (
-    <Field label={label} helperText={helperText}>
+    <Field label={label} helperText={helperText} htmlFor={id}>
       <input
-        aria-label={label}
+        id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
@@ -660,11 +686,13 @@ function NumberInput({
   onChange: (v: number) => void;
   helperText?: string;
 }) {
+  const id = useId();
+
   return (
-    <Field label={label} helperText={helperText}>
+    <Field label={label} helperText={helperText} htmlFor={id}>
       <input
+        id={id}
         type="number"
-        aria-label={label}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
@@ -788,6 +816,7 @@ function OAuthProvidersEditor({
   setProviders: (providers: OAuthProviderConfig[]) => void;
 }) {
   const [draft, setDraft] = useState<OAuthProviderConfig>(emptyOAuthProvider);
+  const accountLinkingId = useId();
 
   const addProvider = () => {
     if (!draft.id || !draft.name || !draft.clientId || !draft.clientSecretEnv) {
@@ -920,8 +949,10 @@ function OAuthProvidersEditor({
         <Field
           label="Account Linking"
           helperText="Email linking reuses existing users; disabled requires an existing provider identity."
+          htmlFor={accountLinkingId}
         >
           <select
+            id={accountLinkingId}
             value={draft.accountLinking}
             onChange={(event) =>
               setDraft({
@@ -1027,6 +1058,7 @@ function OriginsEditor({
   setOrigins: (v: string[]) => void;
 }) {
   const [input, setInput] = useState("");
+  const originInputId = useId();
 
   const add = () => {
     if (!input) return;
@@ -1039,9 +1071,11 @@ function OriginsEditor({
       <Field
         label="Allowed Origins"
         helperText="Origins must match the real client surfaces that should be allowed to participate in auth flows."
+        htmlFor={originInputId}
       >
         <div className="flex gap-2">
           <input
+            id={originInputId}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             className="flex-1 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
@@ -1102,6 +1136,7 @@ function AddRoleInput({
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="Add role (e.g. admin:read)"
+        aria-label="Add a role"
         className="flex-1 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
         onKeyDown={(e) => {
           if (e.key === "Enter") {

@@ -5,19 +5,29 @@
  */
 
 // src/components/SearchInput.tsx
+import { useId } from "react";
 import { Search, X } from "lucide-react";
 
 export default function SearchInput({
   value,
   onChange,
   placeholder = "Search...",
+  label = "Search",
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  /** Names the field for assistive technology. A placeholder is not a label. */
+  label?: string;
 }) {
+  const id = useId();
+
   return (
     <div className="relative w-full">
+      <label htmlFor={id} className="sr-only">
+        {label}
+      </label>
+
       {/* Icon */}
       <Search
         size={16}
@@ -26,6 +36,8 @@ export default function SearchInput({
 
       {/* Input */}
       <input
+        id={id}
+        type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
@@ -35,7 +47,9 @@ export default function SearchInput({
       {/* Clear button */}
       {value && (
         <button
+          type="button"
           onClick={() => onChange("")}
+          aria-label={`Clear ${label.toLowerCase()}`}
           className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-primary transition"
         >
           <X size={14} />
