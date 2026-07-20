@@ -15,7 +15,6 @@
     "format:check": "prettier --check .",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release:stable": "changeset publish",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
