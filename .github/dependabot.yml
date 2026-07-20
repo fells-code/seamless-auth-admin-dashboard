@@ -10,6 +10,14 @@ updates:
       prefix: "chore"
     labels:
       - "dependencies"
+    # The Node baseline is declared in three places (engines, .nvmrc, and both
+    # Dockerfiles). A major bump that arrives as an image-only change puts the
+    # build on a runtime the package does not support, so those are raised
+    # deliberately instead. Digest and minor updates still come through.
+    ignore:
+      - dependency-name: "node"
+        update-types:
+          - "version-update:semver-major"
 
   - package-ecosystem: "github-actions"
     directory: "/"
