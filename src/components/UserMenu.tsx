@@ -64,7 +64,7 @@ export default function UserMenu() {
       >
         {/* Avatar */}
         <div
-          className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold text-white"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold text-[var(--on-primary)]"
           style={{ backgroundColor: "var(--primary)" }}
         >
           {getInitials(user.email)}

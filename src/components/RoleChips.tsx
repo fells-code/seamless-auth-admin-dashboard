@@ -34,7 +34,7 @@ export default function RoleChips({
             className={`px-3 py-1.5 rounded-full text-sm border transition-all duration-150 cursor-pointer
               ${
                 active
-                  ? "bg-primary text-white border-transparent shadow-sm"
+                  ? "bg-primary text-[var(--on-primary)] border-transparent shadow-sm"
                   : "bg-surface border-subtle text-muted hover:bg-surface-alt hover:text-primary"
               }
             `}

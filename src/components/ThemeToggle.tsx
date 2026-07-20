@@ -20,7 +20,7 @@ export default function ThemeToggle() {
             onClick={() => setMode(nextMode)}
             className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition ${
               active
-                ? "bg-[var(--primary)] text-white shadow-sm"
+                ? "bg-[var(--primary)] text-[var(--on-primary)] shadow-sm"
                 : "text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]"
             }`}
           >
