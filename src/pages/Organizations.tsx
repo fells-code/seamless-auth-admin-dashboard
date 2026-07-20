@@ -337,6 +337,7 @@ export default function Organizations() {
             />
           )}
           <Table<OrganizationRow>
+            label="Organizations"
             data={organizations as OrganizationRow[]}
             total={total}
             emptyTitle="No organizations"
@@ -502,6 +503,7 @@ export default function Organizations() {
           />
         ) : (
           <Table<OrganizationMembershipRow>
+            label="Organization members"
             data={members as OrganizationMembershipRow[]}
             total={members.length}
             emptyTitle="No members"

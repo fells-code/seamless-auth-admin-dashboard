@@ -259,6 +259,8 @@ export default function Users() {
           className={clsx("transition-opacity", isFetching && "opacity-60")}
         >
           <Table<User>
+            label="Users"
+            rowLabel={(user) => user.email}
             data={users}
             selectable={canWrite}
             limit={limit}

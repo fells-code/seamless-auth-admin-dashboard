@@ -306,6 +306,7 @@ export default function Events() {
           description="The current page of matching events, with direct paths to related users and activity sources."
         >
           <Table<AuthEvent>
+            label="Authentication events"
             limit={limit}
             offset={offset}
             total={total}

@@ -63,9 +63,9 @@ describe("Table", () => {
   it("keeps column headers and rows in the same horizontal scroll region", () => {
     render(<Table<TestRow> columns={columns} data={rows} />);
 
-    const region = screen.getByRole("region", { name: "Table content" });
+    const region = screen.getByRole("region", { name: "Results content" });
     const headerGrid = within(region)
-      .getByRole("button", { name: /Name/i })
+      .getByRole("columnheader", { name: /Name/i })
       .closest(".grid") as HTMLElement;
     const rowGrid = within(region)
       .getByText("Charlie")
@@ -97,15 +97,15 @@ describe("Table", () => {
       />,
     );
 
-    const region = screen.getByRole("region", { name: "Table content" });
+    const region = screen.getByRole("region", { name: "Results content" });
     const headerGrid = within(region)
-      .getByRole("button", { name: "Name" })
+      .getByRole("columnheader", { name: "Name" })
       .closest(".grid") as HTMLElement;
     const wrappedCell = within(region).getByText("Charlie").closest("div");
     const alignedCell = within(region).getByText("Viewer").closest("div");
     const headerActions = within(region).getByText("Actions");
     const rowAction = within(region)
-      .getAllByRole("button", { name: "Edit row" })[0]
+      .getAllByRole("button", { name: /^Edit row/ })[0]
       .closest("div");
 
     expect(headerGrid.style.gridTemplateColumns).toBe(
@@ -141,7 +141,7 @@ describe("Table", () => {
       />,
     );
 
-    await user.click(screen.getAllByRole("button", { name: "Edit row" })[0]);
+    await user.click(screen.getAllByRole("button", { name: /^Edit row/ })[0]);
     await user.click(screen.getByRole("button", { name: "Next" }));
 
     expect(onEdit).toHaveBeenCalledWith(rows[0]);
@@ -221,5 +221,69 @@ describe("Table", () => {
     expect(onBulk).toHaveBeenCalledWith([
       { id: "row_charlie", name: "Charlie" },
     ]);
+  });
+
+  it("exposes table semantics to assistive technology", () => {
+    render(<Table<TestRow> columns={columns} data={rows} label="Users" />);
+
+    const table = screen.getByRole("table", { name: "Users" });
+    expect(table).toHaveAttribute("aria-colcount", "2");
+
+    // Header cells, not a run of undifferentiated text.
+    expect(screen.getAllByRole("columnheader")).toHaveLength(2);
+    expect(screen.getAllByRole("row")).toHaveLength(rows.length + 1);
+    expect(screen.getAllByRole("cell")).toHaveLength(rows.length * 2);
+  });
+
+  it("reports sort state on the sorted column", async () => {
+    const user = userEvent.setup();
+    render(<Table<TestRow> columns={columns} data={rows} />);
+
+    const nameHeader = screen.getByRole("columnheader", { name: /Name/i });
+    // Sortable but not yet sorted.
+    expect(nameHeader).toHaveAttribute("aria-sort", "none");
+
+    await user.click(screen.getByRole("button", { name: /Name/i }));
+    expect(nameHeader).toHaveAttribute("aria-sort", "ascending");
+
+    await user.click(screen.getByRole("button", { name: /Name/i }));
+    expect(nameHeader).toHaveAttribute("aria-sort", "descending");
+  });
+
+  it("does not make a non-sortable header a focusable control", () => {
+    render(<Table<TestRow> columns={columns} data={rows} />);
+
+    // "Role" is not sortable, so it must not be a tab stop that does nothing.
+    const roleHeader = screen.getByRole("columnheader", { name: "Role" });
+    expect(roleHeader).not.toHaveAttribute("aria-sort");
+    expect(within(roleHeader).queryByRole("button")).toBeNull();
+  });
+
+  it("names the selection checkboxes", () => {
+    render(
+      <Table<TestRow>
+        columns={columns}
+        data={rows}
+        selectable
+        rowLabel={(row) => row.name}
+      />,
+    );
+
+    expect(
+      screen.getByRole("checkbox", { name: "Select all rows" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", { name: "Select Charlie" }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the scroll region reachable by keyboard", () => {
+    render(<Table<TestRow> columns={columns} data={rows} />);
+
+    // Read-only tables have no focusable cells, so the region itself must be
+    // focusable or the right-hand columns cannot be scrolled to.
+    expect(
+      screen.getByRole("region", { name: "Results content" }),
+    ).toHaveAttribute("tabindex", "0");
   });
 });
