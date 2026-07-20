@@ -4,12 +4,22 @@
  * See LICENSE file in the project root for full license information
  */
 
+const UNITS = ["B", "KB", "MB", "GB", "TB", "PB"];
+const STEP = 1024;
+
 export function formatBytes(bytes: number) {
-  if (bytes === 0) return "0 B";
+  // A database size is never negative, and NaN or Infinity would otherwise
+  // render as literal text on the dashboard.
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
 
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  // Clamp the exponent to the units available. Without the upper bound a value
+  // in the terabytes indexed past the end of the list and rendered as
+  // "1.09 undefined"; without the lower bound a fractional byte count did the
+  // same in the other direction.
+  const exponent = Math.min(
+    Math.max(Math.floor(Math.log(bytes) / Math.log(STEP)), 0),
+    UNITS.length - 1,
+  );
 
-  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+  return `${(bytes / Math.pow(STEP, exponent)).toFixed(2)} ${UNITS[exponent]}`;
 }
