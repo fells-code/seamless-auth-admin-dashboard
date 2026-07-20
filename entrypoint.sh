@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 
+# Placeholder only. A localhost default cannot reach anything from inside the
+# container, and the correct value is deployment specific: the origin serving the
+# Seamless Auth server adapter. Always set API_URL.
 API_URL="${API_URL:-http://localhost:3000}"
 
 # API_URL is interpolated into a JS string literal in config.js. Validate it
