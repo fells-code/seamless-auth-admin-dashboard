@@ -7,6 +7,11 @@ on:
   pull_request:
     branches: ["**"]
 
+# The job only needs to read the checkout. Every other workflow already scopes
+# its token; this one relied on the default, which is broader.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest

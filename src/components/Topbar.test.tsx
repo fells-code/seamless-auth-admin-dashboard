@@ -27,4 +27,28 @@ describe("Topbar", () => {
       screen.getByRole("button", { name: /Open navigation menu/i }),
     ).toBeInTheDocument();
   });
+
+  it("titles every navigable route", () => {
+    const routes = [
+      ["/", "Overview"],
+      ["/users", "Users"],
+      ["/sessions", "Sessions"],
+      ["/events", "Events"],
+      ["/security", "Security"],
+      ["/system", "System"],
+      ["/organizations", "Organizations"],
+      ["/profile", "Profile"],
+    ] as const;
+
+    for (const [path, title] of routes) {
+      const { unmount } = render(
+        <MemoryRouter initialEntries={[path]}>
+          <Topbar />
+        </MemoryRouter>,
+      );
+
+      expect(screen.getByText(title)).toBeInTheDocument();
+      unmount();
+    }
+  });
 });

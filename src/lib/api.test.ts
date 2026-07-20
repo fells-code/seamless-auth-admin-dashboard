@@ -175,4 +175,26 @@ describe("apiFetch", () => {
       "You do not have permission to perform this action.",
     );
   });
+
+  it("does not log upstream error detail outside development", async () => {
+    vi.stubEnv("DEV", false);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(
+      new Response("ada@example.com not found in tenant 42", { status: 500 }),
+    );
+
+    await expect(apiFetch("/admin/users")).rejects.toThrow(
+      "The Seamless Auth API had a problem. Try again shortly.",
+    );
+
+    // Production consoles are captured by session replay tools and extensions,
+    // so the raw body must not reach them.
+    expect(consoleError).not.toHaveBeenCalled();
+
+    consoleError.mockRestore();
+    vi.unstubAllEnvs();
+  });
 });
