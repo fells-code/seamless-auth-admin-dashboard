@@ -9,12 +9,12 @@ This app is intended to run alongside the Seamless Auth API as part of a self-ho
 
 ## Quick Start
 
-The dashboard is published as a public container image. Point it at your
-Seamless Auth API with `API_URL` and it is ready to use:
+The dashboard is published as a public container image. Point `API_URL` at the
+origin serving your Seamless Auth server adapter and it is ready to use:
 
 ```bash
 docker run -p 8080:8080 \
-  -e API_URL=https://auth.example.com \
+  -e API_URL=https://app.example.com \
   ghcr.io/fells-code/seamless-auth-admin-dashboard:v0.2.0
 ```
 
@@ -22,26 +22,40 @@ Then open [http://localhost:8080](http://localhost:8080) and sign in with an
 account that has the `admin:read` role.
 
 `API_URL` is read at container start, not baked into the build, so the same
-image can be pointed at any environment. It must be the origin of the Seamless
-Auth server adapter, which the dashboard expects to be mounted at `/auth`.
+image can be pointed at any environment.
+
+**Point it at your application, not at the Seamless Auth API.** The dashboard
+calls `<API_URL>/auth/...`, and those routes belong to the Seamless Auth server
+adapter that you mount in your own backend. The adapter reads the dashboard's
+session cookie and forwards a bearer token upstream to the Seamless Auth API:
+
+```text
+dashboard  ->  <API_URL>/auth/*  ->  server adapter  ->  Seamless Auth API
+```
+
+Setting `API_URL` to the Seamless Auth API directly will not work, because the
+API does not serve the `/auth` routes the dashboard calls.
 
 **Image tags**: `latest` tracks the newest released version. Pin an explicit
 `vX.Y.Z` tag in production so a redeploy cannot move you to a new major.
 
 ## Prerequisites
 
-The dashboard is a client for the Seamless Auth API. You need a running API
-before it is useful.
+You need two things running before this dashboard is useful: a Seamless Auth
+API, and an application backend that mounts the server adapter. The dashboard
+talks to the adapter, and the adapter talks to the API.
 
-| Project                                                                    | Purpose                                                                             |
-| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| [seamless-auth-api](https://github.com/fells-code/seamless-auth-api)       | The authentication API this dashboard administers. Listens on port 5312 by default. |
-| [seamless-auth-server](https://github.com/fells-code/seamless-auth-server) | Server-side SDKs, including the adapter the dashboard calls at `/auth`.             |
-| [seamless-auth-react](https://github.com/fells-code/seamless-auth-react)   | The React SDK this dashboard is built on.                                           |
+| Project                                                                    | Purpose                                                                                                                      |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| [seamless-auth-api](https://github.com/fells-code/seamless-auth-api)       | The authentication API this dashboard administers. Listens on port 5312 by default. The dashboard does not call it directly. |
+| [seamless-auth-server](https://github.com/fells-code/seamless-auth-server) | Server-side SDKs. Mount the adapter at `/auth` in your backend; this is the origin `API_URL` points at.                      |
+| [seamless-auth-react](https://github.com/fells-code/seamless-auth-react)   | The React SDK this dashboard is built on.                                                                                    |
+| [seamless-templates](https://github.com/fells-code/seamless-templates)     | Example projects showing the adapter wired into an application.                                                              |
 
-The API can also serve this dashboard itself at `/console` on its own origin.
-See [Same-origin `/console` build](#same-origin-console-build-auth-instance)
-if you want that instead of running a separate container.
+A Seamless Auth instance can also serve this dashboard itself at `/console` on
+its own origin. See
+[Same-origin `/console` build](#same-origin-console-build-auth-instance) if you
+want that instead of running a separate container.
 
 ## What It Does
 
@@ -281,8 +295,9 @@ throws on startup if no API URL is configured, so this step is required:
 cp .env.example .env
 ```
 
-`VITE_API_URL` defaults to `http://localhost:5312`, which is the Seamless Auth
-API's default port. Change it if your API listens elsewhere.
+`VITE_API_URL` is the origin that serves the Seamless Auth server adapter, which
+is normally your own application's backend rather than the Seamless Auth API. The
+example uses `http://localhost:3000`; change it to wherever your adapter runs.
 
 Start the dev server:
 
@@ -320,7 +335,7 @@ generated manually after the version PR has been reviewed and merged.
 You can provide config through Vite env vars for local development:
 
 ```bash
-VITE_API_URL=http://localhost:5312
+VITE_API_URL=http://localhost:3000
 ```
 
 In production-like deployments, prefer the runtime `config.js` injection flow instead.
@@ -353,7 +368,7 @@ npm run docker:build
 Run it locally, overriding the API it points at if needed:
 
 ```bash
-API_URL=http://host.docker.internal:5312 npm run docker:run
+API_URL=http://host.docker.internal:3000 npm run docker:run
 ```
 
 The production image serves the built frontend through nginx and includes a container health check.

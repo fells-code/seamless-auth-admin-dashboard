@@ -22,7 +22,7 @@
     "coverage": "vitest run --coverage",
     "typecheck": "tsc -b",
     "docker:build": "docker build -t seamless-admin:local .",
-    "docker:run": "docker run -p 8080:8080 -e API_URL=${API_URL:-http://localhost:5312} seamless-admin:local"
+    "docker:run": "docker run -p 8080:8080 -e API_URL=${API_URL:-http://localhost:3000} seamless-admin:local"
   },
   "dependencies": {
     "@seamless-auth/react": "^0.4.0",
