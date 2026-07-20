@@ -1,7 +1,9 @@
 #!/bin/sh
 set -eu
 
-API_URL="${API_URL:-http://localhost:3000}"
+# A localhost fallback cannot reach anything useful from inside the container,
+# so this is a placeholder that keeps startup working. Always set API_URL.
+API_URL="${API_URL:-http://localhost:5312}"
 
 # API_URL is interpolated into a JS string literal in config.js. Validate it
 # before writing so a value containing quotes, backslashes, or whitespace cannot

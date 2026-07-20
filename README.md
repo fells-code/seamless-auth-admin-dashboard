@@ -7,6 +7,42 @@ The Seamless Auth Dashboard is a React/Vite admin portal for operating a Seamles
 
 This app is intended to run alongside the Seamless Auth API as part of a self-hosted auth stack.
 
+## Quick Start
+
+The dashboard is published as a public container image. Point it at your
+Seamless Auth API with `API_URL` and it is ready to use:
+
+```bash
+docker run -p 8080:8080 \
+  -e API_URL=https://auth.example.com \
+  ghcr.io/fells-code/seamless-auth-admin-dashboard:v0.2.0
+```
+
+Then open [http://localhost:8080](http://localhost:8080) and sign in with an
+account that has the `admin:read` role.
+
+`API_URL` is read at container start, not baked into the build, so the same
+image can be pointed at any environment. It must be the origin of the Seamless
+Auth server adapter, which the dashboard expects to be mounted at `/auth`.
+
+**Image tags**: `latest` tracks the newest released version. Pin an explicit
+`vX.Y.Z` tag in production so a redeploy cannot move you to a new major.
+
+## Prerequisites
+
+The dashboard is a client for the Seamless Auth API. You need a running API
+before it is useful.
+
+| Project                                                                    | Purpose                                                                             |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [seamless-auth-api](https://github.com/fells-code/seamless-auth-api)       | The authentication API this dashboard administers. Listens on port 5312 by default. |
+| [seamless-auth-server](https://github.com/fells-code/seamless-auth-server) | Server-side SDKs, including the adapter the dashboard calls at `/auth`.             |
+| [seamless-auth-react](https://github.com/fells-code/seamless-auth-react)   | The React SDK this dashboard is built on.                                           |
+
+The API can also serve this dashboard itself at `/console` on its own origin.
+See [Same-origin `/console` build](#same-origin-console-build-auth-instance)
+if you want that instead of running a separate container.
+
 ## What It Does
 
 - browse and manage users
@@ -230,11 +266,23 @@ target user. The dashboard shows only the resulting counts and never displays cr
 
 ## Development
 
-Install dependencies:
+This repository targets Node 24, pinned in `.nvmrc` and enforced through the
+`engines` field.
 
 ```bash
+nvm use
 npm install
 ```
+
+Copy the environment example and point it at your running API. The dashboard
+throws on startup if no API URL is configured, so this step is required:
+
+```bash
+cp .env.example .env
+```
+
+`VITE_API_URL` defaults to `http://localhost:5312`, which is the Seamless Auth
+API's default port. Change it if your API listens elsewhere.
 
 Start the dev server:
 
@@ -292,16 +340,20 @@ Coverage is currently focused on shared components and `src/lib` helpers.
 
 ## Docker
 
+Most deployments should use the published image shown in
+[Quick Start](#quick-start). Building locally is for working on the image
+itself.
+
 Build the container image locally:
 
 ```bash
 npm run docker:build
 ```
 
-Run it locally:
+Run it locally, overriding the API it points at if needed:
 
 ```bash
-npm run docker:run
+API_URL=http://host.docker.internal:5312 npm run docker:run
 ```
 
 The production image serves the built frontend through nginx and includes a container health check.
