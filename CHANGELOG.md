@@ -17,6 +17,7 @@
 
 - 957b9af: fixes an issue with table data not being aligned or running off or hidden
 
-## 0.2.0
+## Earlier releases
 
-- Current release baseline before Changesets-managed releases.
+- Baseline before Changesets-managed releases. Tagged releases from this period
+  are listed under the repository's Releases page.
