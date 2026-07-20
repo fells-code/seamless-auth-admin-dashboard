@@ -15,6 +15,7 @@ import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
 import { QueryErrorState } from "../components/StateMessage";
 import { eventGroups } from "../lib/eventGroups";
+import { resolveRangeBounds } from "../lib/timeRange";
 import { AuthEventTypeEnum } from "../types/authEventTypes";
 import type { AuthEvent } from "@seamless-auth/types";
 
@@ -33,17 +34,26 @@ const concreteEventTypes = AuthEventTypeEnum.options.filter(
   (type) => !groupedTypeAliases.has(type),
 );
 
+const EVENT_RANGES: EventFilter["range"][] = ["1h", "24h", "7d", "custom"];
+
+function isEventRange(value: string | null): value is EventFilter["range"] {
+  return value !== null && EVENT_RANGES.includes(value as EventFilter["range"]);
+}
+
 function getFiltersFromSearch(search: string): EventFilter {
   const params = new URLSearchParams(search);
   const type = params.getAll("type");
-  const from = params.get("from") ?? undefined;
-  const to = params.get("to") ?? undefined;
+  const rangeParam = params.get("range");
+
+  // The chosen range is carried in the URL rather than inferred from the
+  // bounds, so a relative selection survives a reload and stays highlighted.
+  const range = isEventRange(rangeParam) ? rangeParam : "24h";
 
   return {
     type,
-    from,
-    to,
-    range: from || to ? "custom" : "24h",
+    from: params.get("from") ?? undefined,
+    to: params.get("to") ?? undefined,
+    range,
   };
 }
 
@@ -92,10 +102,17 @@ export default function Events() {
     [filters.type],
   );
 
+  // Relative ranges resolve against a reference captured once, so the bounds
+  // stay stable across renders instead of changing the query key continuously.
+  const bounds = useMemo(
+    () => resolveRangeBounds(filters, referenceNow),
+    [filters, referenceNow],
+  );
+
   const { data, isLoading, isError, error, refetch } = useEvents({
     type: effectiveTypes,
-    from: filters.from,
-    to: filters.to,
+    from: bounds.from,
+    to: bounds.to,
     offset,
     limit,
   });
@@ -121,8 +138,14 @@ export default function Events() {
     const params = new URLSearchParams();
 
     nextFilters.type.forEach((type) => params.append("type", type));
-    if (nextFilters.from) params.set("from", nextFilters.from);
-    if (nextFilters.to) params.set("to", nextFilters.to);
+    params.set("range", nextFilters.range);
+
+    // Only a custom range carries explicit bounds. Relative ranges are
+    // recomputed on load so they always mean what they say.
+    if (nextFilters.range === "custom") {
+      if (nextFilters.from) params.set("from", nextFilters.from);
+      if (nextFilters.to) params.set("to", nextFilters.to);
+    }
 
     setOffset(0);
     navigate({
