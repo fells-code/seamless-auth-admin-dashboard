@@ -53,9 +53,11 @@ export default function Profile() {
   const [offset, setOffset] = useState(0);
   const limit = 5;
 
-  const { data, isLoading, isError, error, refetch } = useUserDetail(user?.id);
+  const { data, isPending, isError, error, refetch } = useUserDetail(
+    user?.id ?? "",
+  );
   const revokeSession = useRevokeSession();
-  const updateUser = useUpdateUser(user?.id);
+  const updateUser = useUpdateUser(user?.id ?? "");
   const { canWrite } = useAdminPermissions();
   const ensureStepUp = useStepUpGuard();
   const toast = useToast();
@@ -71,7 +73,11 @@ export default function Profile() {
     setInitialized(true);
   }
 
-  if (isLoading) {
+  // The query is gated on the signed-in user, so before auth resolves it sits
+  // in a pending state with no request in flight. isLoading is false there, and
+  // treating that as a failure showed an error banner for a request that was
+  // never made.
+  if (isPending) {
     return <Skeleton className="h-40 rounded-xl" />;
   }
 
