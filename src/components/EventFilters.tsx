@@ -5,7 +5,7 @@
  */
 
 import { eventGroups } from "../lib/eventGroups";
-import { getRange } from "../lib/timeRange";
+import { getRange, toDateTimeLocalValue } from "../lib/timeRange";
 import type { EventFilter } from "../pages/Events";
 
 export default function EventFilters({
@@ -33,22 +33,22 @@ export default function EventFilters({
 
   const handleRangeChange = (r: EventFilter["range"]) => {
     if (r !== "custom") {
-      const rangeVal = getRange(r);
-
-      if (rangeVal) {
-        onChange({
-          ...value,
-          range: r,
-          from: rangeVal.from.toISOString(),
-          to: rangeVal.to.toISOString(),
-        });
-      }
-    } else {
-      onChange({
-        ...value,
-        range: r,
-      });
+      // Relative ranges carry no bounds; they are resolved when the query runs
+      // so the window is always current.
+      onChange({ ...value, range: r, from: undefined, to: undefined });
+      return;
     }
+
+    // Seed the custom inputs from the window currently in view so switching to
+    // Custom does not present two empty fields.
+    const current = getRange(value.range);
+
+    onChange({
+      ...value,
+      range: r,
+      from: value.from ?? (current ? toDateTimeLocalValue(current.from) : ""),
+      to: value.to ?? (current ? toDateTimeLocalValue(current.to) : ""),
+    });
   };
 
   return (

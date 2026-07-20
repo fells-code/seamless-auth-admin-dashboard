@@ -34,22 +34,40 @@ describe("EventFilters", () => {
     });
   });
 
-  it("applies relative time ranges with concrete timestamps", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-04-21T12:00:00.000Z"));
-
+  it("selects a relative range without pinning bounds to it", () => {
     const onChange = vi.fn();
 
     render(<EventFilters value={defaultValue} onChange={onChange} />);
 
     fireEvent.click(screen.getByRole("button", { name: "7d" }));
 
+    // Relative ranges carry no bounds. They are resolved against a reference
+    // time when the query runs, so the window always means what the label says
+    // and no ISO string ends up in the datetime-local state.
     expect(onChange).toHaveBeenCalledWith({
       ...defaultValue,
       range: "7d",
-      from: "2026-04-14T12:00:00.000Z",
-      to: "2026-04-21T12:00:00.000Z",
+      from: undefined,
+      to: undefined,
     });
+  });
+
+  it("seeds the custom inputs with values a datetime-local control accepts", () => {
+    const onChange = vi.fn();
+
+    render(<EventFilters value={defaultValue} onChange={onChange} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Custom" }));
+
+    const call = onChange.mock.calls[0][0] as {
+      range: string;
+      from: string;
+      to: string;
+    };
+
+    expect(call.range).toBe("custom");
+    expect(call.from).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+    expect(call.to).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
   });
 
   it("updates custom datetime inputs", () => {
