@@ -48,9 +48,10 @@ export async function apiFetch<T>(
 }
 
 function formatApiError(status: number, body: string, path: string) {
-  // Keep the raw upstream detail in the console for debugging, but never render
-  // it in the UI where it could leak backend internals.
-  if (body) {
+  // Keep the raw upstream detail for debugging, but only in development. The
+  // body can carry emails, user ids, or backend stack traces, and production
+  // console output is captured by session replay tools and extensions.
+  if (body && import.meta.env.DEV) {
     console.error(`API error ${status} on ${path}: ${body}`);
   }
 
