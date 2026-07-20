@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* The app toggles a .dark class on the root element (see src/lib/theme.ts).
+   Without this, Tailwind v4 resolves dark: against prefers-color-scheme, so
+   dark: utilities follow the operating system rather than the theme toggle. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   color-scheme: light;
   --bg: #f7efea;
@@ -13,6 +18,11 @@
 
   --primary: #b64e39;
   --primary-hover: #9e3f2d;
+
+  /* Foreground for text sitting on --primary and --highlight. Measured against
+     every theme so both clear WCAG AA; white only clears it on autumn light. */
+  --on-primary: #ffffff;
+  --on-highlight: #14100e;
 
   --accent: #3f626a;
   --accent-soft: #d6e6e8;
@@ -33,6 +43,7 @@
 
   --primary: #e57f60;
   --primary-hover: #f09a7f;
+  --on-primary: #14100e;
 
   --accent: #5a8a94;
   --accent-soft: #22373c;
@@ -71,6 +82,7 @@
 
   --primary: #e57f60;
   --primary-hover: #f09a7f;
+  --on-primary: #14100e;
 
   --accent: #5a8a94;
   --accent-soft: #22373c;
@@ -90,6 +102,7 @@
 
   --primary: #5e89a6;
   --primary-hover: #4d7590;
+  --on-primary: #14100e;
 
   --accent: #2f4e63;
   --accent-soft: #d6e5ee;
@@ -109,6 +122,7 @@
 
   --primary: #8db7cf;
   --primary-hover: #a2c7db;
+  --on-primary: #14100e;
 
   --accent: #6d91a5;
   --accent-soft: #1f3441;
@@ -128,6 +142,7 @@
 
   --primary: #33a6c9;
   --primary-hover: #218fb0;
+  --on-primary: #14100e;
 
   --accent: #1c5b74;
   --accent-soft: #d6edf3;
@@ -147,6 +162,7 @@
 
   --primary: #58c4e5;
   --primary-hover: #7ed2ec;
+  --on-primary: #14100e;
 
   --accent: #f2bf63;
   --accent-soft: #193845;
@@ -166,6 +182,7 @@
 
   --primary: #e88fb0;
   --primary-hover: #d77b9d;
+  --on-primary: #14100e;
 
   --accent: #7fbf74;
   --accent-soft: #e1f0db;
@@ -185,6 +202,7 @@
 
   --primary: #f0a6c2;
   --primary-hover: #f4bad0;
+  --on-primary: #14100e;
 
   --accent: #9ed28f;
   --accent-soft: #2e3f2b;
@@ -204,6 +222,7 @@
 
   --primary: #3aaed8;
   --primary-hover: #56bde3;
+  --on-primary: #14100e;
 
   --accent: #7c4dff;
   --accent-soft: #21303a;
@@ -223,6 +242,7 @@
 
   --primary: #4fc3f7;
   --primary-hover: #75d0fb;
+  --on-primary: #14100e;
 
   --accent: #8b5cf6;
   --accent-soft: #162028;
@@ -300,7 +320,7 @@ html {
 
 .btn-primary {
   background-color: var(--primary);
-  color: white;
+  color: var(--on-primary);
 }
 
 .btn-primary:hover {
@@ -319,7 +339,7 @@ html {
 
 .btn-danger {
   background-color: var(--highlight);
-  color: white;
+  color: var(--on-highlight);
 }
 
 .btn-danger:hover {

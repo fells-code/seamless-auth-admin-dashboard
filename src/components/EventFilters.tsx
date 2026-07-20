@@ -69,7 +69,7 @@ export default function EventFilters({
               onClick={() => applyGroup(group)}
               className={`px-3 py-1.5 rounded-full text-sm border transition ${
                 active
-                  ? "bg-primary text-white border-transparent"
+                  ? "bg-primary text-[var(--on-primary)] border-transparent"
                   : "bg-surface border-subtle hover:bg-surface-alt text-muted"
               }`}
             >
@@ -88,7 +88,7 @@ export default function EventFilters({
             onClick={() => handleRangeChange(r as EventFilter["range"])}
             className={`text-sm px-3 py-1.5 rounded-md border transition ${
               value.range === r
-                ? "bg-primary text-white border-transparent"
+                ? "bg-primary text-[var(--on-primary)] border-transparent"
                 : "bg-surface border-subtle hover:bg-surface-alt"
             }`}
           >
