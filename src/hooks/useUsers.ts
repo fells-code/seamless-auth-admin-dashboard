@@ -5,7 +5,7 @@
  */
 
 // src/hooks/useUsers.ts
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
 
 export type User = {
@@ -32,5 +32,9 @@ export function useUsers(params: {
     queryKey: ["users", params],
     queryFn: () =>
       apiFetch<{ users: User[]; total: number }>(`/admin/users?${query}`),
+    // Searching and paging change the query key. Without this the page would
+    // fall back to its full-page loading state on every change, unmounting the
+    // search box and losing focus mid-word.
+    placeholderData: keepPreviousData,
   });
 }

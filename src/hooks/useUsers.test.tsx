@@ -77,4 +77,48 @@ describe("useUsers", () => {
 
     expect(apiFetch).toHaveBeenCalledWith("/admin/users?search=a+d%40e.com");
   });
+
+  it("keeps the previous results on screen while a new search loads", async () => {
+    let resolveSecond: ((value: unknown) => void) | undefined;
+
+    apiFetch
+      .mockResolvedValueOnce({ users: [{ id: "user_1" }], total: 1 })
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSecond = resolve;
+          }),
+      );
+
+    const { result, rerender } = renderHook(
+      ({ search }) => useUsers({ limit: 25, search }),
+      { wrapper: createWrapper(), initialProps: { search: "a" } },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual({
+      users: [{ id: "user_1" }],
+      total: 1,
+    });
+
+    // A new search key would otherwise drop back to the loading state, which
+    // makes the page unmount its shell and lose the focused search box.
+    rerender({ search: "ab" });
+
+    await waitFor(() => expect(result.current.isFetching).toBe(true));
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.data).toEqual({
+      users: [{ id: "user_1" }],
+      total: 1,
+    });
+
+    resolveSecond?.({ users: [{ id: "user_2" }], total: 1 });
+
+    await waitFor(() =>
+      expect(result.current.data).toEqual({
+        users: [{ id: "user_2" }],
+        total: 1,
+      }),
+    );
+  });
 });
