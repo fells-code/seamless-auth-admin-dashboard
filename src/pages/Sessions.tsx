@@ -125,7 +125,20 @@ export default function Sessions() {
     return matchesSearch && matchesFilter;
   });
 
-  const pagedSessions = filteredSessions.slice(offset, offset + limit);
+  // Revoking a session shrinks the list underneath the current page. Without
+  // clamping, the slice came back empty while the footer still reported rows,
+  // and only Prev or Next could recover. Derived rather than corrected in an
+  // effect so there is no render where the two disagree.
+  const maxOffset = Math.max(
+    0,
+    Math.floor((filteredSessions.length - 1) / limit) * limit,
+  );
+  const effectiveOffset = Math.min(offset, maxOffset);
+
+  const pagedSessions = filteredSessions.slice(
+    effectiveOffset,
+    effectiveOffset + limit,
+  );
   const uniqueIps = new Set(
     sessions.map((session) => session.ipAddress).filter(Boolean),
   ).size;
@@ -332,7 +345,7 @@ export default function Sessions() {
         <Table<Session>
           selectable={canWrite}
           limit={limit}
-          offset={offset}
+          offset={effectiveOffset}
           total={filteredSessions.length}
           onPageChange={setOffset}
           emptyTitle="No sessions match this view"
