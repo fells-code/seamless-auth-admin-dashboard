@@ -95,6 +95,29 @@ describe("SystemConfigPage", () => {
     expect(mocks.useStepUpGuard()).toHaveBeenCalled();
   });
 
+  it("sends only changed keys, not the full config, on save", async () => {
+    // The GET response carries read-only keys (such as frontend_url) that the
+    // strict PATCH schema rejects. Saving must send only the edited fields.
+    mocks.useSystemConfig.mockReturnValue({
+      data: { ...baseConfig, frontend_url: "https://app.example.com" },
+      isLoading: false,
+    });
+
+    render(<SystemConfigPage />);
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /email otp/i }));
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => expect(mocks.mutate).toHaveBeenCalled());
+
+    const payload = mocks.mutate.mock.calls[0]![0];
+    expect(payload).toEqual({
+      login_methods: ["passkey", "magic_link", "email_otp"],
+    });
+    expect(payload).not.toHaveProperty("frontend_url");
+    expect(payload).not.toHaveProperty("app_name");
+  });
+
   it("does not save config when step-up fails", async () => {
     const ensureStepUp = vi.fn().mockResolvedValue(false);
     mocks.useStepUpGuard.mockReturnValue(ensureStepUp);
