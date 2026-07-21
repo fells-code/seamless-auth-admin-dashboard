@@ -160,13 +160,19 @@ export default function SystemConfigPage() {
   const save = async () => {
     if (!canWrite || !form) return;
 
+    // Send only the changed keys. The API's PATCH body schema is strict and
+    // accepts just the mutable fields, so echoing the whole config back (which
+    // includes read-only keys from the GET, such as frontend_url) is rejected.
+    const changes = draft;
+    if (Object.keys(changes).length === 0) return;
+
     setStepUpPending(true);
     try {
       if (!(await ensureStepUp())) {
         return;
       }
 
-      update.mutate(form, {
+      update.mutate(changes, {
         onSuccess: () => {
           setDraft({});
           toast.success(
