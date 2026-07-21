@@ -13,6 +13,7 @@ import {
   type SystemConfig,
 } from "../hooks/useSystemConfig";
 import { useUpdateSystemConfig } from "../hooks/useUpdateSystemConfig";
+import { useOAuthProviders } from "../hooks/useOAuthProviders";
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import { useToast } from "../hooks/useToast";
@@ -408,11 +409,14 @@ export default function SystemConfigPage() {
 
       <Section
         title="OAuth Providers"
-        description="Configure external login providers. Client secrets are referenced by environment variable name and are not entered here."
+        description="Configure external login providers. Client secrets are referenced by environment variable name and are not entered here. Provider changes apply immediately and are not part of the Save action below."
       >
         <OAuthProvidersEditor
           providers={form.oauth_providers}
-          setProviders={(value) => updateField("oauth_providers", value)}
+          canWrite={canWrite}
+          ensureStepUp={ensureStepUp}
+          toast={toast}
+          confirm={confirm}
         />
       </Section>
 
@@ -821,45 +825,99 @@ const emptyOAuthProvider: OAuthProviderConfig = {
 
 function OAuthProvidersEditor({
   providers,
-  setProviders,
+  canWrite,
+  ensureStepUp,
+  toast,
+  confirm,
 }: {
   providers: OAuthProviderConfig[];
-  setProviders: (providers: OAuthProviderConfig[]) => void;
+  canWrite: boolean;
+  ensureStepUp: () => Promise<boolean>;
+  toast: ReturnType<typeof useToast>;
+  confirm: ReturnType<typeof useConfirm>;
 }) {
   const [draft, setDraft] = useState<OAuthProviderConfig>(emptyOAuthProvider);
   const accountLinkingId = useId();
+  const { create, update, remove } = useOAuthProviders();
 
-  const addProvider = () => {
+  const isSaving = create.isPending || update.isPending || remove.isPending;
+
+  const addProvider = async () => {
+    if (!canWrite) return;
     if (!draft.id || !draft.name || !draft.clientId || !draft.clientSecretEnv) {
       return;
     }
 
-    setProviders([
-      ...providers.filter((provider) => provider.id !== draft.id),
-      {
-        ...draft,
-        scopes: draft.scopes.filter(Boolean),
-        redirectUris: draft.redirectUris.filter(Boolean),
-        redirectUri: draft.redirectUri || undefined,
-        nameJsonPath: draft.nameJsonPath || undefined,
-      },
-    ]);
-    setDraft(emptyOAuthProvider);
+    if (!(await ensureStepUp())) return;
+
+    const { id, ...rest } = {
+      ...draft,
+      scopes: draft.scopes.filter(Boolean),
+      redirectUris: draft.redirectUris.filter(Boolean),
+      redirectUri: draft.redirectUri || undefined,
+      nameJsonPath: draft.nameJsonPath || undefined,
+    };
+
+    // Re-submitting an existing id edits that provider in place; a new id creates
+    // one. This keeps the single form usable for both without a duplicate 409.
+    const exists = providers.some((provider) => provider.id === id);
+    const onSuccess = () => {
+      setDraft(emptyOAuthProvider);
+      toast.success(
+        exists ? "Provider updated" : "Provider added",
+        `${draft.name} was saved.`,
+      );
+    };
+    const onError = (error: Error) =>
+      toast.error("Could not save provider", getErrorMessage(error));
+
+    if (exists) {
+      update.mutate({ id, updates: rest }, { onSuccess, onError });
+    } else {
+      create.mutate({ id, ...rest }, { onSuccess, onError });
+    }
   };
 
-  const updateProvider = (
-    index: number,
-    updates: Partial<OAuthProviderConfig>,
-  ) => {
-    setProviders(
-      providers.map((provider, currentIndex) =>
-        currentIndex === index ? { ...provider, ...updates } : provider,
-      ),
+  const toggleProvider = async (provider: OAuthProviderConfig) => {
+    if (!canWrite) return;
+    if (!(await ensureStepUp())) return;
+
+    update.mutate(
+      { id: provider.id, updates: { enabled: !provider.enabled } },
+      {
+        onSuccess: () =>
+          toast.success(
+            provider.enabled ? "Provider disabled" : "Provider enabled",
+            `${provider.name} was updated.`,
+          ),
+        onError: (error) =>
+          toast.error("Could not update provider", getErrorMessage(error)),
+      },
     );
   };
 
-  const removeProvider = (index: number) => {
-    setProviders(providers.filter((_, currentIndex) => currentIndex !== index));
+  const removeProvider = async (provider: OAuthProviderConfig) => {
+    if (!canWrite) return;
+
+    if (
+      !(await confirm({
+        title: "Remove provider",
+        description: `Remove "${provider.name}"? Users will no longer be able to sign in with it.`,
+        confirmLabel: "Remove",
+        tone: "danger",
+      }))
+    ) {
+      return;
+    }
+
+    if (!(await ensureStepUp())) return;
+
+    remove.mutate(provider.id, {
+      onSuccess: () =>
+        toast.success("Provider removed", `${provider.name} was removed.`),
+      onError: (error) =>
+        toast.error("Could not remove provider", getErrorMessage(error)),
+    });
   };
 
   return (
@@ -986,14 +1044,18 @@ function OAuthProvidersEditor({
           }
         />
         <div className="flex items-end">
-          <button onClick={addProvider} className="btn btn-secondary">
+          <button
+            onClick={() => void addProvider()}
+            disabled={!canWrite || isSaving}
+            className="btn btn-secondary"
+          >
             Add Provider
           </button>
         </div>
       </div>
 
       <div className="space-y-3">
-        {providers.map((provider, index) => (
+        {providers.map((provider) => (
           <div
             key={provider.id}
             className="rounded-md border border-subtle bg-surface-alt p-4"
@@ -1009,16 +1071,17 @@ function OAuthProvidersEditor({
 
               <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() =>
-                    updateProvider(index, { enabled: !provider.enabled })
-                  }
+                  onClick={() => void toggleProvider(provider)}
+                  disabled={!canWrite || isSaving}
                   className="btn btn-secondary"
                 >
                   {provider.enabled ? "Disable" : "Enable"}
                 </button>
                 <button
-                  onClick={() => removeProvider(index)}
-                  className="text-sm text-[var(--highlight)] transition hover:opacity-80"
+                  onClick={() => void removeProvider(provider)}
+                  disabled={!canWrite || isSaving}
+                  aria-label={`Remove ${provider.name}`}
+                  className="text-sm text-[var(--highlight)] transition hover:opacity-80 disabled:opacity-50"
                 >
                   Remove
                 </button>
