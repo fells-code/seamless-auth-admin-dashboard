@@ -7,6 +7,8 @@ The Seamless Auth Dashboard is a React/Vite admin portal for operating a Seamles
 
 This app is intended to run alongside the Seamless Auth API as part of a self-hosted auth stack.
 
+![The Overview page: a live snapshot of authentication health, growth, and security signals.](docs/screenshots/overview.png)
+
 ## Quick Start
 
 The dashboard is published as a public container image. Point `API_URL` at the
@@ -72,6 +74,24 @@ want that instead of running a separate container.
 - require step-up authentication before destructive or high-sensitivity actions
 - hide write controls from read-only admins
 - operate with runtime config injection in containerized environments
+
+## Screenshots
+
+**Users** — search the directory, review verification and admin coverage, and drill into an account.
+
+![The Users page: the access directory with per-user roles, verification state, and recent activity.](docs/screenshots/users.png)
+
+**Events** — filter authentication activity by category and time range and investigate individual events.
+
+![The Events page: the investigation feed with category and time-range filters over the event stream.](docs/screenshots/events.png)
+
+**Security** — review suspicious activity and anomaly signals worth operator attention.
+
+![The Security page: suspicious activity and anomaly signals surfaced for review.](docs/screenshots/security.png)
+
+**System Configuration** — shape roles, login methods, token lifetimes, lockout policy, and WebAuthn origins.
+
+![The System Configuration page: role model, token policy, allowed origins, and login method settings.](docs/screenshots/system-config.png)
 
 ## Tech Stack
 
