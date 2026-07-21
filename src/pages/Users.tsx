@@ -34,6 +34,7 @@ import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import { useToast } from "../hooks/useToast";
+import { useConfirm } from "../hooks/useConfirm";
 
 function formatTimeAgo(date?: string | null, now?: number) {
   if (!date) return "No recent activity";
@@ -70,6 +71,7 @@ export default function Users() {
   const { canWrite } = useAdminPermissions();
   const ensureStepUp = useStepUpGuard();
   const toast = useToast();
+  const confirm = useConfirm();
 
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -99,7 +101,14 @@ export default function Users() {
   }).length;
 
   const handleDeleteUser = async (user: User) => {
-    if (!confirm(`Delete ${user.email}? This cannot be undone.`)) {
+    if (
+      !(await confirm({
+        title: "Delete user",
+        description: `Delete ${user.email}? This cannot be undone.`,
+        confirmLabel: "Delete",
+        tone: "danger",
+      }))
+    ) {
       return;
     }
 

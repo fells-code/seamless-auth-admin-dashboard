@@ -11,6 +11,7 @@ import { useUpdateUser } from "../hooks/useUpdateUser";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useToast } from "../hooks/useToast";
+import { useConfirm } from "../hooks/useConfirm";
 
 import Table from "../components/Table";
 import Skeleton from "../components/Skeleton";
@@ -61,6 +62,7 @@ export default function Profile() {
   const { canWrite } = useAdminPermissions();
   const ensureStepUp = useStepUpGuard();
   const toast = useToast();
+  const confirm = useConfirm();
 
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -110,7 +112,14 @@ export default function Profile() {
   };
 
   const revokeOwnSession = async (session: Session) => {
-    if (!confirm("Revoke this session?")) {
+    if (
+      !(await confirm({
+        title: "Revoke session",
+        description: "This session will be signed out immediately.",
+        confirmLabel: "Revoke",
+        tone: "danger",
+      }))
+    ) {
       return;
     }
 

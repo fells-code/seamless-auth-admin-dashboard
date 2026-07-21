@@ -11,6 +11,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import ThemeProvider from "./components/ThemeProvider";
 import ToastProvider from "./components/ToastProvider";
+import ConfirmProvider from "./components/ConfirmProvider";
 import { getBasePath } from "./lib/runtimeConfig";
 import "./index.css";
 
@@ -20,11 +21,13 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ThemeProvider>
       <ToastProvider>
-        <QueryClientProvider client={queryClient}>
-          <BrowserRouter basename={getBasePath()}>
-            <App />
-          </BrowserRouter>
-        </QueryClientProvider>
+        <ConfirmProvider>
+          <QueryClientProvider client={queryClient}>
+            <BrowserRouter basename={getBasePath()}>
+              <App />
+            </BrowserRouter>
+          </QueryClientProvider>
+        </ConfirmProvider>
       </ToastProvider>
     </ThemeProvider>
   </React.StrictMode>,

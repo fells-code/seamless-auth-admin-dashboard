@@ -6,7 +6,7 @@
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import Sessions from "./Sessions";
 
 const mocks = vi.hoisted(() => ({
@@ -15,9 +15,11 @@ const mocks = vi.hoisted(() => ({
   useAdminPermissions: vi.fn(),
   useStepUpGuard: vi.fn(),
   useToast: vi.fn(),
+  useConfirm: vi.fn(),
   revokeMutate: vi.fn(),
   revokeMutateAsync: vi.fn(),
   ensureStepUp: vi.fn(),
+  confirm: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
   refetch: vi.fn(),
@@ -41,6 +43,10 @@ vi.mock("../hooks/useStepUpGuard", () => ({
 
 vi.mock("../hooks/useToast", () => ({
   useToast: mocks.useToast,
+}));
+
+vi.mock("../hooks/useConfirm", () => ({
+  useConfirm: mocks.useConfirm,
 }));
 
 const now = Date.now();
@@ -92,14 +98,12 @@ describe("Sessions", () => {
     });
     mocks.ensureStepUp.mockResolvedValue(true);
     mocks.useStepUpGuard.mockReturnValue(mocks.ensureStepUp);
+    mocks.confirm.mockResolvedValue(true);
+    mocks.useConfirm.mockReturnValue(mocks.confirm);
     mocks.useToast.mockReturnValue({
       success: mocks.toastSuccess,
       error: mocks.toastError,
     });
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
   });
 
   it("lists the active sessions", () => {
@@ -136,11 +140,6 @@ describe("Sessions", () => {
   });
 
   it("requires confirmation and step-up before revoking a session", async () => {
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => true),
-    );
-
     renderPage();
 
     fireEvent.click(screen.getAllByTitle("Revoke")[0]);
@@ -153,10 +152,7 @@ describe("Sessions", () => {
   });
 
   it("does not revoke when the confirmation is dismissed", async () => {
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => false),
-    );
+    mocks.confirm.mockResolvedValue(false);
 
     renderPage();
 
@@ -167,10 +163,6 @@ describe("Sessions", () => {
   });
 
   it("does not revoke when step-up verification fails", async () => {
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => true),
-    );
     mocks.ensureStepUp.mockResolvedValue(false);
 
     renderPage();
@@ -182,11 +174,6 @@ describe("Sessions", () => {
   });
 
   it("reports the outcome of a revoke through toasts", async () => {
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => true),
-    );
-
     renderPage();
 
     fireEvent.click(screen.getAllByTitle("Revoke")[0]);
