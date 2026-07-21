@@ -51,9 +51,7 @@ describe("ConfirmProvider", () => {
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("Delete user")).toBeInTheDocument();
     expect(screen.getByText("This cannot be undone.")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Delete" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Keep" })).toBeInTheDocument();
   });
 
