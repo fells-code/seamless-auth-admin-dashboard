@@ -30,6 +30,7 @@ import {
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import { useToast } from "../hooks/useToast";
+import { useConfirm } from "../hooks/useConfirm";
 
 type OrganizationRow = Organization & Record<string, unknown>;
 type OrganizationMembershipRow = OrganizationMembership &
@@ -65,6 +66,7 @@ export default function Organizations() {
   const { canWrite } = useAdminPermissions();
   const ensureStepUp = useStepUpGuard();
   const toast = useToast();
+  const confirm = useConfirm();
 
   const organizations = useMemo(() => data?.organizations ?? [], [data]);
   const total = data?.total ?? organizations.length;
@@ -185,7 +187,14 @@ export default function Organizations() {
     if (!selectedOrganization) return;
 
     const label = membership.user?.email ?? membership.userId;
-    if (!confirm(`Remove ${label} from ${selectedOrganization.name}?`)) {
+    if (
+      !(await confirm({
+        title: "Remove member",
+        description: `Remove ${label} from ${selectedOrganization.name}?`,
+        confirmLabel: "Remove",
+        tone: "danger",
+      }))
+    ) {
       return;
     }
 

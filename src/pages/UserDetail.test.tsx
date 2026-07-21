@@ -6,7 +6,7 @@
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import UserDetail from "./UserDetail";
 
 const mocks = vi.hoisted(() => ({
@@ -20,6 +20,8 @@ const mocks = vi.hoisted(() => ({
   useAdminPermissions: vi.fn(),
   useStepUpGuard: vi.fn(),
   useToast: vi.fn(),
+  useConfirm: vi.fn(),
+  confirm: vi.fn(),
   deleteMutate: vi.fn(),
   revokeAllMutate: vi.fn(),
   revokeSessionMutate: vi.fn(),
@@ -61,6 +63,9 @@ vi.mock("../hooks/useStepUpGuard", () => ({
 }));
 vi.mock("../hooks/useToast", () => ({
   useToast: mocks.useToast,
+}));
+vi.mock("../hooks/useConfirm", () => ({
+  useConfirm: mocks.useConfirm,
 }));
 
 vi.mock("react-router-dom", async (importOriginal) => ({
@@ -142,14 +147,12 @@ describe("UserDetail", () => {
     });
     mocks.ensureStepUp.mockResolvedValue(true);
     mocks.useStepUpGuard.mockReturnValue(mocks.ensureStepUp);
+    mocks.confirm.mockResolvedValue(true);
+    mocks.useConfirm.mockReturnValue(mocks.confirm);
     mocks.useToast.mockReturnValue({
       success: mocks.toastSuccess,
       error: mocks.toastError,
     });
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
   });
 
   it("renders the user being inspected", () => {
@@ -201,11 +204,6 @@ describe("UserDetail", () => {
 
   describe.each(destructiveActions)("$button", ({ button, mutation }) => {
     it("runs after confirmation and step-up", async () => {
-      vi.stubGlobal(
-        "confirm",
-        vi.fn(() => true),
-      );
-
       renderPage();
       clickAction(button);
 
@@ -214,10 +212,7 @@ describe("UserDetail", () => {
     });
 
     it("is abandoned when the confirmation is dismissed", async () => {
-      vi.stubGlobal(
-        "confirm",
-        vi.fn(() => false),
-      );
+      mocks.confirm.mockResolvedValue(false);
 
       renderPage();
       clickAction(button);
@@ -227,10 +222,6 @@ describe("UserDetail", () => {
     });
 
     it("is abandoned when step-up verification fails", async () => {
-      vi.stubGlobal(
-        "confirm",
-        vi.fn(() => true),
-      );
       mocks.ensureStepUp.mockResolvedValue(false);
 
       renderPage();
@@ -242,11 +233,6 @@ describe("UserDetail", () => {
   });
 
   it("reports device replacement results in the success toast", async () => {
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => true),
-    );
-
     renderPage();
     clickAction("Device Replacement");
 

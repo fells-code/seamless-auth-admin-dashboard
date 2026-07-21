@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   useUpdateSystemConfig: vi.fn(),
   useAdminPermissions: vi.fn(),
   useStepUpGuard: vi.fn(),
+  useConfirm: vi.fn(),
+  confirm: vi.fn(),
 }));
 
 vi.mock("../hooks/useSystemConfig", () => ({
@@ -30,6 +32,10 @@ vi.mock("../hooks/useAdminPermissions", () => ({
 
 vi.mock("../hooks/useStepUpGuard", () => ({
   useStepUpGuard: mocks.useStepUpGuard,
+}));
+
+vi.mock("../hooks/useConfirm", () => ({
+  useConfirm: mocks.useConfirm,
 }));
 
 const baseConfig = {
@@ -69,6 +75,8 @@ describe("SystemConfigPage", () => {
       canWrite: true,
     });
     mocks.useStepUpGuard.mockReturnValue(vi.fn().mockResolvedValue(true));
+    mocks.confirm.mockReset().mockResolvedValue(true);
+    mocks.useConfirm.mockReturnValue(mocks.confirm);
   });
 
   it("saves selected login policy fields after step-up", async () => {
@@ -256,16 +264,15 @@ describe("SystemConfigPage", () => {
   });
 
   it("requires confirmation before removing an available role", async () => {
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => false),
-    );
+    mocks.confirm.mockResolvedValue(false);
 
     render(<SystemConfigPage />);
 
     fireEvent.click(
       screen.getByRole("button", { name: "Remove user from available roles" }),
     );
+
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalled());
 
     // Dismissing the confirmation must leave the role in place, so the control
     // for it is still rendered and nothing was staged for saving.
@@ -273,22 +280,26 @@ describe("SystemConfigPage", () => {
       screen.getByRole("button", { name: "Remove user from available roles" }),
     ).toBeInTheDocument();
     expect(mocks.mutate).not.toHaveBeenCalled();
-
-    vi.unstubAllGlobals();
   });
 
   it("drops a removed role from the default roles as well", async () => {
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => true),
-    );
-
     render(<SystemConfigPage />);
 
     // "user" is both an available role and a default role.
     fireEvent.click(
       screen.getByRole("button", { name: "Remove user from available roles" }),
     );
+
+    // Removal resolves a confirm promise, so wait for the chip to disappear
+    // before saving rather than racing the staged change.
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", {
+          name: "Remove user from available roles",
+        }),
+      ).not.toBeInTheDocument(),
+    );
+
     fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
 
     // Leaving it in default_roles would keep assigning a role the config no
@@ -302,8 +313,6 @@ describe("SystemConfigPage", () => {
         expect.anything(),
       ),
     );
-
-    vi.unstubAllGlobals();
   });
 
   it("associates config fields and the role input with their labels", () => {

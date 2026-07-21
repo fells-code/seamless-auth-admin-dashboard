@@ -23,6 +23,7 @@ import { getErrorMessage } from "../lib/errorMessage";
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import { useToast } from "../hooks/useToast";
+import { useConfirm } from "../hooks/useConfirm";
 import type { Session } from "../types/user";
 
 type ActivityFilter = "all" | "recent" | "expiring" | "idle";
@@ -98,6 +99,7 @@ export default function Sessions() {
   const { canWrite } = useAdminPermissions();
   const ensureStepUp = useStepUpGuard();
   const toast = useToast();
+  const confirm = useConfirm();
 
   const [offset, setOffset] = useState(0);
   const [search, setSearch] = useState("");
@@ -158,7 +160,14 @@ export default function Sessions() {
   ];
 
   const revokeSession = async (session: Session) => {
-    if (!confirm("Revoke this session?")) {
+    if (
+      !(await confirm({
+        title: "Revoke session",
+        description: "This session will be signed out immediately.",
+        confirmLabel: "Revoke",
+        tone: "danger",
+      }))
+    ) {
       return;
     }
 
@@ -177,7 +186,14 @@ export default function Sessions() {
   };
 
   const revokeSelectedSessions = async (selectedSessions: Session[]) => {
-    if (!confirm(`Revoke ${selectedSessions.length} selected sessions?`)) {
+    if (
+      !(await confirm({
+        title: "Revoke sessions",
+        description: `Revoke ${selectedSessions.length} selected sessions? They will be signed out immediately.`,
+        confirmLabel: "Revoke",
+        tone: "danger",
+      }))
+    ) {
       return;
     }
 

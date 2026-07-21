@@ -16,6 +16,7 @@ import { useUpdateSystemConfig } from "../hooks/useUpdateSystemConfig";
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import { useToast } from "../hooks/useToast";
+import { useConfirm } from "../hooks/useConfirm";
 import Skeleton from "../components/Skeleton";
 import RemovableChips from "../components/RemovableChips";
 import RoleChips from "../components/RoleChips";
@@ -67,6 +68,7 @@ export default function SystemConfigPage() {
   const { canWrite } = useAdminPermissions();
   const ensureStepUp = useStepUpGuard();
   const toast = useToast();
+  const confirm = useConfirm();
 
   const [draft, setDraft] = useState<Partial<SystemConfig>>({});
   const [stepUpPending, setStepUpPending] = useState(false);
@@ -126,13 +128,16 @@ export default function SystemConfigPage() {
     });
   };
 
-  const removeAvailableRole = (role: string) => {
+  const removeAvailableRole = async (role: string) => {
     if (!canWrite || !form) return;
 
     if (
-      !confirm(
-        `Remove "${role}" from the available roles? It will no longer be assignable, and it will be removed from the default roles.`,
-      )
+      !(await confirm({
+        title: "Remove role",
+        description: `Remove "${role}" from the available roles? It will no longer be assignable, and it will be removed from the default roles.`,
+        confirmLabel: "Remove",
+        tone: "danger",
+      }))
     ) {
       return;
     }
