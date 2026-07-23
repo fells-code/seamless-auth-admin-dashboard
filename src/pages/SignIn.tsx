@@ -19,6 +19,8 @@ import {
   usePasskeySupport,
   type LoginMethod,
 } from "@seamless-auth/react";
+import { getErrorMessage } from "../lib/errorMessage";
+import OAuthProviderButtons from "../components/OAuthProviderButtons";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getLastProtectedRoute, resolveProtectedRoute } from "../lib/lastRoute";
 import { useToast } from "../hooks/useToast";
@@ -33,25 +35,12 @@ type LoginView = "identifier" | "fallback" | "emailOtp" | "phoneOtp" | "magic";
 type BusyState =
   "idle" | "starting" | "passkey" | "magic" | "emailOtp" | "phoneOtp";
 
-type LoginStartBody = {
-  loginMethods?: LoginMethod[];
-  message?: string;
-};
-
 function isEmailIdentifier(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
 function isPhoneIdentifier(value: string) {
   return /^\+\d[\d\s().-]{6,}$/.test(value.trim());
-}
-
-async function parseLoginStart(response: Response) {
-  try {
-    return (await response.json()) as LoginStartBody;
-  } catch {
-    return null;
-  }
 }
 
 export default function SignIn() {
@@ -89,18 +78,16 @@ export default function SignIn() {
     async (availableMethods: LoginMethod[]) => {
       setBusy("passkey");
 
-      const result = await authClient.loginWithPasskey();
+      const { error } = await authClient.loginWithPasskey();
 
-      if (result.success) {
+      if (!error) {
         await completeSignIn();
         return;
       }
 
       setLoginMethods(availableMethods);
       setView("fallback");
-      const message = result.mfaRequired
-        ? "Passkey sign-in needs another verification method."
-        : result.message || "Passkey sign-in could not be completed.";
+      const message = getErrorMessage(error);
       setError(message);
       toast.error("Passkey sign-in failed", message);
       setBusy("idle");
@@ -117,18 +104,17 @@ export default function SignIn() {
     setOtp("");
 
     try {
-      const response = await authClient.login({
+      const { data, error } = await authClient.login({
         identifier: trimmedIdentifier,
         passkeyAvailable: passkeySupported,
       });
-      const body = await parseLoginStart(response);
-      const availableMethods = body?.loginMethods?.length
-        ? body.loginMethods
+      const availableMethods = data?.loginMethods?.length
+        ? data.loginMethods
         : DEFAULT_LOGIN_METHODS;
 
       setLoginMethods(availableMethods);
 
-      if (!response.ok) {
+      if (error) {
         const message = "Sign-in could not be started.";
         setError(message);
         toast.error("Sign-in failed", message);
@@ -160,8 +146,8 @@ export default function SignIn() {
     setError("");
 
     try {
-      const response = await authClient.requestMagicLink();
-      if (!response.ok) {
+      const { error } = await authClient.requestMagicLink();
+      if (error) {
         const message = "Magic link could not be sent.";
         setError(message);
         toast.error("Magic link failed", message);
@@ -185,8 +171,8 @@ export default function SignIn() {
     setError("");
 
     try {
-      const response = await authClient.requestLoginEmailOtp();
-      if (!response.ok) {
+      const { error } = await authClient.requestLoginEmailOtp();
+      if (error) {
         const message = "Email code could not be sent.";
         setError(message);
         toast.error("Email code failed", message);
@@ -211,8 +197,8 @@ export default function SignIn() {
     setError("");
 
     try {
-      const response = await authClient.requestLoginPhoneOtp();
-      if (!response.ok) {
+      const { error } = await authClient.requestLoginPhoneOtp();
+      if (error) {
         const message = "Text message code could not be sent.";
         setError(message);
         toast.error("Text code failed", message);
@@ -245,12 +231,12 @@ export default function SignIn() {
     setError("");
 
     try {
-      const response =
+      const { error } =
         view === "phoneOtp"
           ? await authClient.verifyLoginPhoneOtp(otp.trim())
           : await authClient.verifyLoginEmailOtp(otp.trim());
 
-      if (!response.ok) {
+      if (error) {
         const message = "Code verification failed.";
         setError(message);
         toast.error("Verification failed", message);
@@ -272,8 +258,10 @@ export default function SignIn() {
     magicCheckPending.current = true;
 
     try {
-      const response = await authClient.checkMagicLink();
-      if (response.status === 200) {
+      const { data, error } = await authClient.checkMagicLink();
+      // The poll answers 204 while the emailed link is unused and only reports
+      // Success once consumed, so a bare no-error check would complete early.
+      if (!error && data?.message === "Success") {
         await completeSignIn();
       }
     } catch {
@@ -458,6 +446,12 @@ export default function SignIn() {
             {error && (
               <div className="mt-5 rounded-md border border-[color:var(--highlight)]/30 bg-[color:var(--highlight)]/10 px-3 py-2 text-sm text-[var(--highlight)]">
                 {error}
+              </div>
+            )}
+
+            {(view === "identifier" || view === "fallback") && (
+              <div className="mt-5">
+                <OAuthProviderButtons />
               </div>
             )}
           </section>

@@ -27,6 +27,9 @@ const mocks = vi.hoisted(() => ({
     requestMagicLink: vi.fn(),
     verifyLoginEmailOtp: vi.fn(),
     verifyLoginPhoneOtp: vi.fn(),
+    listOAuthProviders: vi.fn(),
+    startOAuthLogin: vi.fn(),
+    finishOAuthLogin: vi.fn(),
   },
   passkey: {
     loading: false,
@@ -63,18 +66,19 @@ describe("SignIn", () => {
     mocks.passkey.passkeySupported = true;
 
     Object.values(mocks.client).forEach((mock) => mock.mockReset());
+    mocks.client.listOAuthProviders.mockResolvedValue({
+      data: { providers: [] },
+      error: null,
+    });
   });
 
   it("starts login and completes passkey sign-in with the headless client", async () => {
     const user = userEvent.setup();
-    mocks.client.login.mockResolvedValue(
-      new Response(JSON.stringify({ loginMethods: ["passkey", "magic_link"] })),
-    );
-    mocks.client.loginWithPasskey.mockResolvedValue({
-      message: "Passkey login succeeded.",
-      mfaRequired: false,
-      success: true,
+    mocks.client.login.mockResolvedValue({
+      data: { loginMethods: ["passkey", "magic_link"] },
+      error: null,
     });
+    mocks.client.loginWithPasskey.mockResolvedValue({ data: {}, error: null });
 
     renderSignIn("/users");
 
@@ -105,11 +109,18 @@ describe("SignIn", () => {
   it("falls back to email OTP when passkeys are unavailable", async () => {
     const user = userEvent.setup();
     mocks.passkey.passkeySupported = false;
-    mocks.client.login.mockResolvedValue(
-      new Response(JSON.stringify({ loginMethods: ["email_otp"] })),
-    );
-    mocks.client.requestLoginEmailOtp.mockResolvedValue(new Response(null));
-    mocks.client.verifyLoginEmailOtp.mockResolvedValue(new Response(null));
+    mocks.client.login.mockResolvedValue({
+      data: { loginMethods: ["email_otp"] },
+      error: null,
+    });
+    mocks.client.requestLoginEmailOtp.mockResolvedValue({
+      data: { message: "sent" },
+      error: null,
+    });
+    mocks.client.verifyLoginEmailOtp.mockResolvedValue({
+      data: { message: "Success" },
+      error: null,
+    });
 
     renderSignIn("/system");
 
@@ -135,5 +146,17 @@ describe("SignIn", () => {
     ).toBeInTheDocument();
 
     expect(mocks.auth.refreshSession).toHaveBeenCalled();
+  });
+  it("offers configured OAuth providers on the login screen", async () => {
+    mocks.client.listOAuthProviders.mockResolvedValue({
+      data: { providers: [{ id: "google", name: "Google", scopes: [] }] },
+      error: null,
+    });
+
+    renderSignIn();
+
+    expect(
+      await screen.findByRole("button", { name: "Continue with Google" }),
+    ).toBeInTheDocument();
   });
 });
