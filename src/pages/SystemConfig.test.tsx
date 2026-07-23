@@ -10,10 +10,16 @@ import SystemConfigPage from "./SystemConfig";
 
 const mocks = vi.hoisted(() => ({
   mutate: vi.fn(),
+  createProvider: vi.fn(),
+  updateProvider: vi.fn(),
+  removeProvider: vi.fn(),
   useSystemConfig: vi.fn(),
   useUpdateSystemConfig: vi.fn(),
+  useOAuthProviders: vi.fn(),
   useAdminPermissions: vi.fn(),
   useStepUpGuard: vi.fn(),
+  useConfirm: vi.fn(),
+  confirm: vi.fn(),
 }));
 
 vi.mock("../hooks/useSystemConfig", () => ({
@@ -24,12 +30,20 @@ vi.mock("../hooks/useUpdateSystemConfig", () => ({
   useUpdateSystemConfig: mocks.useUpdateSystemConfig,
 }));
 
+vi.mock("../hooks/useOAuthProviders", () => ({
+  useOAuthProviders: mocks.useOAuthProviders,
+}));
+
 vi.mock("../hooks/useAdminPermissions", () => ({
   useAdminPermissions: mocks.useAdminPermissions,
 }));
 
 vi.mock("../hooks/useStepUpGuard", () => ({
   useStepUpGuard: mocks.useStepUpGuard,
+}));
+
+vi.mock("../hooks/useConfirm", () => ({
+  useConfirm: mocks.useConfirm,
 }));
 
 const baseConfig = {
@@ -64,11 +78,21 @@ describe("SystemConfigPage", () => {
       mutate: mocks.mutate,
       isPending: false,
     });
+    mocks.createProvider.mockReset();
+    mocks.updateProvider.mockReset();
+    mocks.removeProvider.mockReset();
+    mocks.useOAuthProviders.mockReturnValue({
+      create: { mutate: mocks.createProvider, isPending: false },
+      update: { mutate: mocks.updateProvider, isPending: false },
+      remove: { mutate: mocks.removeProvider, isPending: false },
+    });
     mocks.useAdminPermissions.mockReturnValue({
       canRead: true,
       canWrite: true,
     });
     mocks.useStepUpGuard.mockReturnValue(vi.fn().mockResolvedValue(true));
+    mocks.confirm.mockReset().mockResolvedValue(true);
+    mocks.useConfirm.mockReturnValue(mocks.confirm);
   });
 
   it("saves selected login policy fields after step-up", async () => {
@@ -93,6 +117,29 @@ describe("SystemConfigPage", () => {
       ),
     );
     expect(mocks.useStepUpGuard()).toHaveBeenCalled();
+  });
+
+  it("sends only changed keys, not the full config, on save", async () => {
+    // The GET response carries read-only keys (such as frontend_url) that the
+    // strict PATCH schema rejects. Saving must send only the edited fields.
+    mocks.useSystemConfig.mockReturnValue({
+      data: { ...baseConfig, frontend_url: "https://app.example.com" },
+      isLoading: false,
+    });
+
+    render(<SystemConfigPage />);
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /email otp/i }));
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => expect(mocks.mutate).toHaveBeenCalled());
+
+    const payload = mocks.mutate.mock.calls[0]![0];
+    expect(payload).toEqual({
+      login_methods: ["passkey", "magic_link", "email_otp"],
+    });
+    expect(payload).not.toHaveProperty("frontend_url");
+    expect(payload).not.toHaveProperty("app_name");
   });
 
   it("does not save config when step-up fails", async () => {
@@ -132,7 +179,7 @@ describe("SystemConfigPage", () => {
     );
   });
 
-  it("adds OAuth provider configuration without a secret value", async () => {
+  it("creates an OAuth provider via the dedicated route, without a secret value", async () => {
     render(<SystemConfigPage />);
 
     fireEvent.change(screen.getByLabelText(/provider id/i), {
@@ -166,25 +213,22 @@ describe("SystemConfigPage", () => {
       target: { value: "openid, email, profile" },
     });
 
+    // Provider changes are immediate and go through the dedicated route, not the
+    // whole-config Save action.
     fireEvent.click(screen.getByRole("button", { name: /add provider/i }));
-    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
 
     await waitFor(() =>
-      expect(mocks.mutate).toHaveBeenCalledWith(
+      expect(mocks.createProvider).toHaveBeenCalledWith(
         expect.objectContaining({
-          oauth_providers: [
-            expect.objectContaining({
-              id: "google",
-              name: "Google",
-              clientId: "client-id",
-              clientSecretEnv: "GOOGLE_CLIENT_SECRET",
-              scopes: ["openid", "email", "profile"],
-              redirectUris: ["https://example.com/oauth/callback"],
-              emailVerifiedJsonPath: "email_verified",
-              accountLinking: "email",
-              requireEmailVerified: false,
-            }),
-          ],
+          id: "google",
+          name: "Google",
+          clientId: "client-id",
+          clientSecretEnv: "GOOGLE_CLIENT_SECRET",
+          scopes: ["openid", "email", "profile"],
+          redirectUris: ["https://example.com/oauth/callback"],
+          emailVerifiedJsonPath: "email_verified",
+          accountLinking: "email",
+          requireEmailVerified: false,
         }),
         expect.objectContaining({
           onError: expect.any(Function),
@@ -192,6 +236,189 @@ describe("SystemConfigPage", () => {
         }),
       ),
     );
+
+    const payload = mocks.createProvider.mock.calls[0]![0];
+    expect(payload).not.toHaveProperty("clientSecret");
+    expect(mocks.mutate).not.toHaveBeenCalled();
+    expect(mocks.useStepUpGuard()).toHaveBeenCalled();
+  });
+
+  it("updates an existing provider in place when its id is re-submitted", async () => {
+    mocks.useSystemConfig.mockReturnValue({
+      data: {
+        ...baseConfig,
+        oauth_providers: [
+          {
+            id: "google",
+            name: "Google",
+            enabled: true,
+            clientId: "old-client",
+            clientSecretEnv: "GOOGLE_CLIENT_SECRET",
+            authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+            tokenUrl: "https://oauth2.googleapis.com/token",
+            userInfoUrl: "https://openidconnect.googleapis.com/v1/userinfo",
+            scopes: ["openid"],
+            redirectUris: [],
+            subjectJsonPath: "sub",
+            emailJsonPath: "email",
+            emailVerifiedJsonPath: "email_verified",
+            allowSignup: true,
+            accountLinking: "email",
+            requireEmailVerified: false,
+          },
+        ],
+      },
+      isLoading: false,
+    });
+
+    render(<SystemConfigPage />);
+
+    fireEvent.change(screen.getByLabelText(/provider id/i), {
+      target: { value: "google" },
+    });
+    fireEvent.change(screen.getByLabelText(/display name/i), {
+      target: { value: "Google" },
+    });
+    fireEvent.change(screen.getByLabelText(/client id/i), {
+      target: { value: "new-client" },
+    });
+    fireEvent.change(screen.getByLabelText(/client secret env/i), {
+      target: { value: "GOOGLE_CLIENT_SECRET" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /add provider/i }));
+
+    await waitFor(() =>
+      expect(mocks.updateProvider).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "google",
+          updates: expect.objectContaining({ clientId: "new-client" }),
+        }),
+        expect.anything(),
+      ),
+    );
+    const updateArg = mocks.updateProvider.mock.calls[0]![0];
+    expect(updateArg.updates).not.toHaveProperty("id");
+    expect(mocks.createProvider).not.toHaveBeenCalled();
+  });
+
+  it("disables a provider through the dedicated route after step-up", async () => {
+    mocks.useSystemConfig.mockReturnValue({
+      data: {
+        ...baseConfig,
+        oauth_providers: [
+          {
+            id: "google",
+            name: "Google",
+            enabled: true,
+            clientId: "client-id",
+            clientSecretEnv: "GOOGLE_CLIENT_SECRET",
+            authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+            tokenUrl: "https://oauth2.googleapis.com/token",
+            userInfoUrl: "https://openidconnect.googleapis.com/v1/userinfo",
+            scopes: ["openid"],
+            redirectUris: [],
+            subjectJsonPath: "sub",
+            emailJsonPath: "email",
+            emailVerifiedJsonPath: "email_verified",
+            allowSignup: true,
+            accountLinking: "email",
+            requireEmailVerified: false,
+          },
+        ],
+      },
+      isLoading: false,
+    });
+
+    render(<SystemConfigPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /^disable$/i }));
+
+    await waitFor(() =>
+      expect(mocks.updateProvider).toHaveBeenCalledWith(
+        { id: "google", updates: { enabled: false } },
+        expect.anything(),
+      ),
+    );
+    expect(mocks.useStepUpGuard()).toHaveBeenCalled();
+  });
+
+  it("removes a provider after confirmation and step-up", async () => {
+    mocks.useSystemConfig.mockReturnValue({
+      data: {
+        ...baseConfig,
+        oauth_providers: [
+          {
+            id: "google",
+            name: "Google",
+            enabled: true,
+            clientId: "client-id",
+            clientSecretEnv: "GOOGLE_CLIENT_SECRET",
+            authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+            tokenUrl: "https://oauth2.googleapis.com/token",
+            userInfoUrl: "https://openidconnect.googleapis.com/v1/userinfo",
+            scopes: ["openid"],
+            redirectUris: [],
+            subjectJsonPath: "sub",
+            emailJsonPath: "email",
+            emailVerifiedJsonPath: "email_verified",
+            allowSignup: true,
+            accountLinking: "email",
+            requireEmailVerified: false,
+          },
+        ],
+      },
+      isLoading: false,
+    });
+
+    render(<SystemConfigPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /remove google/i }));
+
+    await waitFor(() =>
+      expect(mocks.removeProvider).toHaveBeenCalledWith(
+        "google",
+        expect.anything(),
+      ),
+    );
+    expect(mocks.confirm).toHaveBeenCalled();
+  });
+
+  it("does not remove a provider when confirmation is declined", async () => {
+    mocks.confirm.mockResolvedValue(false);
+    mocks.useSystemConfig.mockReturnValue({
+      data: {
+        ...baseConfig,
+        oauth_providers: [
+          {
+            id: "google",
+            name: "Google",
+            enabled: true,
+            clientId: "client-id",
+            clientSecretEnv: "GOOGLE_CLIENT_SECRET",
+            authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+            tokenUrl: "https://oauth2.googleapis.com/token",
+            userInfoUrl: "https://openidconnect.googleapis.com/v1/userinfo",
+            scopes: ["openid"],
+            redirectUris: [],
+            subjectJsonPath: "sub",
+            emailJsonPath: "email",
+            emailVerifiedJsonPath: "email_verified",
+            allowSignup: true,
+            accountLinking: "email",
+            requireEmailVerified: false,
+          },
+        ],
+      },
+      isLoading: false,
+    });
+
+    render(<SystemConfigPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /remove google/i }));
+
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalled());
+    expect(mocks.removeProvider).not.toHaveBeenCalled();
   });
 
   it("saves lockout policy changes", async () => {
@@ -233,16 +460,15 @@ describe("SystemConfigPage", () => {
   });
 
   it("requires confirmation before removing an available role", async () => {
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => false),
-    );
+    mocks.confirm.mockResolvedValue(false);
 
     render(<SystemConfigPage />);
 
     fireEvent.click(
       screen.getByRole("button", { name: "Remove user from available roles" }),
     );
+
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalled());
 
     // Dismissing the confirmation must leave the role in place, so the control
     // for it is still rendered and nothing was staged for saving.
@@ -250,22 +476,26 @@ describe("SystemConfigPage", () => {
       screen.getByRole("button", { name: "Remove user from available roles" }),
     ).toBeInTheDocument();
     expect(mocks.mutate).not.toHaveBeenCalled();
-
-    vi.unstubAllGlobals();
   });
 
   it("drops a removed role from the default roles as well", async () => {
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => true),
-    );
-
     render(<SystemConfigPage />);
 
     // "user" is both an available role and a default role.
     fireEvent.click(
       screen.getByRole("button", { name: "Remove user from available roles" }),
     );
+
+    // Removal resolves a confirm promise, so wait for the chip to disappear
+    // before saving rather than racing the staged change.
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", {
+          name: "Remove user from available roles",
+        }),
+      ).not.toBeInTheDocument(),
+    );
+
     fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
 
     // Leaving it in default_roles would keep assigning a role the config no
@@ -279,8 +509,6 @@ describe("SystemConfigPage", () => {
         expect.anything(),
       ),
     );
-
-    vi.unstubAllGlobals();
   });
 
   it("associates config fields and the role input with their labels", () => {

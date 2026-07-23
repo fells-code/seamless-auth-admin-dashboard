@@ -6,7 +6,7 @@
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import Users from "./Users";
 
 const mocks = vi.hoisted(() => ({
@@ -15,9 +15,11 @@ const mocks = vi.hoisted(() => ({
   useAdminPermissions: vi.fn(),
   useStepUpGuard: vi.fn(),
   useToast: vi.fn(),
+  useConfirm: vi.fn(),
   navigate: vi.fn(),
   deleteMutate: vi.fn(),
   ensureStepUp: vi.fn(),
+  confirm: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
   refetch: vi.fn(),
@@ -41,6 +43,10 @@ vi.mock("../hooks/useStepUpGuard", () => ({
 
 vi.mock("../hooks/useToast", () => ({
   useToast: mocks.useToast,
+}));
+
+vi.mock("../hooks/useConfirm", () => ({
+  useConfirm: mocks.useConfirm,
 }));
 
 vi.mock("react-router-dom", async (importOriginal) => ({
@@ -91,14 +97,12 @@ describe("Users", () => {
     });
     mocks.ensureStepUp.mockResolvedValue(true);
     mocks.useStepUpGuard.mockReturnValue(mocks.ensureStepUp);
+    mocks.confirm.mockResolvedValue(true);
+    mocks.useConfirm.mockReturnValue(mocks.confirm);
     mocks.useToast.mockReturnValue({
       success: mocks.toastSuccess,
       error: mocks.toastError,
     });
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
   });
 
   it("lists the users returned by the query", () => {
@@ -136,11 +140,6 @@ describe("Users", () => {
   });
 
   it("requires confirmation and step-up before deleting a user", async () => {
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => true),
-    );
-
     renderPage();
 
     fireEvent.click(screen.getAllByTitle("Delete")[0]);
@@ -153,10 +152,7 @@ describe("Users", () => {
   });
 
   it("does not delete when the confirmation is dismissed", async () => {
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => false),
-    );
+    mocks.confirm.mockResolvedValue(false);
 
     renderPage();
 
@@ -167,10 +163,6 @@ describe("Users", () => {
   });
 
   it("does not delete when step-up verification fails", async () => {
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => true),
-    );
     mocks.ensureStepUp.mockResolvedValue(false);
 
     renderPage();
@@ -182,11 +174,6 @@ describe("Users", () => {
   });
 
   it("reports the outcome of a delete through toasts", async () => {
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => true),
-    );
-
     renderPage();
 
     fireEvent.click(screen.getAllByTitle("Delete")[0]);

@@ -17,6 +17,7 @@ import { useDeviceReplacementRecovery } from "../hooks/useDeviceReplacementRecov
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import { useToast } from "../hooks/useToast";
+import { useConfirm } from "../hooks/useConfirm";
 import Tabs from "../components/Tabs";
 import Table from "../components/Table";
 import Skeleton from "../components/Skeleton";
@@ -102,6 +103,7 @@ export default function UserDetail() {
   const { canWrite } = useAdminPermissions();
   const ensureStepUp = useStepUpGuard();
   const toast = useToast();
+  const confirm = useConfirm();
 
   const [editing, setEditing] = useState(false);
   const [tab, setTab] = useState<
@@ -155,7 +157,14 @@ export default function UserDetail() {
   }, null);
 
   const handleDeleteUser = async () => {
-    if (!confirm(`Delete ${user.email}? This cannot be undone.`)) {
+    if (
+      !(await confirm({
+        title: "Delete user",
+        description: `Delete ${user.email}? This cannot be undone.`,
+        confirmLabel: "Delete",
+        tone: "danger",
+      }))
+    ) {
       return;
     }
 
@@ -175,7 +184,15 @@ export default function UserDetail() {
   };
 
   const revokeAllSessions = async () => {
-    if (!confirm("Revoke all active sessions for this user?")) {
+    if (
+      !(await confirm({
+        title: "Revoke all sessions",
+        description:
+          "Revoke all active sessions for this user? They will be signed out everywhere.",
+        confirmLabel: "Revoke all",
+        tone: "danger",
+      }))
+    ) {
       return;
     }
 
@@ -197,7 +214,14 @@ export default function UserDetail() {
   };
 
   const revokeUserSession = async (session: Session) => {
-    if (!confirm("Revoke this session?")) {
+    if (
+      !(await confirm({
+        title: "Revoke session",
+        description: "This session will be signed out immediately.",
+        confirmLabel: "Revoke",
+        tone: "danger",
+      }))
+    ) {
       return;
     }
 
@@ -219,7 +243,14 @@ export default function UserDetail() {
   };
 
   const revokeSelectedSessions = async (selectedSessions: Session[]) => {
-    if (!confirm(`Revoke ${selectedSessions.length} selected sessions?`)) {
+    if (
+      !(await confirm({
+        title: "Revoke sessions",
+        description: `Revoke ${selectedSessions.length} selected sessions? They will be signed out immediately.`,
+        confirmLabel: "Revoke",
+        tone: "danger",
+      }))
+    ) {
       return;
     }
 
@@ -244,9 +275,13 @@ export default function UserDetail() {
 
   const prepareDeviceReplacement = async () => {
     if (
-      !confirm(
-        "Prepare this user for device replacement by revoking sessions, removing passkeys, and disabling TOTP?",
-      )
+      !(await confirm({
+        title: "Prepare device replacement",
+        description:
+          "Prepare this user for device replacement by revoking sessions, removing passkeys, and disabling TOTP?",
+        confirmLabel: "Prepare",
+        tone: "danger",
+      }))
     ) {
       return;
     }

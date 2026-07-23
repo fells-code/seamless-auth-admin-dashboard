@@ -8,12 +8,21 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
 import type { SystemConfig } from "./useSystemConfig";
 
+export type UpdateSystemConfigResult = {
+  success: boolean;
+  updatedKeys: string[];
+};
+
 export function useUpdateSystemConfig() {
   const qc = useQueryClient();
 
-  return useMutation<SystemConfig, Error, SystemConfig>({
+  // The API exposes /system-config/admin as a partial update: its body schema is
+  // strict and lists only the mutable keys, so the caller must send just the
+  // changed fields. Echoing back the full config from the GET (which also carries
+  // read-only keys such as frontend_url) is rejected as an invalid payload.
+  return useMutation<UpdateSystemConfigResult, Error, Partial<SystemConfig>>({
     mutationFn: (data) =>
-      apiFetch<SystemConfig>("/system-config/admin", {
+      apiFetch<UpdateSystemConfigResult>("/system-config/admin", {
         method: "PATCH",
         body: JSON.stringify(data),
       }),
