@@ -46,6 +46,14 @@ export default function LineChart({
 }) {
   const formatTick = interval === "day" ? formatDay : formatHour;
 
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex h-64 w-full items-center justify-center rounded-xl border border-dashed border-subtle bg-surface-alt text-sm text-muted">
+        No data available.
+      </div>
+    );
+  }
+
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer>
