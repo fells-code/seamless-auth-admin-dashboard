@@ -11,7 +11,7 @@ import { apiFetch } from "../lib/api";
 
 type UpdateUserInput = {
   email?: string;
-  phone?: string;
+  phone?: string | null;
   roles?: string[];
 };
 
@@ -24,6 +24,28 @@ type User = {
   createdAt: string;
 };
 
+/* ---------- Helpers ---------- */
+
+/**
+ * The edit forms model "no phone" as an empty string, but the API accepts a
+ * phone number or null and rejects "". Sending it through unchanged failed the
+ * whole request, so editing anything else (a role, say) on a user without a
+ * phone was impossible. Null is how the API clears the field, which is what an
+ * emptied input means.
+ */
+function normalizeUpdateUserInput({
+  phone,
+  ...rest
+}: UpdateUserInput): UpdateUserInput {
+  if (phone === undefined) {
+    return rest;
+  }
+
+  const trimmed = phone?.trim();
+
+  return { ...rest, phone: trimmed ? trimmed : null };
+}
+
 /* ---------- Hook ---------- */
 
 export function useUpdateUser(userId: string) {
@@ -33,7 +55,7 @@ export function useUpdateUser(userId: string) {
     mutationFn: (data) =>
       apiFetch<User>(`/admin/users/${userId}`, {
         method: "PATCH",
-        body: JSON.stringify(data),
+        body: JSON.stringify(normalizeUpdateUserInput(data)),
       }),
 
     onSuccess: () => {
