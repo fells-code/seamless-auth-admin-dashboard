@@ -32,9 +32,9 @@ function formatUserAgent(ua?: string | null) {
   if (!ua) return "Unknown device";
 
   if (ua.includes("Firefox")) return "Firefox";
+  if (ua.includes("Edg")) return "Edge";
   if (ua.includes("Chrome")) return "Chrome";
   if (ua.includes("Safari")) return "Safari";
-  if (ua.includes("Edg")) return "Edge";
 
   return "Other client";
 }

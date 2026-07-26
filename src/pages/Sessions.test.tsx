@@ -113,6 +113,33 @@ describe("Sessions", () => {
     expect(screen.getByText("10.0.0.2")).toBeInTheDocument();
   });
 
+  it("labels Microsoft Edge sessions before the generic Chrome match", () => {
+    mocks.useSessions.mockReturnValue({
+      data: {
+        sessions: [
+          {
+            id: "session_edge",
+            ipAddress: "10.0.0.3",
+            userAgent:
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.2478.80",
+            lastUsedAt: new Date(now - 60_000).toISOString(),
+            expiresAt: new Date(now + 86_400_000).toISOString(),
+          },
+        ],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: mocks.refetch,
+    });
+
+    renderPage();
+
+    expect(screen.getByText("Edge")).toBeInTheDocument();
+    expect(screen.queryByText("Chrome")).not.toBeInTheDocument();
+  });
+
   it("surfaces a load failure", () => {
     mocks.useSessions.mockReturnValue({
       data: undefined,
