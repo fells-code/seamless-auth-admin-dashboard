@@ -24,20 +24,10 @@ import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import { useToast } from "../hooks/useToast";
 import { useConfirm } from "../hooks/useConfirm";
+import { formatBrowserFromUserAgent } from "../lib/userAgent";
 import type { Session } from "@seamless-auth/types";
 
 type ActivityFilter = "all" | "recent" | "expiring" | "idle";
-
-function formatUserAgent(ua?: string | null) {
-  if (!ua) return "Unknown device";
-
-  if (ua.includes("Firefox")) return "Firefox";
-  if (ua.includes("Edg")) return "Edge";
-  if (ua.includes("Chrome")) return "Chrome";
-  if (ua.includes("Safari")) return "Safari";
-
-  return "Other client";
-}
 
 function formatDeviceSummary(ua?: string | null) {
   if (!ua) return "No user agent available";
@@ -396,7 +386,7 @@ export default function Sessions() {
               render: (value) => (
                 <div className="flex flex-col">
                   <span className="text-sm font-medium text-primary">
-                    {formatUserAgent(value)}
+                    {formatBrowserFromUserAgent(value)}
                   </span>
                   <span className="truncate text-xs text-muted">
                     {formatDeviceSummary(value)}

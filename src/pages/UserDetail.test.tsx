@@ -74,6 +74,9 @@ vi.mock("react-router-dom", async (importOriginal) => ({
   useParams: () => ({ id: "user_1" }),
 }));
 
+const edgeUserAgent =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.2478.80";
+
 const detail = {
   user: {
     id: "user_1",
@@ -159,6 +162,46 @@ describe("UserDetail", () => {
     renderPage();
 
     expect(screen.getByText("ada@example.com")).toBeInTheDocument();
+  });
+
+  it("labels Edge sessions and credentials in user detail", () => {
+    mocks.useUserDetail.mockReturnValue({
+      data: {
+        ...detail,
+        sessions: [
+          {
+            id: "session_edge",
+            ipAddress: "10.0.0.3",
+            userAgent: edgeUserAgent,
+            lastUsedAt: "2026-07-01T00:00:00.000Z",
+            expiresAt: "2026-08-01T00:00:00.000Z",
+          },
+        ],
+        credentials: [
+          {
+            id: "credential_edge",
+            deviceType: "Windows desktop",
+            browser: "Edge",
+            platform: "Windows",
+            createdAt: "2026-07-01T00:00:00.000Z",
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: mocks.refetch,
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Sessions" }));
+    expect(screen.getByText("Edge")).toBeInTheDocument();
+    expect(screen.queryByText("Chrome")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Credentials" }));
+    expect(screen.getByText("Windows desktop")).toBeInTheDocument();
+    expect(screen.getByText("Edge")).toBeInTheDocument();
   });
 
   it("surfaces a load failure", () => {

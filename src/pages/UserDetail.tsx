@@ -32,6 +32,7 @@ import {
   StateMessage,
 } from "../components/StateMessage";
 import { getErrorMessage } from "../lib/errorMessage";
+import { formatBrowserFromUserAgent } from "../lib/userAgent";
 import { calculateRiskScore } from "../lib/riskScore";
 import type {
   AdminUserDetailResponse,
@@ -67,16 +68,6 @@ function formatTimeUntil(value?: string | null, now?: number) {
   if (hrs < 24) return `in ${hrs}h`;
 
   return `in ${Math.floor(hrs / 24)}d`;
-}
-
-function formatUserAgent(ua?: string | null) {
-  if (!ua) return "Unknown device";
-  if (ua.includes("Firefox")) return "Firefox";
-  if (ua.includes("Chrome")) return "Chrome";
-  if (ua.includes("Safari")) return "Safari";
-  if (ua.includes("Edg")) return "Edge";
-
-  return "Other client";
 }
 
 export default function UserDetail() {
@@ -582,7 +573,7 @@ export default function UserDetail() {
                 render: (value) => (
                   <div className="flex flex-col">
                     <span className="text-sm font-medium text-primary">
-                      {formatUserAgent(value)}
+                      {formatBrowserFromUserAgent(value)}
                     </span>
                     <span className="truncate text-xs text-muted">
                       {value ?? "No user agent provided"}
