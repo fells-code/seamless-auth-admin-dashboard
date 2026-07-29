@@ -75,7 +75,10 @@ describe("useCreateUser", () => {
 
     await act(async () => {
       await expect(
-        result.current.mutateAsync({ email: "ada@example.com" }),
+        result.current.mutateAsync({
+          email: "ada@example.com",
+          roles: ["user"],
+        }),
       ).rejects.toThrow("User already exists");
     });
 

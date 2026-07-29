@@ -6,23 +6,12 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
+import type { DashboardMetricsResponse } from "@seamless-auth/types";
 
-export interface dashboardData {
-  totalUsers: number;
-  activeSessions: number;
-  newUsers24h: number;
-
-  loginSuccess24h: number;
-  loginFailed24h: number;
-  successRate24h: number;
-
-  otpUsage24h: number;
-  passkeyUsage24h: number;
-  databaseSize: number;
-}
 export function useDashboard() {
   return useQuery({
     queryKey: ["dashboard"],
-    queryFn: () => apiFetch<dashboardData>("/internal/metrics/dashboard"),
+    queryFn: () =>
+      apiFetch<DashboardMetricsResponse>("/internal/metrics/dashboard"),
   });
 }

@@ -6,67 +6,40 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
+import type {
+  AddOrganizationMemberRequest,
+  AdminOrganizationListResponse,
+  CreateOrganizationRequest,
+  MessageResponse,
+  OrganizationEnvelopeResponse,
+  OrganizationMembersResponse,
+  OrganizationMembershipEnvelopeResponse,
+  UpdateOrganizationMemberRequest,
+  UpdateOrganizationRequest,
+} from "@seamless-auth/types";
 
-export type OrganizationMembership = {
-  id: string;
+// The organization and user ids travel in the path rather than the body, so the
+// mutation inputs below carry them alongside the request payload.
+export type CreateOrganizationInput = CreateOrganizationRequest;
+
+export type UpdateOrganizationInput = UpdateOrganizationRequest & {
+  organizationId: string;
+};
+
+export type OrganizationMemberInput = AddOrganizationMemberRequest & {
+  organizationId: string;
+};
+
+export type OrganizationMemberUpdateInput = UpdateOrganizationMemberRequest & {
   organizationId: string;
   userId: string;
-  roles: string[];
-  scopes: string[];
-  createdAt: string;
-  updatedAt: string;
-  user?: {
-    id: string;
-    email: string;
-    phone?: string | null;
-    roles: string[];
-  };
-};
-
-export type Organization = {
-  id: string;
-  name: string;
-  slug: string;
-  createdByUserId: string | null;
-  metadata: Record<string, unknown> | null;
-  createdAt: string;
-  updatedAt: string;
-  memberCount?: number;
-  membership?: OrganizationMembership;
-};
-
-export type CreateOrganizationInput = {
-  name: string;
-  slug?: string;
-};
-
-export type UpdateOrganizationInput = {
-  organizationId: string;
-  name?: string;
-  slug?: string;
-};
-
-export type OrganizationMemberInput = {
-  organizationId: string;
-  email: string;
-  roles?: string[];
-  scopes?: string[];
-};
-
-export type OrganizationMemberUpdateInput = {
-  organizationId: string;
-  userId: string;
-  roles?: string[];
-  scopes?: string[];
 };
 
 export function useOrganizations() {
   return useQuery({
     queryKey: ["organizations"],
     queryFn: () =>
-      apiFetch<{ organizations: Organization[]; total: number }>(
-        "/admin/organizations",
-      ),
+      apiFetch<AdminOrganizationListResponse>("/admin/organizations"),
   });
 }
 
@@ -74,12 +47,12 @@ export function useCreateOrganization() {
   const qc = useQueryClient();
 
   return useMutation<
-    { organization: Organization },
+    OrganizationEnvelopeResponse,
     Error,
     CreateOrganizationInput
   >({
     mutationFn: (data) =>
-      apiFetch<{ organization: Organization }>("/admin/organizations", {
+      apiFetch<OrganizationEnvelopeResponse>("/admin/organizations", {
         method: "POST",
         body: JSON.stringify(data),
       }),
@@ -93,12 +66,12 @@ export function useUpdateOrganization() {
   const qc = useQueryClient();
 
   return useMutation<
-    { organization: Organization },
+    OrganizationEnvelopeResponse,
     Error,
     UpdateOrganizationInput
   >({
     mutationFn: ({ organizationId, ...data }) =>
-      apiFetch<{ organization: Organization }>(
+      apiFetch<OrganizationEnvelopeResponse>(
         `/admin/organizations/${organizationId}`,
         {
           method: "PATCH",
@@ -123,7 +96,7 @@ export function useOrganizationMembers(organizationId?: string | null) {
         throw new Error("Organization ID is required");
       }
 
-      return apiFetch<{ members: OrganizationMembership[]; total: number }>(
+      return apiFetch<OrganizationMembersResponse>(
         `/admin/organizations/${organizationId}/members`,
       );
     },
@@ -134,12 +107,12 @@ export function useAddOrganizationMember() {
   const qc = useQueryClient();
 
   return useMutation<
-    { membership: OrganizationMembership },
+    OrganizationMembershipEnvelopeResponse,
     Error,
     OrganizationMemberInput
   >({
     mutationFn: ({ organizationId, ...data }) =>
-      apiFetch<{ membership: OrganizationMembership }>(
+      apiFetch<OrganizationMembershipEnvelopeResponse>(
         `/admin/organizations/${organizationId}/members`,
         {
           method: "POST",
@@ -159,12 +132,12 @@ export function useUpdateOrganizationMember() {
   const qc = useQueryClient();
 
   return useMutation<
-    { membership: OrganizationMembership },
+    OrganizationMembershipEnvelopeResponse,
     Error,
     OrganizationMemberUpdateInput
   >({
     mutationFn: ({ organizationId, userId, ...data }) =>
-      apiFetch<{ membership: OrganizationMembership }>(
+      apiFetch<OrganizationMembershipEnvelopeResponse>(
         `/admin/organizations/${organizationId}/members/${userId}`,
         {
           method: "PATCH",
@@ -183,12 +156,12 @@ export function useRemoveOrganizationMember() {
   const qc = useQueryClient();
 
   return useMutation<
-    { message: string },
+    MessageResponse,
     Error,
     { organizationId: string; userId: string }
   >({
     mutationFn: ({ organizationId, userId }) =>
-      apiFetch<{ message: string }>(
+      apiFetch<MessageResponse>(
         `/admin/organizations/${organizationId}/members/${userId}`,
         {
           method: "DELETE",

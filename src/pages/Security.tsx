@@ -8,19 +8,14 @@ import type { ComponentType } from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, ShieldAlert, Siren, Waypoints } from "lucide-react";
-import { useAnomalies, type AuthEventPartial } from "../hooks/useAnomalies";
+import { useAnomalies } from "../hooks/useAnomalies";
+import type { PartialAuthEvent } from "@seamless-auth/types";
 import { useLoginStats } from "../hooks/useLoginStats";
 import Skeleton from "../components/Skeleton";
 import StatCard from "../components/StatCard";
 import Table from "../components/Table";
 import { Section } from "../components/Section";
 import { QueryErrorState } from "../components/StateMessage";
-
-type LoginStats = {
-  success: number;
-  failed: number;
-  successRate?: number;
-};
 
 function formatTimeAgo(value?: string, now?: number) {
   if (!value) return "Unknown";
@@ -59,9 +54,9 @@ export default function Security() {
     refetch: refetchStats,
   } = useLoginStats();
 
-  const suspiciousEvents: AuthEventPartial[] =
+  const suspiciousEvents: PartialAuthEvent[] =
     anomalies?.suspiciousEvents ?? [];
-  const loginStats = stats as LoginStats | undefined;
+  const loginStats = stats;
 
   const uniqueIps = new Set(
     suspiciousEvents.map((event) => event.ip_address).filter(Boolean),
@@ -83,7 +78,7 @@ export default function Security() {
     return best;
   }, null);
 
-  const latestSignal = suspiciousEvents.reduce<AuthEventPartial | null>(
+  const latestSignal = suspiciousEvents.reduce<PartialAuthEvent | null>(
     (latest, event) => {
       if (!event.created_at) return latest;
       if (!latest?.created_at) return event;
@@ -263,7 +258,7 @@ export default function Security() {
           </button>
         }
       >
-        <Table<AuthEventPartial>
+        <Table<PartialAuthEvent>
           label="Suspicious activity"
           emptyTitle="No suspicious activity detected"
           emptyDescription="The anomaly feed is currently quiet, which is a good time to review the broader event stream or system configuration."

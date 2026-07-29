@@ -14,13 +14,13 @@ import RoleChips from "./RoleChips";
 import { StateMessage } from "./StateMessage";
 import { getErrorMessage } from "../lib/errorMessage";
 import { useToast } from "../hooks/useToast";
-import type { User } from "@seamless-auth/types";
+import type { ApiUser } from "@seamless-auth/types";
 
 export default function EditUserModal({
   user,
   onClose,
 }: {
-  user: User;
+  user: ApiUser;
   onClose: () => void;
 }) {
   const [email, setEmail] = useState(user.email);

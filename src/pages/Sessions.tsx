@@ -24,7 +24,7 @@ import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import { useToast } from "../hooks/useToast";
 import { useConfirm } from "../hooks/useConfirm";
-import type { Session } from "../types/user";
+import type { Session } from "@seamless-auth/types";
 
 type ActivityFilter = "all" | "recent" | "expiring" | "idle";
 

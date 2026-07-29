@@ -7,27 +7,12 @@
 // src/hooks/useAnomalies.ts
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
-import type { AuthEvent } from "@seamless-auth/types";
-
-export type AuthEventPartial = Partial<
-  Pick<
-    AuthEvent,
-    "user_id" | "type" | "ip_address" | "user_agent" | "metadata" | "created_at"
-  >
->;
-
-export interface SuspiousIp {
-  ip: string;
-  count: number;
-}
-export interface Anomalies {
-  suspiciousEvents: AuthEventPartial[];
-  total: number;
-}
+import type { SecurityAnomaliesResponse } from "@seamless-auth/types";
 
 export function useAnomalies() {
   return useQuery({
     queryKey: ["anomalies"],
-    queryFn: () => apiFetch<Anomalies>("/internal/security/anomalies"),
+    queryFn: () =>
+      apiFetch<SecurityAnomaliesResponse>("/internal/security/anomalies"),
   });
 }

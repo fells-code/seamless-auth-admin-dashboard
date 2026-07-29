@@ -34,11 +34,11 @@ import {
 import { getErrorMessage } from "../lib/errorMessage";
 import { calculateRiskScore } from "../lib/riskScore";
 import type {
+  AdminUserDetailResponse,
   AuthEvent,
-  Credential,
+  CredentialResponse,
   Session,
-  UserDetailResponse,
-} from "../types/user";
+} from "@seamless-auth/types";
 
 function formatTimeAgo(value?: string | null, now?: number) {
   if (!value) return "No recent activity";
@@ -134,7 +134,8 @@ export default function UserDetail() {
     );
   }
 
-  const { user, sessions, credentials, events } = data as UserDetailResponse;
+  const { user, sessions, credentials, events } =
+    data as AdminUserDetailResponse;
 
   const failedLogins = events.filter(
     (event) => event.type === "login_failed",
@@ -641,7 +642,7 @@ export default function UserDetail() {
           title="Credential Inventory"
           description="Registered credential and device details associated with this user."
         >
-          <Table<Credential>
+          <Table<CredentialResponse>
             label="User passkeys"
             emptyTitle="No credentials found"
             emptyDescription="This user does not currently have credential records in the dashboard feed."

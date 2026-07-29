@@ -24,27 +24,11 @@ import {
   StateMessage,
 } from "../components/StateMessage";
 import { getErrorMessage } from "../lib/errorMessage";
-
-/* ---------- Types ---------- */
-
-type Session = {
-  id: string;
-  ipAddress: string;
-  userAgent: string;
-  lastUsedAt: string;
-};
-
-type Credential = {
-  id: string;
-  deviceType: string;
-  browser: string;
-  createdAt: string;
-};
-
-type UserDetailResponse = {
-  sessions: Session[];
-  credentials: Credential[];
-};
+import type {
+  AdminUserDetailResponse,
+  CredentialResponse,
+  Session,
+} from "@seamless-auth/types";
 
 /* ---------- Component ---------- */
 
@@ -93,7 +77,7 @@ export default function Profile() {
     );
   }
 
-  const { sessions, credentials } = data as UserDetailResponse;
+  const { sessions, credentials } = data as AdminUserDetailResponse;
 
   const save = () => {
     if (!canWrite) return;
@@ -239,7 +223,7 @@ export default function Profile() {
 
       {/* Credentials */}
       <Section title="Credentials">
-        <Table<Credential>
+        <Table<CredentialResponse>
           label="Your passkeys"
           columns={[
             { key: "deviceType", label: "Device", width: "large", wrap: true },

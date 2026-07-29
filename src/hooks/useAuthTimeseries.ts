@@ -7,18 +7,13 @@
 // src/hooks/useAuthTimeseries.ts
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
-
-export interface timeseriesData {
-  bucket: string;
-  success: number;
-  failed: number;
-}
+import type { AuthEventTimeseriesResponse } from "@seamless-auth/types";
 
 export function useAuthTimeseries() {
   return useQuery({
     queryKey: ["auth-timeseries"],
     queryFn: () =>
-      apiFetch<{ timeseries: timeseriesData[] }>(
+      apiFetch<AuthEventTimeseriesResponse>(
         "/internal/auth-events/timeseries?interval=hour",
       ),
   });

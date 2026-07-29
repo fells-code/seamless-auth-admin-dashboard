@@ -16,8 +16,7 @@ import { Section } from "../components/Section";
 import { QueryErrorState } from "../components/StateMessage";
 import { eventGroups } from "../lib/eventGroups";
 import { resolveRangeBounds } from "../lib/timeRange";
-import { AuthEventTypeEnum } from "../types/authEventTypes";
-import type { AuthEvent } from "@seamless-auth/types";
+import { AUTH_EVENT_TYPES, type AuthEvent } from "@seamless-auth/types";
 
 export type EventFilter = {
   type: string[];
@@ -30,7 +29,7 @@ const groupedTypeAliases = new Set(
   eventGroups.map((group) => group.value).filter(Boolean),
 );
 
-const concreteEventTypes = AuthEventTypeEnum.options.filter(
+const concreteEventTypes = AUTH_EVENT_TYPES.filter(
   (type) => !groupedTypeAliases.has(type),
 );
 

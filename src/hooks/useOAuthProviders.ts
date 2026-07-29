@@ -7,15 +7,14 @@
 // src/hooks/useOAuthProviders.ts
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
-import type { OAuthProviderConfig } from "./useSystemConfig";
+import type {
+  OAuthProviderConfig,
+  OAuthProviderDeletedResponse,
+  OAuthProviderResponse,
+  OAuthProviderUpdate,
+} from "@seamless-auth/types";
 
 const BASE_PATH = "/system-config/oauth-providers";
-
-// The id is immutable and travels in the path, so an update never carries it in
-// the body (the API's PATCH schema is strict and rejects it).
-export type OAuthProviderUpdate = Partial<Omit<OAuthProviderConfig, "id">>;
-
-type ProviderResponse = { provider: OAuthProviderConfig };
 
 /**
  * Per-provider mutations backed by the dedicated OAuth provider admin routes.
@@ -31,31 +30,36 @@ export function useOAuthProviders() {
   const invalidate = () =>
     qc.invalidateQueries({ queryKey: ["system-config"] });
 
-  const create = useMutation<ProviderResponse, Error, OAuthProviderConfig>({
-    mutationFn: (provider) =>
-      apiFetch<ProviderResponse>(BASE_PATH, {
-        method: "POST",
-        body: JSON.stringify(provider),
-      }),
-    onSuccess: invalidate,
-  });
+  const create = useMutation<OAuthProviderResponse, Error, OAuthProviderConfig>(
+    {
+      mutationFn: (provider) =>
+        apiFetch<OAuthProviderResponse>(BASE_PATH, {
+          method: "POST",
+          body: JSON.stringify(provider),
+        }),
+      onSuccess: invalidate,
+    },
+  );
 
   const update = useMutation<
-    ProviderResponse,
+    OAuthProviderResponse,
     Error,
     { id: string; updates: OAuthProviderUpdate }
   >({
     mutationFn: ({ id, updates }) =>
-      apiFetch<ProviderResponse>(`${BASE_PATH}/${encodeURIComponent(id)}`, {
-        method: "PATCH",
-        body: JSON.stringify(updates),
-      }),
+      apiFetch<OAuthProviderResponse>(
+        `${BASE_PATH}/${encodeURIComponent(id)}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(updates),
+        },
+      ),
     onSuccess: invalidate,
   });
 
-  const remove = useMutation<{ success: true; id: string }, Error, string>({
+  const remove = useMutation<OAuthProviderDeletedResponse, Error, string>({
     mutationFn: (id) =>
-      apiFetch<{ success: true; id: string }>(
+      apiFetch<OAuthProviderDeletedResponse>(
         `${BASE_PATH}/${encodeURIComponent(id)}`,
         { method: "DELETE" },
       ),

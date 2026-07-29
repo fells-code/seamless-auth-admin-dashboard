@@ -7,10 +7,12 @@
 // src/hooks/useLoginStats.ts
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
+import type { LoginStatsResponse } from "@seamless-auth/types";
 
 export function useLoginStats() {
   return useQuery({
     queryKey: ["loginStats"],
-    queryFn: () => apiFetch("/internal/auth-events/login-stats"),
+    queryFn: () =>
+      apiFetch<LoginStatsResponse>("/internal/auth-events/login-stats"),
   });
 }

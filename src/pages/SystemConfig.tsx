@@ -6,12 +6,12 @@
 
 import { useId, useMemo, useState } from "react";
 import { KeyRound, ShieldCheck, TimerReset, Waypoints } from "lucide-react";
-import {
-  useSystemConfig,
-  type LoginMethod,
-  type OAuthProviderConfig,
-  type SystemConfig,
-} from "../hooks/useSystemConfig";
+import { useSystemConfig } from "../hooks/useSystemConfig";
+import type {
+  LoginMethod,
+  OAuthProviderConfig,
+  SystemConfig,
+} from "@seamless-auth/types";
 import { useUpdateSystemConfig } from "../hooks/useUpdateSystemConfig";
 import { useOAuthProviders } from "../hooks/useOAuthProviders";
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
