@@ -1,5 +1,5 @@
 ---
-'seamless-auth-admin-dashboard': patch
+"seamless-auth-admin-dashboard": patch
 ---
 
 Surface the actionable detail from a validation error instead of the generic reason. The auth API
