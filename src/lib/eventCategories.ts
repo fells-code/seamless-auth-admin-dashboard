@@ -113,11 +113,6 @@ export const eventCategories: EventCategory[] = [
     match: startsWithAny(["system_config_"]),
   },
   {
-    label: "Bootstrap",
-    value: "bootstrap",
-    match: startsWithAny(["bootstrap_admin_"]),
-  },
-  {
     label: "JWKS",
     value: "jwks",
     match: startsWithAny(["jwks_"]),
@@ -125,7 +120,7 @@ export const eventCategories: EventCategory[] = [
   {
     label: "Notifications",
     value: "notification",
-    match: exact(["notification_sent", "notication_sent"]),
+    match: exact(["notification_sent"]),
   },
   {
     label: "Operations",

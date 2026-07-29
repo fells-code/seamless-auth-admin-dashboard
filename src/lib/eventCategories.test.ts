@@ -5,7 +5,11 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { categorizeEventSummary, getEventCategory } from "./eventCategories";
+import {
+  categorizeEventSummary,
+  eventCategories,
+  getEventCategory,
+} from "./eventCategories";
 
 describe("eventCategories", () => {
   it("classifies concrete API event types into operator categories", () => {
@@ -17,6 +21,15 @@ describe("eventCategories", () => {
     );
     expect(getEventCategory("step_up_challenge").value).toBe("stepUp");
     expect(getEventCategory("login_suspicious").value).toBe("security");
+  });
+
+  it("does not expose retired or misspelled event categories", () => {
+    expect(eventCategories.map((category) => category.value)).not.toContain(
+      "bootstrap",
+    );
+    expect(getEventCategory("bootstrap_admin_granted").value).toBe("other");
+    expect(getEventCategory("notication_sent").value).toBe("other");
+    expect(getEventCategory("notification_sent").value).toBe("notification");
   });
 
   it("groups raw event summaries and only keeps populated categories", () => {
