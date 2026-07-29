@@ -4,7 +4,13 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Sessions from "./Sessions";
@@ -111,6 +117,38 @@ describe("Sessions", () => {
 
     expect(screen.getByText("10.0.0.1")).toBeInTheDocument();
     expect(screen.getByText("10.0.0.2")).toBeInTheDocument();
+  });
+
+  it("excludes expired sessions from the active session count", () => {
+    mocks.useSessions.mockReturnValue({
+      data: {
+        sessions: [
+          ...sessions,
+          {
+            id: "session_expired",
+            ipAddress: "10.0.0.3",
+            userAgent: "Mozilla/5.0 Chrome/124.0",
+            lastUsedAt: new Date(now - 60_000).toISOString(),
+            expiresAt: new Date(now - 60_000).toISOString(),
+          },
+        ],
+        total: 3,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: mocks.refetch,
+    });
+
+    renderPage();
+
+    const activeSessionsCard =
+      screen.getByText("Active Sessions").parentElement;
+    expect(activeSessionsCard).not.toBeNull();
+    expect(
+      within(activeSessionsCard as HTMLElement).getByText("2"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("10.0.0.3")).toBeInTheDocument();
   });
 
   it("surfaces a load failure", () => {

@@ -24,6 +24,7 @@ import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import { useToast } from "../hooks/useToast";
 import { useConfirm } from "../hooks/useConfirm";
+import { getActiveSessionCount } from "../lib/sessionActivity";
 import type { Session } from "@seamless-auth/types";
 
 type ActivityFilter = "all" | "recent" | "expiring" | "idle";
@@ -77,18 +78,20 @@ function formatTimeUntil(value: string) {
   return `in ${Math.floor(hours / 24)}d`;
 }
 
-function isRecent(session: Session) {
-  return Date.now() - new Date(session.lastUsedAt).getTime() <= 60 * 60 * 1000;
-}
-
-function isIdle(session: Session) {
+function isRecent(session: Session, referenceNow = Date.now()) {
   return (
-    Date.now() - new Date(session.lastUsedAt).getTime() >= 24 * 60 * 60 * 1000
+    referenceNow - new Date(session.lastUsedAt).getTime() <= 60 * 60 * 1000
   );
 }
 
-function isExpiringSoon(session: Session) {
-  const diff = new Date(session.expiresAt).getTime() - Date.now();
+function isIdle(session: Session, referenceNow = Date.now()) {
+  return (
+    referenceNow - new Date(session.lastUsedAt).getTime() >= 24 * 60 * 60 * 1000
+  );
+}
+
+function isExpiringSoon(session: Session, referenceNow = Date.now()) {
+  const diff = new Date(session.expiresAt).getTime() - referenceNow;
 
   return diff >= 0 && diff <= 24 * 60 * 60 * 1000;
 }
@@ -107,6 +110,7 @@ export default function Sessions() {
 
   const limit = 10;
   const sessions = data?.sessions ?? [];
+  const [referenceNow] = useState(() => Date.now());
 
   const filteredSessions = sessions.filter((session) => {
     const matchesSearch = search
@@ -119,10 +123,10 @@ export default function Sessions() {
       filter === "all"
         ? true
         : filter === "recent"
-          ? isRecent(session)
+          ? isRecent(session, referenceNow)
           : filter === "expiring"
-            ? isExpiringSoon(session)
-            : isIdle(session);
+            ? isExpiringSoon(session, referenceNow)
+            : isIdle(session, referenceNow);
 
     return matchesSearch && matchesFilter;
   });
@@ -144,9 +148,16 @@ export default function Sessions() {
   const uniqueIps = new Set(
     sessions.map((session) => session.ipAddress).filter(Boolean),
   ).size;
-  const recentCount = sessions.filter(isRecent).length;
-  const expiringSoonCount = sessions.filter(isExpiringSoon).length;
-  const idleCount = sessions.filter(isIdle).length;
+  const activeSessionCount = getActiveSessionCount(sessions, referenceNow);
+  const recentCount = sessions.filter((session) =>
+    isRecent(session, referenceNow),
+  ).length;
+  const expiringSoonCount = sessions.filter((session) =>
+    isExpiringSoon(session, referenceNow),
+  ).length;
+  const idleCount = sessions.filter((session) =>
+    isIdle(session, referenceNow),
+  ).length;
 
   const filterOptions: {
     value: ActivityFilter;
@@ -314,8 +325,8 @@ export default function Sessions() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Active Sessions"
-          value={sessions.length}
-          hint="Currently returned by the admin sessions feed"
+          value={activeSessionCount}
+          hint="Sessions whose expiry has not passed"
         />
         <StatCard
           label="Distinct IPs"
