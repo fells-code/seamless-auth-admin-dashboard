@@ -5,7 +5,7 @@
  */
 
 import { LineChart, Line, ResponsiveContainer, Area, Tooltip } from "recharts";
-import type { TimeSeriesData } from "../hooks/useUserTimeseries";
+import type { AuthEventTimeseriesPoint } from "@seamless-auth/types";
 
 function formatLabel(value: string) {
   const d = new Date(value);
@@ -15,7 +15,7 @@ function formatLabel(value: string) {
 export default function MiniLineChart({
   data,
 }: {
-  data: TimeSeriesData[] | undefined;
+  data: AuthEventTimeseriesPoint[] | undefined;
 }) {
   return (
     <div className="h-24 w-full">

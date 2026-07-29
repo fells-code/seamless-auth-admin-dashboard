@@ -7,16 +7,11 @@
 // src/hooks/useSessions.ts
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
-import type { Session } from "../types/user";
-
-export interface SessionRespons {
-  total: number;
-  sessions: Session[];
-}
+import type { SessionListResponse } from "@seamless-auth/types";
 
 export function useSessions() {
   return useQuery({
     queryKey: ["sessions"],
-    queryFn: () => apiFetch<SessionRespons>("/admin/sessions"),
+    queryFn: () => apiFetch<SessionListResponse>("/admin/sessions"),
   });
 }

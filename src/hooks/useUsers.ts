@@ -7,15 +7,7 @@
 // src/hooks/useUsers.ts
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
-
-export type User = {
-  id: string;
-  email: string;
-  phone?: string;
-  roles: string[];
-  verified: boolean;
-  lastLogin?: string;
-};
+import type { UsersListResponse } from "@seamless-auth/types";
 
 export function useUsers(params: {
   search?: string;
@@ -30,8 +22,7 @@ export function useUsers(params: {
 
   return useQuery({
     queryKey: ["users", params],
-    queryFn: () =>
-      apiFetch<{ users: User[]; total: number }>(`/admin/users?${query}`),
+    queryFn: () => apiFetch<UsersListResponse>(`/admin/users?${query}`),
     // Searching and paging change the query key. Without this the page would
     // fall back to its full-page loading state on every change, unmounting the
     // search box and losing focus mid-word.

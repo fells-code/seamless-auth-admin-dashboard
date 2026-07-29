@@ -6,10 +6,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
-import type { UserDetailResponse } from "../types/user";
+import type { AdminUserDetailResponse } from "@seamless-auth/types";
 
 export function useUserDetail(userId: string) {
-  return useQuery<UserDetailResponse>({
+  return useQuery<AdminUserDetailResponse>({
     queryKey: ["user-detail", userId],
     queryFn: () => apiFetch(`/admin/users/${userId}`),
     enabled: !!userId,

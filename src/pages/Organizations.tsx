@@ -24,9 +24,11 @@ import {
   useOrganizations,
   useRemoveOrganizationMember,
   useUpdateOrganization,
-  type Organization,
-  type OrganizationMembership,
 } from "../hooks/useOrganizations";
+import type {
+  Organization,
+  OrganizationMembership,
+} from "@seamless-auth/types";
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import { useToast } from "../hooks/useToast";

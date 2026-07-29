@@ -9,7 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useUpdateSystemConfig } from "./useUpdateSystemConfig";
-import type { SystemConfig } from "./useSystemConfig";
+import type { SystemConfig } from "@seamless-auth/types";
 
 const apiFetch = vi.hoisted(() => vi.fn());
 

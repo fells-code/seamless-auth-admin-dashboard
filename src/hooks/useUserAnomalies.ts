@@ -6,10 +6,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
-import type { UserAnomalies } from "../types/user";
+import type { AdminUserAnomaliesResponse } from "@seamless-auth/types";
 
 export function useUserAnomalies(userId: string) {
-  return useQuery<UserAnomalies>({
+  return useQuery<AdminUserAnomaliesResponse>({
     queryKey: ["user-anomalies", userId],
     queryFn: () => apiFetch(`/admin/users/${userId}/anomalies`),
     enabled: !!userId,

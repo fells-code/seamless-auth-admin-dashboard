@@ -6,28 +6,14 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
-
-type CreateUserInput = {
-  email: string;
-  phone?: string;
-  roles?: string[];
-};
-
-type User = {
-  id: string;
-  email: string;
-  phone?: string | null;
-  roles: string[];
-  verified: boolean;
-  createdAt: string;
-};
+import type { ApiUser, CreateUserRequest } from "@seamless-auth/types";
 
 export function useCreateUser() {
   const qc = useQueryClient();
 
-  return useMutation<User, Error, CreateUserInput>({
+  return useMutation<ApiUser, Error, CreateUserRequest>({
     mutationFn: (data) =>
-      apiFetch<User>("/admin/users", {
+      apiFetch<ApiUser>("/admin/users", {
         method: "POST",
         body: JSON.stringify(data),
       }),

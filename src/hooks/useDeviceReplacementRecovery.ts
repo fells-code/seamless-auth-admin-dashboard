@@ -6,20 +6,19 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
+import type {
+  DeviceReplacementRecoveryRequest,
+  DeviceReplacementRecoveryResponse,
+} from "@seamless-auth/types";
 
-type DeviceReplacementRecoveryInput = {
-  userId: string;
-  revokeSessions?: boolean;
-  removePasskeys?: boolean;
-  disableTotp?: boolean;
-};
-
-type DeviceReplacementRecoveryResponse = {
-  userId: string;
-  revokedSessions: number;
-  removedCredentials: number;
-  disabledTotpCredentials: number;
-};
+// The user id travels in the path rather than the body. Every recovery step is
+// Partial because the server applies its own defaults for any step left out,
+// and DeviceReplacementRecoveryRequest models the parsed body, where those
+// defaults have already been filled in.
+type DeviceReplacementRecoveryInput =
+  Partial<DeviceReplacementRecoveryRequest> & {
+    userId: string;
+  };
 
 export function useDeviceReplacementRecovery() {
   const qc = useQueryClient();

@@ -7,13 +7,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
 import { categorizeEventSummary } from "../lib/eventCategories";
-
-type EventSummaryResponse = {
-  summary: {
-    type: string;
-    count: number;
-  }[];
-};
+import type { AuthEventSummaryResponse } from "@seamless-auth/types";
 
 export interface GroupedEvents {
   summary: {
@@ -27,7 +21,7 @@ export function useGroupedEvents() {
   return useQuery({
     queryKey: ["grouped-events"],
     queryFn: async (): Promise<GroupedEvents> => {
-      const data = await apiFetch<EventSummaryResponse>(
+      const data = await apiFetch<AuthEventSummaryResponse>(
         "/internal/auth-events/summary",
       );
 

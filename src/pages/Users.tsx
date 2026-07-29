@@ -15,7 +15,8 @@ import {
   Users2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useUsers, type User } from "../hooks/useUsers";
+import { useUsers } from "../hooks/useUsers";
+import type { ApiUser } from "@seamless-auth/types";
 import { useDeleteUser } from "../hooks/useDeleteUser";
 import Table from "../components/Table";
 import Skeleton from "../components/Skeleton";
@@ -87,7 +88,7 @@ export default function Users() {
     offset,
   });
 
-  const users: User[] = data?.users ?? [];
+  const users: ApiUser[] = data?.users ?? [];
   const total = data?.total ?? 0;
   const verifiedCount = users.filter((user) => user.verified).length;
   const adminCount = users.filter((user) =>
@@ -100,7 +101,7 @@ export default function Users() {
     );
   }).length;
 
-  const handleDeleteUser = async (user: User) => {
+  const handleDeleteUser = async (user: ApiUser) => {
     if (
       !(await confirm({
         title: "Delete user",
@@ -267,7 +268,7 @@ export default function Users() {
           aria-busy={isFetching}
           className={clsx("transition-opacity", isFetching && "opacity-60")}
         >
-          <Table<User>
+          <Table<ApiUser>
             label="Users"
             rowLabel={(user) => user.email}
             data={users}
@@ -381,7 +382,7 @@ export default function Users() {
                       icon: Trash2,
                       label: "Delete",
                       variant: "danger" as const,
-                      onClick: (row: User) => void handleDeleteUser(row),
+                      onClick: (row: ApiUser) => void handleDeleteUser(row),
                     },
                   ]
                 : []),

@@ -17,9 +17,17 @@ type Column<T, K extends keyof T = keyof T> = {
   sortable?: boolean;
   width?: ColumnWidth;
   align?: "left" | "center" | "right";
-  wrap?: boolean;
   render?: (value: T[K], row: T) => React.ReactNode;
+  wrap?: boolean;
 };
+
+/**
+ * Distributes over T's keys so each column literal infers its own K, and
+ * `render` receives that single field's type. Plain `Column<T>` would widen the
+ * value to a union of every field type, which pushes the narrowing back onto
+ * every caller.
+ */
+type AnyColumn<T> = { [K in keyof T]-?: Column<T, K> }[keyof T];
 
 type RowAction<T> = {
   icon: React.ComponentType<{ size?: number }>;
@@ -116,7 +124,7 @@ export default function Table<T extends Record<string, unknown>>({
   label = "Results",
   rowLabel,
 }: {
-  columns: Column<T>[];
+  columns: AnyColumn<T>[];
   data: T[];
   selectable?: boolean;
   actions?: RowAction<T>[];

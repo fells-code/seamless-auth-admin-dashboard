@@ -6,23 +6,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
-
-/* ---------- Types ---------- */
-
-type UpdateUserInput = {
-  email?: string;
-  phone?: string | null;
-  roles?: string[];
-};
-
-type User = {
-  id: string;
-  email: string;
-  phone?: string | null;
-  roles: string[];
-  verified: boolean;
-  createdAt: string;
-};
+import type { ApiUser, UpdateUserRequest } from "@seamless-auth/types";
 
 /* ---------- Helpers ---------- */
 
@@ -36,7 +20,7 @@ type User = {
 function normalizeUpdateUserInput({
   phone,
   ...rest
-}: UpdateUserInput): UpdateUserInput {
+}: UpdateUserRequest): UpdateUserRequest {
   if (phone === undefined) {
     return rest;
   }
@@ -51,9 +35,9 @@ function normalizeUpdateUserInput({
 export function useUpdateUser(userId: string) {
   const qc = useQueryClient();
 
-  return useMutation<User, Error, UpdateUserInput>({
+  return useMutation<ApiUser, Error, UpdateUserRequest>({
     mutationFn: (data) =>
-      apiFetch<User>(`/admin/users/${userId}`, {
+      apiFetch<ApiUser>(`/admin/users/${userId}`, {
         method: "PATCH",
         body: JSON.stringify(normalizeUpdateUserInput(data)),
       }),
