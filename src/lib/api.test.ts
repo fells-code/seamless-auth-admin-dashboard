@@ -125,6 +125,39 @@ describe("apiFetch", () => {
     );
   });
 
+  it("prefers the detail message over the reason when both are present", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: "Invalid roles",
+          message: "Roles not available on this instance: admin:reed",
+          details: { roles: ["admin:reed"] },
+        }),
+        { status: 400 },
+      ),
+    );
+
+    // "Invalid roles" does not tell an operator which role to fix.
+    await expect(apiFetch("/admin/users")).rejects.toThrow(
+      "Roles not available on this instance: admin:reed",
+    );
+  });
+
+  it("falls back to the reason when the detail is not renderable", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ error: "User already exists", message: "conflict" }),
+        { status: 409 },
+      ),
+    );
+
+    await expect(apiFetch("/admin/users")).rejects.toThrow(
+      "User already exists",
+    );
+  });
+
   it("does not surface machine codes as user-facing text", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValue(

@@ -73,11 +73,36 @@ const MESSAGE_SURFACING_STATUSES = new Set([400, 404, 409, 422]);
 const MAX_SURFACED_MESSAGE_LENGTH = 200;
 
 /**
+ * Decide whether a single candidate string is safe to show an operator.
+ *
+ * Machine codes like "step_up_failed" have no whitespace and are not written for
+ * humans, and an overlong value is more likely to be a stack trace than a message.
+ */
+function renderableMessage(candidate: unknown): string | undefined {
+  if (typeof candidate !== "string") {
+    return undefined;
+  }
+
+  const message = candidate.trim();
+
+  if (!message || message.length > MAX_SURFACED_MESSAGE_LENGTH) {
+    return undefined;
+  }
+
+  return /\s/.test(message) ? message : undefined;
+}
+
+/**
  * Pull a user-safe message out of a structured API error body, if there is one.
  *
- * The API answers with JSON such as `{ error: "User already exists" }`, but the
- * same field also carries machine codes ("step_up_failed") and server internals,
- * so the value is only surfaced when it looks like operator-facing prose.
+ * The auth API's error contract is `{ error, message? }`, where `error` is always
+ * present and carries the reason, and `message` is optional extra detail. The detail
+ * is what an operator can act on, so it wins when both are present: a rejected role
+ * assignment answers `error: "Invalid roles"` with `message: "Roles not available on
+ * this instance: admin:reed"`, and only the second says which role to fix.
+ *
+ * Either field can be a machine code or server internals, so whichever is chosen still
+ * has to look like operator-facing prose, and the other is tried when it does not.
  */
 function safeApiMessage(status: number, body: string): string | undefined {
   if (!MESSAGE_SURFACING_STATUSES.has(status)) {
@@ -97,25 +122,8 @@ function safeApiMessage(status: number, body: string): string | undefined {
   }
 
   const fields = parsed as Record<string, unknown>;
-  const candidate = fields.error ?? fields.message;
 
-  if (typeof candidate !== "string") {
-    return undefined;
-  }
-
-  const message = candidate.trim();
-
-  if (!message || message.length > MAX_SURFACED_MESSAGE_LENGTH) {
-    return undefined;
-  }
-
-  // Machine codes like "step_up_failed" have no whitespace and are not written
-  // for humans, so fall back to the friendly status message for those.
-  if (!/\s/.test(message)) {
-    return undefined;
-  }
-
-  return message;
+  return renderableMessage(fields.message) ?? renderableMessage(fields.error);
 }
 
 function friendlyStatusMessage(status: number): string {
