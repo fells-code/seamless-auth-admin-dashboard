@@ -5,19 +5,14 @@
  */
 
 import { eventGroups } from "../lib/eventGroups";
+import type { EventFilter } from "../lib/eventFilters";
 import { getRange, toDateTimeLocalValue } from "../lib/timeRange";
-import type { EventFilter } from "../pages/Events";
 
 export default function EventFilters({
   value,
   onChange,
 }: {
-  value: {
-    type: string[];
-    from?: string;
-    to?: string;
-    range: "1h" | "24h" | "7d" | "custom";
-  };
+  value: EventFilter;
   onChange: (v: EventFilter) => void;
 }) {
   const applyGroup = (group: {

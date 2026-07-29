@@ -8,7 +8,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import EventFilters from "./EventFilters";
-import type { EventFilter } from "../pages/Events";
+import type { EventFilter } from "../lib/eventFilters";
 
 const defaultValue: EventFilter = {
   type: [],

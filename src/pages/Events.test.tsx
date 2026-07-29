@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -100,6 +100,16 @@ describe("Events time range", () => {
     renderPage("/events?range=7d");
 
     expect(spanMs(lastBounds())).toBe(7 * 24 * HOUR);
+  });
+
+  it("counts a restored relative range as an active filter", () => {
+    renderPage("/events?range=7d");
+
+    expect(
+      within(screen.getByRole("group", { name: "Filters active" })).getByText(
+        "1",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("shows prefilled custom inputs that a datetime-local control accepts", async () => {

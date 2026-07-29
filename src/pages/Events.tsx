@@ -15,15 +15,13 @@ import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
 import { QueryErrorState } from "../components/StateMessage";
 import { eventGroups } from "../lib/eventGroups";
+import {
+  getActiveEventFilterCount,
+  isEventRange,
+  type EventFilter,
+} from "../lib/eventFilters";
 import { resolveRangeBounds } from "../lib/timeRange";
 import { AUTH_EVENT_TYPES, type AuthEvent } from "@seamless-auth/types";
-
-export type EventFilter = {
-  type: string[];
-  from?: string;
-  to?: string;
-  range: "1h" | "24h" | "7d" | "custom";
-};
 
 const groupedTypeAliases = new Set(
   eventGroups.map((group) => group.value).filter(Boolean),
@@ -32,12 +30,6 @@ const groupedTypeAliases = new Set(
 const concreteEventTypes = AUTH_EVENT_TYPES.filter(
   (type) => !groupedTypeAliases.has(type),
 );
-
-const EVENT_RANGES: EventFilter["range"][] = ["1h", "24h", "7d", "custom"];
-
-function isEventRange(value: string | null): value is EventFilter["range"] {
-  return value !== null && EVENT_RANGES.includes(value as EventFilter["range"]);
-}
 
 function getFiltersFromSearch(search: string): EventFilter {
   const params = new URLSearchParams(search);
@@ -209,11 +201,7 @@ export default function Events() {
               <FocusPanel
                 icon={Filter}
                 title="Filters active"
-                value={`${
-                  filters.type.length +
-                  (filters.from ? 1 : 0) +
-                  (filters.to ? 1 : 0)
-                }`}
+                value={`${getActiveEventFilterCount(filters)}`}
                 description="Current filter count applied to the event stream."
               />
 
@@ -415,7 +403,11 @@ function FocusPanel({
   description: string;
 }) {
   return (
-    <div className="rounded-2xl border border-subtle bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-alt)_72%,transparent),transparent)] p-4">
+    <div
+      role="group"
+      aria-label={title}
+      className="rounded-2xl border border-subtle bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-alt)_72%,transparent),transparent)] p-4"
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="rounded-xl bg-surface p-2 text-[var(--primary)] shadow-sm">
           <Icon size={18} />
