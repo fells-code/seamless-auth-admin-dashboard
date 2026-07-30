@@ -286,4 +286,96 @@ describe("Table", () => {
       screen.getByRole("region", { name: "Results content" }),
     ).toHaveAttribute("tabindex", "0");
   });
+
+  it("orders a numeric column by value, not as text", async () => {
+    type NumericRow = { name: string; failures: number };
+    const user = userEvent.setup();
+
+    render(
+      <Table<NumericRow>
+        label="Numeric"
+        data={[
+          { name: "a", failures: 2 },
+          { name: "b", failures: 100 },
+          { name: "c", failures: 10 },
+        ]}
+        columns={[
+          { key: "name", label: "Name" },
+          { key: "failures", label: "Failures", sortable: true },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /failures/i }));
+
+    // Lexicographic comparison ordered these 10, 100, 2.
+    const cells = screen
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => within(row).getAllByRole("cell")[1]?.textContent);
+
+    expect(cells).toEqual(["2", "10", "100"]);
+  });
+
+  it("orders an ISO date column chronologically", async () => {
+    type DatedRow = { name: string; seen: string };
+    const user = userEvent.setup();
+
+    render(
+      <Table<DatedRow>
+        label="Dated"
+        data={[
+          { name: "a", seen: "2026-07-20T10:00:00.000Z" },
+          { name: "b", seen: "2026-01-02T10:00:00.000Z" },
+          { name: "c", seen: "2026-03-05T10:00:00.000Z" },
+        ]}
+        columns={[
+          { key: "name", label: "Name" },
+          { key: "seen", label: "Seen", sortable: true },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /seen/i }));
+
+    const names = screen
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => within(row).getAllByRole("cell")[0]?.textContent);
+
+    expect(names).toEqual(["b", "c", "a"]);
+  });
+
+  it("says the sort covers only the current page when paginated", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <Table<TestRow>
+        label="Paged"
+        data={rows}
+        columns={columns}
+        total={40}
+        limit={2}
+        offset={0}
+        onPageChange={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /name/i }));
+
+    // The indicator previously implied the whole result set was ordered.
+    expect(
+      screen.getByText("Sorted by name asc (this page only)"),
+    ).toBeInTheDocument();
+  });
+
+  it("does not qualify the sort when every row is present", async () => {
+    const user = userEvent.setup();
+
+    render(<Table<TestRow> label="All" data={rows} columns={columns} />);
+
+    await user.click(screen.getByRole("button", { name: /name/i }));
+
+    expect(screen.getByText("Sorted by name asc")).toBeInTheDocument();
+  });
 });
