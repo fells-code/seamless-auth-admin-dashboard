@@ -211,6 +211,11 @@
 }
 
 :root[data-theme="developer"] {
+  /* This theme is dark in both modes by design, so the reported scheme must
+     match the palette. Left as light, the browser rendered native form
+     controls, scrollbars, and other chrome for a light page against dark
+     surfaces. */
+  color-scheme: dark;
   --bg: #1c232b;
   --surface: #252d36;
   --surface-alt: #313b46;
@@ -362,5 +367,24 @@ html {
 
   .heading-2 {
     font-size: 1.125rem;
+  }
+}
+
+/* Users who have asked their system to reduce motion still received every
+   transition, the backdrop blur, and the skeleton shimmer. Transitions are cut
+   rather than removed outright so state changes still register. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .backdrop-blur,
+  [class*="backdrop-blur"] {
+    backdrop-filter: none !important;
   }
 }

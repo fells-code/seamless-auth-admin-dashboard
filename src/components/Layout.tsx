@@ -14,6 +14,15 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-base text-primary transition-colors duration-300">
+      {/* Keyboard users otherwise tab through the whole navigation on every
+          screen before reaching the content. Visible only once focused. */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:border focus:border-subtle focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:text-primary focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
+
       <Sidebar
         mobileOpen={mobileNavOpen}
         onClose={() => setMobileNavOpen(false)}
@@ -28,7 +37,11 @@ export default function Layout() {
 
         <Topbar onMenuToggle={() => setMobileNavOpen((open) => !open)} />
 
-        <main className="relative flex-1 overflow-auto">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="relative flex-1 overflow-auto focus:outline-none"
+        >
           <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
             <Outlet />
           </div>

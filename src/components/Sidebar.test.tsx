@@ -110,4 +110,31 @@ describe("Sidebar", () => {
     unmount();
     expect(document.body.style.overflow).not.toBe("hidden");
   });
+
+  it("keeps Tab inside the open drawer", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter>
+        <Sidebar mobileOpen onClose={vi.fn()} />
+      </MemoryRouter>,
+    );
+
+    const drawer = screen.getByRole("dialog", { name: "Navigation menu" });
+    const focusable = Array.from(
+      drawer.querySelectorAll<HTMLElement>("a[href], button:not([disabled])"),
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    last.focus();
+    await user.tab();
+
+    // The drawer advertises aria-modal, but Tab used to walk straight out into
+    // the page behind it.
+    expect(first).toHaveFocus();
+
+    await user.tab({ shift: true });
+    expect(last).toHaveFocus();
+  });
 });
