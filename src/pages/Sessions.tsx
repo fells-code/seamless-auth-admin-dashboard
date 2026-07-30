@@ -22,6 +22,9 @@ import {
 import { getErrorMessage } from "../lib/errorMessage";
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
+import { Download } from "lucide-react";
+import RefreshControl from "../components/RefreshControl";
+import { exportCsv } from "../lib/csvExport";
 import { useToast } from "../hooks/useToast";
 import { useConfirm } from "../hooks/useConfirm";
 import type { Session } from "@seamless-auth/types";
@@ -31,10 +34,14 @@ type ActivityFilter = "all" | "recent" | "expiring" | "idle";
 function formatUserAgent(ua?: string | null) {
   if (!ua) return "Unknown device";
 
+  // Order matters: Edge and most Chromium-based user agents also contain
+  // "Chrome", and Chrome contains "Safari", so the specific tokens have to be
+  // tested before the generic ones.
   if (ua.includes("Firefox")) return "Firefox";
-  if (ua.includes("Chrome")) return "Chrome";
-  if (ua.includes("Safari")) return "Safari";
   if (ua.includes("Edg")) return "Edge";
+  if (ua.includes("OPR") || ua.includes("Opera")) return "Opera";
+  if (ua.includes("Chrome") || ua.includes("Chromium")) return "Chrome";
+  if (ua.includes("Safari")) return "Safari";
 
   return "Other client";
 }
@@ -87,6 +94,10 @@ function isIdle(session: Session) {
   );
 }
 
+function isExpired(session: Session) {
+  return new Date(session.expiresAt).getTime() <= Date.now();
+}
+
 function isExpiringSoon(session: Session) {
   const diff = new Date(session.expiresAt).getTime() - Date.now();
 
@@ -94,7 +105,15 @@ function isExpiringSoon(session: Session) {
 }
 
 export default function Sessions() {
-  const { data, isLoading, isError, error, refetch } = useSessions();
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+    dataUpdatedAt,
+  } = useSessions();
   const revoke = useRevokeSession();
   const { canWrite } = useAdminPermissions();
   const ensureStepUp = useStepUpGuard();
@@ -107,6 +126,12 @@ export default function Sessions() {
 
   const limit = 10;
   const sessions = data?.sessions ?? [];
+
+  // The feed can include sessions whose expiry has already passed, and the
+  // table already formats those as expired, but every returned row counted as
+  // active, inflating the figure with sessions that can no longer be used.
+  const expiredCount = sessions.filter(isExpired).length;
+  const activeCount = sessions.length - expiredCount;
 
   const filteredSessions = sessions.filter((session) => {
     const matchesSearch = search
@@ -158,6 +183,22 @@ export default function Sessions() {
     { value: "expiring", label: "Expiring soon", count: expiringSoonCount },
     { value: "idle", label: "Idle", count: idleCount },
   ];
+
+  const exportSessions = () =>
+    exportCsv(
+      `sessions-${new Date().toISOString().slice(0, 10)}.csv`,
+      filteredSessions,
+      [
+        { header: "Session ID", value: (row) => row.id },
+        { header: "Device", value: (row) => row.deviceName },
+        { header: "IP address", value: (row) => row.ipAddress },
+        { header: "User agent", value: (row) => row.userAgent },
+        { header: "Browser", value: (row) => formatUserAgent(row.userAgent) },
+        { header: "Last used", value: (row) => row.lastUsedAt },
+        { header: "Expires", value: (row) => row.expiresAt },
+        { header: "Expired", value: (row) => (isExpired(row) ? "yes" : "no") },
+      ],
+    );
 
   const revokeSession = async (session: Session) => {
     if (
@@ -314,8 +355,12 @@ export default function Sessions() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Active Sessions"
-          value={sessions.length}
-          hint="Currently returned by the admin sessions feed"
+          value={activeCount}
+          hint={
+            expiredCount > 0
+              ? `${expiredCount} expired ${expiredCount === 1 ? "session" : "sessions"} excluded`
+              : "Currently returned by the admin sessions feed"
+          }
         />
         <StatCard
           label="Distinct IPs"
@@ -338,15 +383,33 @@ export default function Sessions() {
         title="Session Inventory"
         description="Filter the session feed by activity level and search by IP address or user agent."
         actions={
-          <div className="w-full max-w-sm">
-            <SearchInput
-              value={search}
-              onChange={(value) => {
-                setOffset(0);
-                setSearch(value);
-              }}
-              placeholder="Search IP or device signature"
+          <div className="flex w-full flex-wrap items-center justify-end gap-3">
+            <RefreshControl
+              onRefresh={() => void refetch()}
+              isRefreshing={isFetching}
+              updatedAt={dataUpdatedAt}
             />
+
+            <button
+              type="button"
+              onClick={exportSessions}
+              disabled={filteredSessions.length === 0}
+              className="btn btn-secondary disabled:opacity-50"
+            >
+              <Download size={14} aria-hidden="true" />
+              Export CSV
+            </button>
+
+            <div className="w-full max-w-sm">
+              <SearchInput
+                value={search}
+                onChange={(value) => {
+                  setOffset(0);
+                  setSearch(value);
+                }}
+                placeholder="Search IP or device signature"
+              />
+            </div>
           </div>
         }
       >

@@ -14,5 +14,10 @@ export function useLoginStats() {
     queryKey: ["loginStats"],
     queryFn: () =>
       apiFetch<LoginStatsResponse>("/internal/auth-events/login-stats"),
+    // The monitoring screens describe themselves as live, so revalidate on an
+    // interval and when the operator returns to the tab. Manual refresh stays
+    // available for anything more immediate.
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   });
 }

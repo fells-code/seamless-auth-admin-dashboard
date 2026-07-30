@@ -8,6 +8,7 @@ import type { ComponentType } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, ShieldAlert, Users, Waves } from "lucide-react";
 import { useDashboard } from "../hooks/useDashboard";
+import RefreshControl from "../components/RefreshControl";
 import { useAuthTimeseries } from "../hooks/useAuthTimeseries";
 import { useGroupedEvents } from "../hooks/useGroupedEvents";
 import LineChart from "../components/LineChart";
@@ -26,21 +27,35 @@ function formatPercent(value: number) {
 export default function Overview() {
   const navigate = useNavigate();
 
-  const { data, isLoading, isError, error, refetch } = useDashboard();
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+    dataUpdatedAt,
+  } = useDashboard();
   const {
     data: timeseries,
     isError: timeseriesError,
     error: timeseriesErrorValue,
+    refetch: refetchTimeseries,
   } = useAuthTimeseries();
   const {
     data: grouped,
     isError: groupedError,
     error: groupedErrorValue,
+    refetch: refetchGrouped,
   } = useGroupedEvents();
 
   const totalAttempts =
     (data?.loginSuccess24h ?? 0) + (data?.loginFailed24h ?? 0);
-  const failureRate = 1 - (data?.successRate24h ?? 0);
+  // With no attempts in the window there is no rate to report. Deriving one
+  // anyway rendered "100%" next to "Elevated enough to merit review" on the
+  // landing screen, which reads as a complete authentication outage.
+  const failureRate =
+    totalAttempts > 0 ? 1 - (data?.successRate24h ?? 0) : null;
 
   const busiestBucket = timeseries?.timeseries.length
     ? timeseries.timeseries.reduce((best, point) => {
@@ -91,6 +106,18 @@ export default function Overview() {
                   attention areas across your Seamless Auth deployment.
                 </p>
               </div>
+
+              {/* The screen describes itself as a live snapshot but never
+                  refreshed, so the figures silently went stale. */}
+              <RefreshControl
+                onRefresh={() => {
+                  void refetch();
+                  void refetchTimeseries();
+                  void refetchGrouped();
+                }}
+                isRefreshing={isFetching}
+                updatedAt={dataUpdatedAt}
+              />
 
               <div className="flex flex-wrap gap-2">
                 <StatusPill
@@ -173,11 +200,13 @@ export default function Overview() {
             />
             <StatCard
               label="Failure Rate"
-              value={formatPercent(failureRate)}
+              value={failureRate === null ? "n/a" : formatPercent(failureRate)}
               hint={
-                failureRate > 0.1
-                  ? "Elevated enough to merit review"
-                  : "Within a low-friction range"
+                failureRate === null
+                  ? "No authentication attempts in this window"
+                  : failureRate > 0.1
+                    ? "Elevated enough to merit review"
+                    : "Within a low-friction range"
               }
             />
           </>
