@@ -18,6 +18,7 @@ import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import { useToast } from "../hooks/useToast";
 import { useConfirm } from "../hooks/useConfirm";
+import { useUnsavedChangesGuard } from "../hooks/useUnsavedChangesGuard";
 import Skeleton from "../components/Skeleton";
 import RemovableChips from "../components/RemovableChips";
 import RoleChips from "../components/RoleChips";
@@ -160,6 +161,12 @@ export default function SystemConfigPage() {
     if (!data || !form) return false;
     return JSON.stringify(data) !== JSON.stringify(form);
   }, [data, form]);
+
+  // Every edit on this screen is staged into one draft behind a single Save, so
+  // navigating away, going back, or refreshing silently discarded all of them.
+  // The sticky bar reported unsaved changes but did nothing to protect them.
+  // Must be called before the loading and error early returns below.
+  useUnsavedChangesGuard(isDirty);
 
   if (isLoading) {
     return (

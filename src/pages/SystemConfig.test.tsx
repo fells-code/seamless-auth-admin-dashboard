@@ -12,6 +12,7 @@ import {
   within,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import SystemConfigPage from "./SystemConfig";
 
 const mocks = vi.hoisted(() => ({
@@ -92,6 +93,16 @@ const storedProvider = {
   requireEmailVerified: false,
 };
 
+// useUnsavedChangesGuard calls useBlocker, which only exists on a data router.
+function renderPage() {
+  const router = createMemoryRouter(
+    [{ path: "/system", element: <SystemConfigPage /> }],
+    { initialEntries: ["/system"] },
+  );
+
+  return render(<RouterProvider router={router} />);
+}
+
 describe("SystemConfigPage", () => {
   beforeEach(() => {
     mocks.mutate.mockReset();
@@ -121,7 +132,7 @@ describe("SystemConfigPage", () => {
   });
 
   it("saves selected login policy fields after step-up", async () => {
-    render(<SystemConfigPage />);
+    renderPage();
 
     fireEvent.click(screen.getByRole("checkbox", { name: /email otp/i }));
     fireEvent.click(
@@ -152,7 +163,7 @@ describe("SystemConfigPage", () => {
       isLoading: false,
     });
 
-    render(<SystemConfigPage />);
+    renderPage();
 
     fireEvent.click(screen.getByRole("checkbox", { name: /email otp/i }));
     fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
@@ -171,7 +182,7 @@ describe("SystemConfigPage", () => {
     const ensureStepUp = vi.fn().mockResolvedValue(false);
     mocks.useStepUpGuard.mockReturnValue(ensureStepUp);
 
-    render(<SystemConfigPage />);
+    renderPage();
 
     fireEvent.click(screen.getByRole("checkbox", { name: /email otp/i }));
     fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
@@ -181,7 +192,7 @@ describe("SystemConfigPage", () => {
   });
 
   it("adds scoped roles to the available role set", async () => {
-    render(<SystemConfigPage />);
+    renderPage();
 
     fireEvent.change(screen.getByPlaceholderText(/admin:read/i), {
       target: { value: "admin:write" },
@@ -205,7 +216,7 @@ describe("SystemConfigPage", () => {
   });
 
   it("creates an OAuth provider via the dedicated route, without a secret value", async () => {
-    render(<SystemConfigPage />);
+    renderPage();
 
     fireEvent.change(screen.getByLabelText(/provider id/i), {
       target: { value: "google" },
@@ -274,7 +285,7 @@ describe("SystemConfigPage", () => {
       isLoading: false,
     });
 
-    render(<SystemConfigPage />);
+    renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: /edit google/i }));
 
@@ -308,7 +319,7 @@ describe("SystemConfigPage", () => {
       isLoading: false,
     });
 
-    render(<SystemConfigPage />);
+    renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: /edit google/i }));
 
@@ -328,7 +339,7 @@ describe("SystemConfigPage", () => {
   });
 
   it("refuses to submit a provider whose required URLs are blank", async () => {
-    render(<SystemConfigPage />);
+    renderPage();
 
     fireEvent.change(screen.getByLabelText(/provider id/i), {
       target: { value: "google" },
@@ -352,7 +363,7 @@ describe("SystemConfigPage", () => {
   });
 
   it("rejects a malformed url and a provider id that is not kebab-case", async () => {
-    render(<SystemConfigPage />);
+    renderPage();
 
     fireEvent.change(screen.getByLabelText(/provider id/i), {
       target: { value: "Google Provider" },
@@ -405,7 +416,7 @@ describe("SystemConfigPage", () => {
       isLoading: false,
     });
 
-    render(<SystemConfigPage />);
+    renderPage();
 
     const card = within(screen.getByRole("group", { name: "Google" }));
 
@@ -445,7 +456,7 @@ describe("SystemConfigPage", () => {
       isLoading: false,
     });
 
-    render(<SystemConfigPage />);
+    renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: /^disable$/i }));
 
@@ -486,7 +497,7 @@ describe("SystemConfigPage", () => {
       isLoading: false,
     });
 
-    render(<SystemConfigPage />);
+    renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: /remove google/i }));
 
@@ -528,7 +539,7 @@ describe("SystemConfigPage", () => {
       isLoading: false,
     });
 
-    render(<SystemConfigPage />);
+    renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: /remove google/i }));
 
@@ -537,7 +548,7 @@ describe("SystemConfigPage", () => {
   });
 
   it("saves lockout policy changes", async () => {
-    render(<SystemConfigPage />);
+    renderPage();
 
     fireEvent.change(screen.getByLabelText(/max failures/i), {
       target: { value: "5" },
@@ -569,7 +580,7 @@ describe("SystemConfigPage", () => {
       canWrite: false,
     });
 
-    render(<SystemConfigPage />);
+    renderPage();
 
     expect(screen.getByRole("button", { name: /read only/i })).toBeDisabled();
   });
@@ -577,7 +588,7 @@ describe("SystemConfigPage", () => {
   it("requires confirmation before removing an available role", async () => {
     mocks.confirm.mockResolvedValue(false);
 
-    render(<SystemConfigPage />);
+    renderPage();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Remove user from available roles" }),
@@ -594,7 +605,7 @@ describe("SystemConfigPage", () => {
   });
 
   it("drops a removed role from the default roles as well", async () => {
-    render(<SystemConfigPage />);
+    renderPage();
 
     // "user" is both an available role and a default role.
     fireEvent.click(
@@ -627,7 +638,7 @@ describe("SystemConfigPage", () => {
   });
 
   it("associates config fields and the role input with their labels", () => {
-    render(<SystemConfigPage />);
+    renderPage();
 
     // Rendered through the shared Field and Input helpers.
     expect(screen.getByLabelText(/app name/i).tagName).toBe("INPUT");
@@ -638,7 +649,7 @@ describe("SystemConfigPage", () => {
   });
 
   it("exposes the login method checkboxes as a named group", () => {
-    render(<SystemConfigPage />);
+    renderPage();
 
     expect(
       screen.getByRole("group", { name: /enabled login methods/i }),
@@ -646,7 +657,7 @@ describe("SystemConfigPage", () => {
   });
 
   it("does not stage a cleared or negative numeric field", () => {
-    render(<SystemConfigPage />);
+    renderPage();
 
     const rateLimit = screen.getByLabelText(/rate limit/i);
 
@@ -675,7 +686,7 @@ describe("SystemConfigPage", () => {
       canWrite: false,
     });
 
-    render(<SystemConfigPage />);
+    renderPage();
 
     expect(screen.getByLabelText(/app name/i)).toBeDisabled();
     expect(screen.getByLabelText(/rate limit/i)).toBeDisabled();
@@ -690,7 +701,7 @@ describe("SystemConfigPage", () => {
   it("confirms before discarding a dirty draft", async () => {
     mocks.confirm.mockResolvedValue(false);
 
-    render(<SystemConfigPage />);
+    renderPage();
 
     fireEvent.change(screen.getByLabelText(/app name/i), {
       target: { value: "Renamed" },
@@ -709,7 +720,7 @@ describe("SystemConfigPage", () => {
   it("warns before saving a changed relying-party id", async () => {
     mocks.confirm.mockResolvedValue(false);
 
-    render(<SystemConfigPage />);
+    renderPage();
 
     fireEvent.change(screen.getByLabelText(/rp id/i), {
       target: { value: "new.example.com" },
@@ -728,7 +739,7 @@ describe("SystemConfigPage", () => {
   });
 
   it("refuses to remove the only allowed origin", () => {
-    render(<SystemConfigPage />);
+    renderPage();
 
     expect(
       screen.getByRole("button", { name: "Remove https://example.com" }),
