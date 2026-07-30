@@ -10,7 +10,6 @@ import {
   Cell,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { buildEventQuery } from "../lib/eventNavigation";
@@ -46,7 +45,13 @@ function generateColor(index: number) {
 
 /* ---------- Component ---------- */
 
-export default function PieChart({ data }: { data: PieChartDatum[] }) {
+export default function PieChart({
+  data,
+  title = "Event distribution by category",
+}: {
+  data: PieChartDatum[];
+  title?: string;
+}) {
   const navigate = useNavigate();
   const chartData = data
     .filter((item) => item.count > 0)
@@ -54,6 +59,11 @@ export default function PieChart({ data }: { data: PieChartDatum[] }) {
       ...item,
       label: item.label ?? item.type,
     }));
+
+  const total = chartData.reduce((sum, item) => sum + item.count, 0);
+
+  const openCategory = (type: string) =>
+    navigate(type === "other" ? "/events" : buildEventQuery({ type }));
 
   if (chartData.length === 0) {
     return (
@@ -64,57 +74,78 @@ export default function PieChart({ data }: { data: PieChartDatum[] }) {
   }
 
   return (
-    <div className="h-80 w-full">
-      <ResponsiveContainer>
-        <RPieChart>
-          <Pie
-            data={chartData}
-            dataKey="count"
-            nameKey="label"
-            outerRadius={90}
-            innerRadius={50}
-            paddingAngle={0}
-            onClick={(entry) => {
-              // Recharts types are messy → narrow safely
-              if (!entry || typeof entry !== "object") return;
+    <div className="w-full space-y-3">
+      {/* Announced as one image with a summary. The interactive legend below is
+          both the text alternative and the keyboard route to the filtering the
+          segments offer, which was previously mouse-only and undiscoverable. */}
+      <div
+        role="img"
+        aria-label={`${title}. ${total} events across ${chartData.length} categories.`}
+        className="h-64 w-full"
+      >
+        <ResponsiveContainer>
+          <RPieChart>
+            <Pie
+              data={chartData}
+              dataKey="count"
+              nameKey="label"
+              outerRadius={90}
+              innerRadius={50}
+              paddingAngle={0}
+              onClick={(entry) => {
+                // Recharts types are messy → narrow safely
+                if (!entry || typeof entry !== "object") return;
 
-              const e = entry as unknown as PieChartDatum;
+                const e = entry as unknown as PieChartDatum;
 
-              navigate(
-                e.type === "other"
-                  ? "/events"
-                  : buildEventQuery({ type: e.type }),
-              );
-            }}
-          >
-            {chartData.map((_, i) => (
-              <Cell
-                key={i}
-                fill={generateColor(i)}
-                className="transition-opacity hover:opacity-80 cursor-pointer"
+                openCategory(e.type);
+              }}
+            >
+              {chartData.map((_, i) => (
+                <Cell
+                  key={i}
+                  fill={generateColor(i)}
+                  className="transition-opacity hover:opacity-80 cursor-pointer"
+                />
+              ))}
+            </Pie>
+
+            <Tooltip
+              contentStyle={{
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderRadius: "8px",
+                color: "var(--text)",
+              }}
+            />
+          </RPieChart>
+        </ResponsiveContainer>
+      </div>
+
+      <ul className="flex flex-wrap gap-2">
+        {chartData.map((item, i) => (
+          <li key={item.type}>
+            <button
+              type="button"
+              onClick={() => openCategory(item.type)}
+              className="flex items-center gap-2 rounded-full border border-subtle bg-surface px-3 py-1 text-xs text-muted transition hover:bg-surface-alt hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+            >
+              <span
+                aria-hidden="true"
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{ background: generateColor(i) }}
               />
-            ))}
-          </Pie>
+              <span>
+                {item.label} ({item.count})
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
 
-          <Tooltip
-            contentStyle={{
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              borderRadius: "8px",
-              color: "var(--text)",
-            }}
-          />
-
-          <Legend
-            iconSize={8}
-            wrapperStyle={{
-              fontSize: "11px",
-              lineHeight: "16px",
-              color: "var(--text-muted)",
-            }}
-          />
-        </RPieChart>
-      </ResponsiveContainer>
+      <p className="text-xs text-muted">
+        Select a category to filter the events feed by it.
+      </p>
     </div>
   );
 }
