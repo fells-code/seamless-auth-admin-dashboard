@@ -29,6 +29,43 @@ type Column<T, K extends keyof T = keyof T> = {
  */
 type AnyColumn<T> = { [K in keyof T]-?: Column<T, K> }[keyof T];
 
+// ISO 8601 date-times only. A looser check would hand arbitrary strings to
+// Date.parse, which accepts things like "Login" in some engines.
+const ISO_DATE_TIME =
+  /^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/;
+
+/**
+ * Compare two cell values by what they are rather than by their text.
+ *
+ * Everything was previously stringified and compared with localeCompare, so
+ * numeric columns ordered 1, 10, 100, 2, and dates only happened to sort when
+ * they were already zero-padded ISO strings.
+ */
+function compareValues(a: unknown, b: unknown): number {
+  if (typeof a === "number" && typeof b === "number") {
+    return a - b;
+  }
+
+  if (typeof a === "boolean" && typeof b === "boolean") {
+    return Number(a) - Number(b);
+  }
+
+  if (a instanceof Date && b instanceof Date) {
+    return a.getTime() - b.getTime();
+  }
+
+  if (
+    typeof a === "string" &&
+    typeof b === "string" &&
+    ISO_DATE_TIME.test(a) &&
+    ISO_DATE_TIME.test(b)
+  ) {
+    return new Date(a).getTime() - new Date(b).getTime();
+  }
+
+  return String(a).localeCompare(String(b), undefined, { numeric: true });
+}
+
 type RowAction<T> = {
   icon: React.ComponentType<{ size?: number }>;
   onClick: (row: T) => void;
@@ -215,12 +252,15 @@ export default function Table<T extends Record<string, unknown>>({
     const valA = a[sortKey];
     const valB = b[sortKey];
 
+    // Nulls sink regardless of direction, so an empty cell never displaces a
+    // real value at the top of the list.
+    if (valA == null && valB == null) return 0;
     if (valA == null) return 1;
     if (valB == null) return -1;
 
-    return direction === "asc"
-      ? String(valA).localeCompare(String(valB))
-      : String(valB).localeCompare(String(valA));
+    const result = compareValues(valA, valB);
+
+    return direction === "asc" ? result : -result;
   });
 
   const updateScrollState = useCallback(() => {
@@ -297,6 +337,7 @@ export default function Table<T extends Record<string, unknown>>({
   });
   const hasRows = sortedData.length > 0;
   const displayTotal = total ?? sortedData.length;
+  const isPaginated = total !== undefined && total > sortedData.length;
   const rangeStart = hasRows ? offset + 1 : 0;
   const rangeEnd = hasRows ? offset + sortedData.length : 0;
 
@@ -341,6 +382,10 @@ export default function Table<T extends Record<string, unknown>>({
           {sortKey && (
             <div className="rounded-full border border-subtle bg-surface px-3 py-1 text-xs text-muted">
               Sorted by {String(sortKey)} {direction}
+              {/* The sort only ever covers the rows the table holds. Saying so
+                  keeps the indicator from implying the whole result set is
+                  ordered when it is not. */}
+              {isPaginated && " (this page only)"}
             </div>
           )}
         </div>
