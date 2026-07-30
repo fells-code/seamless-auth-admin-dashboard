@@ -259,4 +259,33 @@ describe("UserDetail", () => {
       "3 sessions revoked, 2 passkeys removed, 1 TOTP credentials disabled.",
     );
   });
+
+  it("disables the destructive controls while their request is in flight", () => {
+    mocks.useRevokeAllUserSessions.mockReturnValue({
+      mutate: mocks.revokeAllMutate,
+      isPending: true,
+    });
+    mocks.useDeleteUser.mockReturnValue({
+      mutate: mocks.deleteMutate,
+      isPending: true,
+    });
+
+    renderPage();
+
+    // Both stayed enabled while pending, so an operator who saw no feedback
+    // could click again and issue duplicate revoke or delete requests. The
+    // device replacement control alongside them was already correct.
+    expect(screen.getByRole("button", { name: "Revoking..." })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Deleting..." })).toBeDisabled();
+  });
+
+  it("keeps the suspicious signals tile value and hint on the same metric", () => {
+    renderPage();
+
+    // The hint used to describe failed sign-ins while the value counted
+    // suspicious signals.
+    expect(
+      screen.queryByText(/failed logins in this detail record/),
+    ).not.toBeInTheDocument();
+  });
 });
