@@ -63,6 +63,83 @@ const LOGIN_METHOD_OPTIONS: {
   },
 ];
 
+// The provider schema types authorizationUrl, tokenUrl, userInfoUrl, and both
+// redirect fields as URLs, so a blank or malformed value is rejected by the API
+// rather than by anything the operator can see. Validate here instead.
+function isAbsoluteUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+const PROVIDER_ID_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+type ProviderFieldErrors = Partial<Record<keyof OAuthProviderConfig, string>>;
+
+function validateProvider(
+  draft: OAuthProviderConfig,
+  { isNew, existingIds }: { isNew: boolean; existingIds: string[] },
+): ProviderFieldErrors {
+  const errors: ProviderFieldErrors = {};
+
+  if (!draft.id.trim()) {
+    errors.id = "A provider ID is required.";
+  } else if (!PROVIDER_ID_PATTERN.test(draft.id.trim())) {
+    errors.id = "Use lowercase kebab-case, such as google or azure-ad.";
+  } else if (isNew && existingIds.includes(draft.id.trim())) {
+    errors.id = "A provider with that ID already exists. Edit it instead.";
+  }
+
+  if (!draft.name.trim()) errors.name = "A display name is required.";
+  if (!draft.clientId.trim()) errors.clientId = "A client ID is required.";
+  if (!draft.clientSecretEnv.trim()) {
+    errors.clientSecretEnv = "An environment variable name is required.";
+  }
+
+  for (const key of ["authorizationUrl", "tokenUrl", "userInfoUrl"] as const) {
+    const value = draft[key].trim();
+    if (!value) {
+      errors[key] = "This URL is required for OAuth to work.";
+    } else if (!isAbsoluteUrl(value)) {
+      errors[key] = "Enter a full URL, including https://.";
+    }
+  }
+
+  const redirectUri = draft.redirectUri?.trim();
+  if (redirectUri && !isAbsoluteUrl(redirectUri)) {
+    errors.redirectUri = "Enter a full URL, including https://.";
+  }
+
+  const invalidAllowlisted = draft.redirectUris.filter(
+    (uri) => !isAbsoluteUrl(uri),
+  );
+  if (invalidAllowlisted.length > 0) {
+    errors.redirectUris = `Not a valid URL: ${invalidAllowlisted.join(", ")}`;
+  }
+
+  if (!draft.subjectJsonPath.trim()) {
+    errors.subjectJsonPath = "A subject claim path is required.";
+  }
+
+  return errors;
+}
+
+function describeRedirects(provider: OAuthProviderConfig) {
+  const allowlisted = (provider.redirectUris ?? []).filter(Boolean);
+  const single = provider.redirectUri?.trim();
+
+  if (!allowlisted.length && !single) return "Origin fallback";
+
+  const parts: string[] = [];
+  if (single) parts.push("1 fixed");
+  if (allowlisted.length) parts.push(`${allowlisted.length} allowlisted`);
+
+  return parts.join(", ");
+}
+
 export default function SystemConfigPage() {
   const { data, isLoading, isError, error, refetch } = useSystemConfig();
   const update = useUpdateSystemConfig();
@@ -159,7 +236,24 @@ export default function SystemConfigPage() {
     }
   };
 
-  const reset = () => {
+  const reset = async () => {
+    if (!isDirty) return;
+
+    // The screen accumulates edits across every section behind one draft, so a
+    // stray click here throws away all of them. Neighbouring actions (removing
+    // a role or a provider) already confirm.
+    if (
+      !(await confirm({
+        title: "Discard changes",
+        description:
+          "Discard all staged configuration changes and return to the last fetched state? This cannot be undone.",
+        confirmLabel: "Discard",
+        tone: "danger",
+      }))
+    ) {
+      return;
+    }
+
     setDraft({});
   };
 
@@ -171,6 +265,33 @@ export default function SystemConfigPage() {
     // includes read-only keys from the GET, such as frontend_url) is rejected.
     const changes = draft;
     if (Object.keys(changes).length === 0) return;
+
+    // Both fields decide whether an existing passkey can still be asserted, and
+    // neither failure is visible until a user cannot sign in.
+    const warnings: string[] = [];
+    if (changes.rpid !== undefined && data && changes.rpid !== data.rpid) {
+      warnings.push(
+        `Changing the relying-party ID from "${data.rpid}" to "${changes.rpid}" invalidates every passkey already registered against the old ID. Those users will have to enrol again.`,
+      );
+    }
+    if (changes.origins !== undefined) {
+      warnings.push(
+        "Changing the allowed origins stops WebAuthn flows from any origin no longer on the list.",
+      );
+    }
+
+    if (warnings.length > 0) {
+      if (
+        !(await confirm({
+          title: "Confirm WebAuthn changes",
+          description: warnings.join(" "),
+          confirmLabel: "Save anyway",
+          tone: "danger",
+        }))
+      ) {
+        return;
+      }
+    }
 
     setStepUpPending(true);
     try {
@@ -343,6 +464,7 @@ export default function SystemConfigPage() {
           value={form.app_name}
           helperText="This is the operator-facing or relying-party name used by the system."
           onChange={(value) => updateField("app_name", value)}
+          disabled={!canWrite}
         />
       </Section>
 
@@ -369,6 +491,7 @@ export default function SystemConfigPage() {
               onAdd={(role) =>
                 updateField("available_roles", [...form.available_roles, role])
               }
+              disabled={!canWrite}
             />
           </div>
 
@@ -381,6 +504,7 @@ export default function SystemConfigPage() {
               roles={form.available_roles}
               selected={form.default_roles}
               onChange={(roles) => updateField("default_roles", roles)}
+              disabled={!canWrite}
             />
           </div>
         </div>
@@ -394,6 +518,7 @@ export default function SystemConfigPage() {
           <LoginMethodSelector
             value={form.login_methods}
             onChange={(value) => updateField("login_methods", value)}
+            canWrite={canWrite}
           />
 
           <CheckboxField
@@ -403,6 +528,7 @@ export default function SystemConfigPage() {
             onChange={(checked) =>
               updateField("passkey_login_fallback_enabled", checked)
             }
+            disabled={!canWrite}
           />
         </div>
       </Section>
@@ -430,6 +556,7 @@ export default function SystemConfigPage() {
             value={form.access_token_ttl}
             helperText="Examples: 15m, 1h, 24h depending on backend expectations."
             onChange={(value) => updateField("access_token_ttl", value)}
+            disabled={!canWrite}
           />
 
           <Input
@@ -437,6 +564,7 @@ export default function SystemConfigPage() {
             value={form.refresh_token_ttl}
             helperText="Longer-lived tokens extend session continuity but also extend persistence."
             onChange={(value) => updateField("refresh_token_ttl", value)}
+            disabled={!canWrite}
           />
         </div>
       </Section>
@@ -451,6 +579,7 @@ export default function SystemConfigPage() {
             value={form.rate_limit}
             helperText="Maximum request count before the limiter begins to intervene."
             onChange={(value) => updateField("rate_limit", value)}
+            disabled={!canWrite}
           />
 
           <NumberInput
@@ -458,6 +587,7 @@ export default function SystemConfigPage() {
             value={form.delay_after}
             helperText="How many requests can pass before delay behavior begins."
             onChange={(value) => updateField("delay_after", value)}
+            disabled={!canWrite}
           />
         </div>
       </Section>
@@ -477,6 +607,7 @@ export default function SystemConfigPage() {
                 enabled: checked,
               })
             }
+            disabled={!canWrite}
           />
 
           <div className="grid gap-4 md:grid-cols-3">
@@ -490,6 +621,7 @@ export default function SystemConfigPage() {
                   maxFailures: value,
                 })
               }
+              disabled={!canWrite}
             />
             <NumberInput
               label="Window Seconds"
@@ -501,6 +633,7 @@ export default function SystemConfigPage() {
                   windowSeconds: value,
                 })
               }
+              disabled={!canWrite}
             />
             <NumberInput
               label="Lockout Seconds"
@@ -512,6 +645,7 @@ export default function SystemConfigPage() {
                   lockoutSeconds: value,
                 })
               }
+              disabled={!canWrite}
             />
           </div>
         </div>
@@ -527,11 +661,13 @@ export default function SystemConfigPage() {
             value={form.rpid}
             helperText="Usually the effective domain that should own the WebAuthn credentials."
             onChange={(value) => updateField("rpid", value)}
+            disabled={!canWrite}
           />
 
           <OriginsEditor
             origins={form.origins}
             setOrigins={(value) => updateField("origins", value)}
+            canWrite={canWrite}
           />
         </div>
       </Section>
@@ -553,7 +689,7 @@ export default function SystemConfigPage() {
 
           <div className="flex flex-wrap gap-2">
             <button
-              onClick={reset}
+              onClick={() => void reset()}
               disabled={!isDirty || isSaving}
               className="btn btn-secondary disabled:opacity-50"
             >
@@ -625,14 +761,29 @@ function Field({
   label,
   helperText,
   htmlFor,
+  error,
+  errorId,
   children,
 }: {
   label: string;
   helperText?: string;
   htmlFor?: string;
+  error?: string;
+  errorId?: string;
   children: React.ReactNode;
 }) {
   const labelId = useId();
+
+  const messages = (
+    <>
+      {helperText && <p className="text-sm text-muted">{helperText}</p>}
+      {error && (
+        <p id={errorId} className="text-sm text-[var(--highlight)]">
+          {error}
+        </p>
+      )}
+    </>
+  );
 
   // With a single control, the text is a real label. A group of controls has
   // nothing to point at, so it becomes a group name instead of an orphan label.
@@ -646,7 +797,7 @@ function Field({
           {label}
         </label>
         {children}
-        {helperText && <p className="text-sm text-muted">{helperText}</p>}
+        {messages}
       </div>
     );
   }
@@ -660,57 +811,125 @@ function Field({
         {label}
       </div>
       {children}
-      {helperText && <p className="text-sm text-muted">{helperText}</p>}
+      {messages}
     </div>
   );
 }
+
+const controlClassName =
+  "w-full rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-60";
 
 function Input({
   label,
   value,
   onChange,
   helperText,
+  disabled,
+  error,
+  readOnly,
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   helperText?: string;
+  disabled?: boolean;
+  error?: string;
+  readOnly?: boolean;
+  placeholder?: string;
 }) {
   const id = useId();
+  const errorId = useId();
 
   return (
-    <Field label={label} helperText={helperText} htmlFor={id}>
+    <Field
+      label={label}
+      helperText={helperText}
+      htmlFor={id}
+      error={error}
+      errorId={errorId}
+    >
       <input
         id={id}
         value={value}
+        disabled={disabled}
+        readOnly={readOnly}
+        placeholder={placeholder}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+        className={controlClassName}
       />
     </Field>
   );
 }
 
+/**
+ * A numeric field that never reports a value it was not given.
+ *
+ * The previous implementation passed `Number(e.target.value)` straight through,
+ * so clearing the field staged a 0. A rate limit or lockout threshold of 0
+ * changes authentication behaviour drastically, and nothing said so. Values
+ * below `min`, non-integers, and an empty field are now held locally and
+ * reported inline instead of being staged. Blur restores the last staged value,
+ * so what is displayed is always what would be saved.
+ */
 function NumberInput({
   label,
   value,
   onChange,
   helperText,
+  disabled,
+  min = 1,
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
   helperText?: string;
+  disabled?: boolean;
+  min?: number;
 }) {
   const id = useId();
+  const errorId = useId();
+  const [pending, setPending] = useState<string | null>(null);
+
+  const text = pending ?? String(value);
+  const parsed = Number(text);
+  const invalid =
+    text.trim() === "" || !Number.isInteger(parsed) || parsed < min;
+
+  const handleChange = (next: string) => {
+    setPending(next);
+
+    const candidate = Number(next);
+    if (next.trim() === "" || !Number.isInteger(candidate) || candidate < min) {
+      return;
+    }
+
+    onChange(candidate);
+  };
 
   return (
-    <Field label={label} helperText={helperText} htmlFor={id}>
+    <Field
+      label={label}
+      helperText={helperText}
+      htmlFor={id}
+      error={invalid ? `Enter a whole number of ${min} or greater.` : undefined}
+      errorId={errorId}
+    >
       <input
         id={id}
         type="number"
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+        inputMode="numeric"
+        min={min}
+        step={1}
+        value={text}
+        disabled={disabled}
+        aria-invalid={invalid ? true : undefined}
+        aria-describedby={invalid ? errorId : undefined}
+        onChange={(e) => handleChange(e.target.value)}
+        onBlur={() => setPending(null)}
+        className={controlClassName}
       />
     </Field>
   );
@@ -719,9 +938,11 @@ function NumberInput({
 function LoginMethodSelector({
   value,
   onChange,
+  canWrite,
 }: {
   value: LoginMethod[];
   onChange: (v: LoginMethod[]) => void;
+  canWrite: boolean;
 }) {
   const toggle = (method: LoginMethod) => {
     const enabled = value.includes(method);
@@ -743,12 +964,16 @@ function LoginMethodSelector({
       <div className="grid gap-3 md:grid-cols-2">
         {LOGIN_METHOD_OPTIONS.map((option) => {
           const checked = value.includes(option.value);
-          const disabled = checked && value.length === 1;
+          const disabled = !canWrite || (checked && value.length === 1);
 
           return (
             <label
               key={option.value}
-              className="flex min-h-24 cursor-pointer items-start gap-3 rounded-md border border-subtle bg-surface-alt p-4 transition hover:border-[var(--primary)] has-[:checked]:border-[var(--primary)] has-[:checked]:bg-surface"
+              className={`flex min-h-24 items-start gap-3 rounded-md border border-subtle bg-surface-alt p-4 transition has-[:checked]:border-[var(--primary)] has-[:checked]:bg-surface ${
+                canWrite
+                  ? "cursor-pointer hover:border-[var(--primary)]"
+                  : "cursor-not-allowed opacity-60"
+              }`}
             >
               <input
                 type="checkbox"
@@ -779,19 +1004,28 @@ function CheckboxField({
   description,
   checked,
   onChange,
+  disabled,
 }: {
   label: string;
   description: string;
   checked: boolean;
   onChange: (v: boolean) => void;
+  disabled?: boolean;
 }) {
   return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-md border border-subtle bg-surface-alt p-4 transition hover:border-[var(--primary)]">
+    <label
+      className={`flex items-start gap-3 rounded-md border border-subtle bg-surface-alt p-4 transition ${
+        disabled
+          ? "cursor-not-allowed opacity-60"
+          : "cursor-pointer hover:border-[var(--primary)]"
+      }`}
+    >
       <input
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}
-        className="mt-1 h-4 w-4 rounded border-subtle accent-[var(--primary)]"
+        className="mt-1 h-4 w-4 rounded border-subtle accent-[var(--primary)] disabled:cursor-not-allowed"
       />
 
       <span className="space-y-1">
@@ -823,6 +1057,19 @@ const emptyOAuthProvider: OAuthProviderConfig = {
   requireEmailVerified: false,
 };
 
+// Fills only what a controlled input needs, without inventing values the stored
+// provider does not have.
+function toDraft(provider: OAuthProviderConfig): OAuthProviderConfig {
+  return {
+    ...provider,
+    scopes: provider.scopes ?? [],
+    redirectUris: provider.redirectUris ?? [],
+    subjectJsonPath: provider.subjectJsonPath ?? "",
+    emailJsonPath: provider.emailJsonPath ?? "",
+    emailVerifiedJsonPath: provider.emailVerifiedJsonPath ?? "",
+  };
+}
+
 function OAuthProvidersEditor({
   providers,
   canWrite,
@@ -837,45 +1084,122 @@ function OAuthProvidersEditor({
   confirm: ReturnType<typeof useConfirm>;
 }) {
   const [draft, setDraft] = useState<OAuthProviderConfig>(emptyOAuthProvider);
+  // The provider being edited, captured as it was stored. Diffing against this
+  // is what keeps an untouched field out of the PATCH body.
+  const [editing, setEditing] = useState<OAuthProviderConfig | null>(null);
+  const [errors, setErrors] = useState<ProviderFieldErrors>({});
   const accountLinkingId = useId();
   const { create, update, remove } = useOAuthProviders();
 
   const isSaving = create.isPending || update.isPending || remove.isPending;
 
-  const addProvider = async () => {
+  const setField = <K extends keyof OAuthProviderConfig>(
+    key: K,
+    value: OAuthProviderConfig[K],
+  ) => {
+    setDraft((prev) => ({ ...prev, [key]: value }));
+    setErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const startEditing = (provider: OAuthProviderConfig) => {
     if (!canWrite) return;
-    if (!draft.id || !draft.name || !draft.clientId || !draft.clientSecretEnv) {
+
+    // Deliberately not merged over emptyOAuthProvider. Doing that would fill an
+    // optional field the provider does not have (nameJsonPath, say) with the
+    // template default, and the diff below would then report it as an edit,
+    // which is the overwrite this is meant to prevent. The baseline and the
+    // draft must start identical.
+    const normalizedProvider = toDraft(provider);
+    setEditing(normalizedProvider);
+    setDraft(normalizedProvider);
+    setErrors({});
+  };
+
+  const cancelEditing = () => {
+    setEditing(null);
+    setDraft(emptyOAuthProvider);
+    setErrors({});
+  };
+
+  const normalized = (): OAuthProviderConfig => ({
+    ...draft,
+    id: draft.id.trim(),
+    name: draft.name.trim(),
+    clientId: draft.clientId.trim(),
+    clientSecretEnv: draft.clientSecretEnv.trim(),
+    authorizationUrl: draft.authorizationUrl.trim(),
+    tokenUrl: draft.tokenUrl.trim(),
+    userInfoUrl: draft.userInfoUrl.trim(),
+    scopes: draft.scopes.filter(Boolean),
+    redirectUris: draft.redirectUris.filter(Boolean),
+    redirectUri: draft.redirectUri?.trim() || undefined,
+    nameJsonPath: draft.nameJsonPath?.trim() || undefined,
+  });
+
+  const saveProvider = async () => {
+    if (!canWrite) return;
+
+    const provider = normalized();
+    const found = validateProvider(provider, {
+      isNew: !editing,
+      existingIds: providers.map((current) => current.id),
+    });
+
+    if (Object.keys(found).length > 0) {
+      setErrors(found);
       return;
     }
 
     if (!(await ensureStepUp())) return;
 
-    const { id, ...rest } = {
-      ...draft,
-      scopes: draft.scopes.filter(Boolean),
-      redirectUris: draft.redirectUris.filter(Boolean),
-      redirectUri: draft.redirectUri || undefined,
-      nameJsonPath: draft.nameJsonPath || undefined,
-    };
-
-    // Re-submitting an existing id edits that provider in place; a new id creates
-    // one. This keeps the single form usable for both without a duplicate 409.
-    const exists = providers.some((provider) => provider.id === id);
-    const onSuccess = () => {
-      setDraft(emptyOAuthProvider);
-      toast.success(
-        exists ? "Provider updated" : "Provider added",
-        `${draft.name} was saved.`,
-      );
-    };
     const onError = (error: Error) =>
       toast.error("Could not save provider", getErrorMessage(error));
 
-    if (exists) {
-      update.mutate({ id, updates: rest }, { onSuccess, onError });
-    } else {
-      create.mutate({ id, ...rest }, { onSuccess, onError });
+    if (editing) {
+      // Send only what actually changed. Submitting the whole form used to blank
+      // out URLs the operator never retyped and reset the JSON paths and
+      // allowSignup to the template defaults.
+      const updates: Record<string, unknown> = {};
+      for (const key of Object.keys(
+        provider,
+      ) as (keyof OAuthProviderConfig)[]) {
+        if (key === "id") continue;
+        if (JSON.stringify(editing[key]) !== JSON.stringify(provider[key])) {
+          updates[key] = provider[key];
+        }
+      }
+
+      if (Object.keys(updates).length === 0) {
+        toast.success("No changes to save", `${provider.name} is unchanged.`);
+        cancelEditing();
+        return;
+      }
+
+      update.mutate(
+        { id: provider.id, updates },
+        {
+          onSuccess: () => {
+            cancelEditing();
+            toast.success("Provider updated", `${provider.name} was saved.`);
+          },
+          onError,
+        },
+      );
+      return;
     }
+
+    create.mutate(provider, {
+      onSuccess: () => {
+        cancelEditing();
+        toast.success("Provider added", `${provider.name} was saved.`);
+      },
+      onError,
+    });
   };
 
   const toggleProvider = async (provider: OAuthProviderConfig) => {
@@ -922,135 +1246,190 @@ function OAuthProvidersEditor({
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-3 rounded-md border border-subtle bg-surface-alt p-4 lg:grid-cols-2">
-        <Input
-          label="Provider ID"
-          value={draft.id}
-          helperText="Use lowercase kebab-case, such as google or github."
-          onChange={(value) => setDraft({ ...draft, id: value })}
-        />
-        <Input
-          label="Display Name"
-          value={draft.name}
-          onChange={(value) => setDraft({ ...draft, name: value })}
-        />
-        <Input
-          label="Client ID"
-          value={draft.clientId}
-          onChange={(value) => setDraft({ ...draft, clientId: value })}
-        />
-        <Input
-          label="Client Secret Env"
-          value={draft.clientSecretEnv}
-          helperText="Name of the server environment variable containing the secret."
-          onChange={(value) => setDraft({ ...draft, clientSecretEnv: value })}
-        />
-        <Input
-          label="Authorization URL"
-          value={draft.authorizationUrl}
-          onChange={(value) => setDraft({ ...draft, authorizationUrl: value })}
-        />
-        <Input
-          label="Token URL"
-          value={draft.tokenUrl}
-          onChange={(value) => setDraft({ ...draft, tokenUrl: value })}
-        />
-        <Input
-          label="User Info URL"
-          value={draft.userInfoUrl}
-          onChange={(value) => setDraft({ ...draft, userInfoUrl: value })}
-        />
-        <Input
-          label="Redirect URI"
-          value={draft.redirectUri ?? ""}
-          onChange={(value) => setDraft({ ...draft, redirectUri: value })}
-        />
-        <Input
-          label="Redirect URI Allowlist"
-          value={draft.redirectUris.join(", ")}
-          helperText="Comma-separated callback URLs. When present, OAuth starts only accept exact matches."
-          onChange={(value) =>
-            setDraft({
-              ...draft,
-              redirectUris: value
-                .split(",")
-                .map((uri) => uri.trim())
-                .filter(Boolean),
-            })
-          }
-        />
-        <Input
-          label="Scopes"
-          value={draft.scopes.join(", ")}
-          helperText="Comma-separated scopes requested during OAuth authorization."
-          onChange={(value) =>
-            setDraft({
-              ...draft,
-              scopes: value
-                .split(",")
-                .map((scope) => scope.trim())
-                .filter(Boolean),
-            })
-          }
-        />
-        <Input
-          label="Subject JSON Path"
-          value={draft.subjectJsonPath}
-          onChange={(value) => setDraft({ ...draft, subjectJsonPath: value })}
-        />
-        <Input
-          label="Email JSON Path"
-          value={draft.emailJsonPath}
-          onChange={(value) => setDraft({ ...draft, emailJsonPath: value })}
-        />
-        <Input
-          label="Email Verified JSON Path"
-          value={draft.emailVerifiedJsonPath}
-          onChange={(value) =>
-            setDraft({ ...draft, emailVerifiedJsonPath: value })
-          }
-        />
-        <Input
-          label="Name JSON Path"
-          value={draft.nameJsonPath ?? ""}
-          onChange={(value) => setDraft({ ...draft, nameJsonPath: value })}
-        />
-        <Field
-          label="Account Linking"
-          helperText="Email linking reuses existing users; disabled requires an existing provider identity."
-          htmlFor={accountLinkingId}
-        >
-          <select
-            id={accountLinkingId}
-            value={draft.accountLinking}
-            onChange={(event) =>
-              setDraft({
-                ...draft,
-                accountLinking: event.target.value as "email" | "disabled",
-              })
+      <div className="space-y-3 rounded-md border border-subtle bg-surface-alt p-4">
+        <div className="text-sm font-medium text-primary">
+          {editing ? `Editing ${editing.name}` : "Add a provider"}
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-2">
+          <Input
+            label="Provider ID"
+            value={draft.id}
+            helperText={
+              editing
+                ? "The provider ID identifies the stored record and cannot be changed."
+                : "Use lowercase kebab-case, such as google or github."
             }
-            className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+            error={errors.id}
+            disabled={!canWrite}
+            readOnly={Boolean(editing)}
+            onChange={(value) => setField("id", value)}
+          />
+          <Input
+            label="Display Name"
+            value={draft.name}
+            error={errors.name}
+            disabled={!canWrite}
+            onChange={(value) => setField("name", value)}
+          />
+          <Input
+            label="Client ID"
+            value={draft.clientId}
+            error={errors.clientId}
+            disabled={!canWrite}
+            onChange={(value) => setField("clientId", value)}
+          />
+          <Input
+            label="Client Secret Env"
+            value={draft.clientSecretEnv}
+            helperText="Name of the server environment variable containing the secret."
+            error={errors.clientSecretEnv}
+            disabled={!canWrite}
+            onChange={(value) => setField("clientSecretEnv", value)}
+          />
+          <Input
+            label="Authorization URL"
+            value={draft.authorizationUrl}
+            placeholder="https://accounts.example.com/o/oauth2/v2/auth"
+            error={errors.authorizationUrl}
+            disabled={!canWrite}
+            onChange={(value) => setField("authorizationUrl", value)}
+          />
+          <Input
+            label="Token URL"
+            value={draft.tokenUrl}
+            placeholder="https://oauth2.example.com/token"
+            error={errors.tokenUrl}
+            disabled={!canWrite}
+            onChange={(value) => setField("tokenUrl", value)}
+          />
+          <Input
+            label="User Info URL"
+            value={draft.userInfoUrl}
+            placeholder="https://openidconnect.example.com/v1/userinfo"
+            error={errors.userInfoUrl}
+            disabled={!canWrite}
+            onChange={(value) => setField("userInfoUrl", value)}
+          />
+          <Input
+            label="Redirect URI"
+            value={draft.redirectUri ?? ""}
+            helperText="The single callback URL sent to the provider. Leave blank to fall back to this deployment's origin."
+            error={errors.redirectUri}
+            disabled={!canWrite}
+            onChange={(value) => setField("redirectUri", value)}
+          />
+          <Input
+            label="Redirect URI Allowlist"
+            value={draft.redirectUris.join(", ")}
+            helperText="Comma-separated. This restricts which callback URLs an OAuth start may request; it does not replace the Redirect URI above. Leave empty to allow only the origin."
+            error={errors.redirectUris}
+            disabled={!canWrite}
+            onChange={(value) =>
+              setField(
+                "redirectUris",
+                value
+                  .split(",")
+                  .map((uri) => uri.trim())
+                  .filter(Boolean),
+              )
+            }
+          />
+          <Input
+            label="Scopes"
+            value={draft.scopes.join(", ")}
+            helperText="Comma-separated scopes requested during OAuth authorization."
+            disabled={!canWrite}
+            onChange={(value) =>
+              setField(
+                "scopes",
+                value
+                  .split(",")
+                  .map((scope) => scope.trim())
+                  .filter(Boolean),
+              )
+            }
+          />
+          <Input
+            label="Subject JSON Path"
+            value={draft.subjectJsonPath}
+            error={errors.subjectJsonPath}
+            disabled={!canWrite}
+            onChange={(value) => setField("subjectJsonPath", value)}
+          />
+          <Input
+            label="Email JSON Path"
+            value={draft.emailJsonPath}
+            disabled={!canWrite}
+            onChange={(value) => setField("emailJsonPath", value)}
+          />
+          <Input
+            label="Email Verified JSON Path"
+            value={draft.emailVerifiedJsonPath}
+            disabled={!canWrite}
+            onChange={(value) => setField("emailVerifiedJsonPath", value)}
+          />
+          <Input
+            label="Name JSON Path"
+            value={draft.nameJsonPath ?? ""}
+            disabled={!canWrite}
+            onChange={(value) => setField("nameJsonPath", value)}
+          />
+          <Field
+            label="Account Linking"
+            helperText="Email linking reuses existing users; disabled requires an existing provider identity."
+            htmlFor={accountLinkingId}
           >
-            <option value="email">Email linking</option>
-            <option value="disabled">Disabled</option>
-          </select>
-        </Field>
-        <CheckboxField
-          label="Require Verified Email"
-          description="Reject OAuth profiles when the configured email verification claim is not true."
-          checked={draft.requireEmailVerified}
-          onChange={(value) =>
-            setDraft({ ...draft, requireEmailVerified: value })
-          }
-        />
-        <div className="flex items-end">
+            <select
+              id={accountLinkingId}
+              value={draft.accountLinking}
+              disabled={!canWrite}
+              onChange={(event) =>
+                setField(
+                  "accountLinking",
+                  event.target.value as "email" | "disabled",
+                )
+              }
+              className={controlClassName}
+            >
+              <option value="email">Email linking</option>
+              <option value="disabled">Disabled</option>
+            </select>
+          </Field>
+          <CheckboxField
+            label="Require Verified Email"
+            description="Reject OAuth profiles when the configured email verification claim is not true."
+            checked={draft.requireEmailVerified}
+            disabled={!canWrite}
+            onChange={(value) => setField("requireEmailVerified", value)}
+          />
+          <CheckboxField
+            label="Allow Just-in-Time Signup"
+            description="Create an account automatically the first time someone signs in with this provider. Turn this off to allow only users who already exist."
+            checked={draft.allowSignup}
+            disabled={!canWrite}
+            onChange={(value) => setField("allowSignup", value)}
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => void addProvider()}
+            onClick={() => void saveProvider()}
             disabled={!canWrite || isSaving}
             className="btn btn-secondary"
           >
-            Add Provider
+            {editing ? "Save Provider" : "Add Provider"}
           </button>
+
+          {editing && (
+            <button
+              onClick={cancelEditing}
+              disabled={isSaving}
+              className="btn btn-secondary"
+            >
+              Cancel
+            </button>
+          )}
         </div>
       </div>
 
@@ -1058,11 +1437,18 @@ function OAuthProvidersEditor({
         {providers.map((provider) => (
           <div
             key={provider.id}
+            role="group"
+            aria-label={provider.name}
             className="rounded-md border border-subtle bg-surface-alt p-4"
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0 space-y-1">
-                <div className="font-medium text-primary">{provider.name}</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-primary">
+                    {provider.name}
+                  </span>
+                  <ProviderStateBadge enabled={provider.enabled} />
+                </div>
                 <div className="text-sm text-muted">{provider.id}</div>
                 <div className="truncate text-xs text-muted">
                   Secret env configured
@@ -1070,6 +1456,14 @@ function OAuthProvidersEditor({
               </div>
 
               <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => startEditing(provider)}
+                  disabled={!canWrite || isSaving}
+                  aria-label={`Edit ${provider.name}`}
+                  className="btn btn-secondary"
+                >
+                  Edit
+                </button>
                 <button
                   onClick={() => void toggleProvider(provider)}
                   disabled={!canWrite || isSaving}
@@ -1094,8 +1488,7 @@ function OAuthProvidersEditor({
                 Scopes: {provider.scopes.join(", ") || "None"}
               </span>
               <span className="truncate">
-                Redirects:{" "}
-                {(provider.redirectUris ?? []).length || "Origin fallback"}
+                Redirects: {describeRedirects(provider)}
               </span>
               <span className="truncate">
                 Linking: {provider.accountLinking ?? "email"}
@@ -1103,6 +1496,10 @@ function OAuthProvidersEditor({
               <span className="truncate">
                 Verified email:{" "}
                 {provider.requireEmailVerified ? "required" : "optional"}
+              </span>
+              <span className="truncate">
+                Just-in-time signup:{" "}
+                {provider.allowSignup ? "allowed" : "blocked"}
               </span>
               <span className="truncate">
                 Authorization: {provider.authorizationUrl}
@@ -1124,39 +1521,94 @@ function OAuthProvidersEditor({
   );
 }
 
+function ProviderStateBadge({ enabled }: { enabled: boolean }) {
+  return (
+    <span
+      className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
+        enabled
+          ? "border-[var(--primary)] bg-[color:var(--accent-soft)] text-primary"
+          : "border-subtle bg-surface text-muted"
+      }`}
+    >
+      {enabled ? "Enabled" : "Disabled"}
+    </span>
+  );
+}
+
 function OriginsEditor({
   origins,
   setOrigins,
+  canWrite,
 }: {
   origins: string[];
   setOrigins: (v: string[]) => void;
+  canWrite: boolean;
 }) {
   const [input, setInput] = useState("");
+  const [error, setError] = useState("");
   const originInputId = useId();
 
+  // Emptying the list leaves no origin able to complete a WebAuthn ceremony,
+  // which locks every passkey user out. This mirrors the login-method selector,
+  // which already refuses to disable the last enabled method.
+  const isLastOrigin = origins.length === 1;
+
   const add = () => {
-    if (!input) return;
-    setOrigins([...origins, input]);
+    if (!canWrite) return;
+
+    const trimmed = input.trim();
+    if (!trimmed) return;
+
+    if (!isAbsoluteUrl(trimmed)) {
+      setError(
+        "Enter a full origin, including the scheme, such as https://example.com.",
+      );
+      return;
+    }
+
+    if (origins.includes(trimmed)) {
+      setError("That origin is already allowed.");
+      return;
+    }
+
+    setOrigins([...origins, trimmed]);
     setInput("");
+    setError("");
   };
 
   return (
     <div className="space-y-3">
       <Field
         label="Allowed Origins"
-        helperText="Origins must match the real client surfaces that should be allowed to participate in auth flows."
+        helperText="Origins must match the real client surfaces that should be allowed to participate in auth flows. At least one must remain."
         htmlFor={originInputId}
+        error={error || undefined}
       >
         <div className="flex gap-2">
           <input
             id={originInputId}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            className="flex-1 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+            disabled={!canWrite}
+            aria-invalid={error ? true : undefined}
+            onChange={(e) => {
+              setInput(e.target.value);
+              setError("");
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                add();
+              }
+            }}
+            className={`flex-1 ${controlClassName}`}
             placeholder="https://example.com"
           />
 
-          <button onClick={add} className="btn btn-secondary">
+          <button
+            onClick={add}
+            disabled={!canWrite}
+            className="btn btn-secondary"
+          >
             Add
           </button>
         </div>
@@ -1175,12 +1627,26 @@ function OriginsEditor({
                 origins.filter((_, currentIndex) => currentIndex !== index),
               )
             }
-            className="text-[var(--highlight)] transition hover:opacity-80"
+            disabled={!canWrite || isLastOrigin}
+            aria-label={`Remove ${origin}`}
+            title={
+              isLastOrigin
+                ? "At least one allowed origin is required for WebAuthn to work."
+                : undefined
+            }
+            className="text-[var(--highlight)] transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Remove
           </button>
         </div>
       ))}
+
+      {isLastOrigin && (
+        <p className="text-sm text-muted">
+          This is the only allowed origin. Add another before removing it, or
+          WebAuthn flows will stop working.
+        </p>
+      )}
     </div>
   );
 }
@@ -1188,13 +1654,17 @@ function OriginsEditor({
 function AddRoleInput({
   roles,
   onAdd,
+  disabled,
 }: {
   roles: string[];
   onAdd: (role: string) => void;
+  disabled?: boolean;
 }) {
   const [value, setValue] = useState("");
 
   const add = () => {
+    if (disabled) return;
+
     const trimmed = value.trim();
 
     if (!trimmed) return;
@@ -1208,10 +1678,11 @@ function AddRoleInput({
     <div className="flex gap-2">
       <input
         value={value}
+        disabled={disabled}
         onChange={(e) => setValue(e.target.value)}
         placeholder="Add role (e.g. admin:read)"
         aria-label="Add a role"
-        className="flex-1 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+        className={`flex-1 ${controlClassName}`}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
@@ -1220,7 +1691,7 @@ function AddRoleInput({
         }}
       />
 
-      <button onClick={add} className="btn btn-secondary">
+      <button onClick={add} disabled={disabled} className="btn btn-secondary">
         Add
       </button>
     </div>
