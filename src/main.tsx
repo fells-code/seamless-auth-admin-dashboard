@@ -7,13 +7,11 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import ThemeProvider from "./components/ThemeProvider";
 import ToastProvider from "./components/ToastProvider";
 import ConfirmProvider from "./components/ConfirmProvider";
 import TotpPromptProvider from "./components/TotpPromptProvider";
-import { getBasePath } from "./lib/runtimeConfig";
 import { ApiError } from "./lib/api";
 import "./index.css";
 
@@ -36,9 +34,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <ConfirmProvider>
           <TotpPromptProvider>
             <QueryClientProvider client={queryClient}>
-              <BrowserRouter basename={getBasePath()}>
-                <App />
-              </BrowserRouter>
+              <App />
             </QueryClientProvider>
           </TotpPromptProvider>
         </ConfirmProvider>
