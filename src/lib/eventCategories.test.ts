@@ -5,9 +5,33 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { categorizeEventSummary, getEventCategory } from "./eventCategories";
+import { AUTH_EVENT_TYPES } from "@seamless-auth/types";
+import {
+  categorizeEventSummary,
+  eventCategories,
+  getEventCategory,
+} from "./eventCategories";
 
 describe("eventCategories", () => {
+  // The Bootstrap category outlived the API events it matched, so it stayed in
+  // the filter list matching nothing. These two guard both directions: a
+  // category that can never fire, and an event type nothing claims.
+  it("has no category that no known event type can reach", () => {
+    const unreachable = eventCategories.filter(
+      (category) => !AUTH_EVENT_TYPES.some((type) => category.match(type)),
+    );
+
+    expect(unreachable.map((category) => category.value)).toEqual([]);
+  });
+
+  it("assigns every known event type to a category other than Other", () => {
+    const uncategorized = AUTH_EVENT_TYPES.filter(
+      (type) => getEventCategory(type).value === "other",
+    );
+
+    expect(uncategorized).toEqual([]);
+  });
+
   it("classifies concrete API event types into operator categories", () => {
     expect(getEventCategory("oauth_login_success").value).toBe("oauth");
     expect(getEventCategory("webauthn_login_success").value).toBe("webauthn");

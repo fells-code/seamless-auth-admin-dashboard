@@ -4,9 +4,14 @@
  * See LICENSE file in the project root for full license information
  */
 
+import type { AuthEventType } from "@seamless-auth/types";
+
 export type EventCategory = {
   label: string;
   value: string;
+  // Takes a plain string, not an AuthEventType: the events table holds rows
+  // written by other API versions, so a stored type may not be one this build
+  // knows about. Those fall through to "Other" rather than being dropped.
   match: (type: string) => boolean;
 };
 
@@ -21,8 +26,10 @@ export type EventCategoryCount = {
   count: number;
 };
 
-const exact = (types: string[]) => {
-  const values = new Set(types);
+// Typed against AuthEventType so retiring an event upstream fails the build
+// here rather than leaving a rule that can never fire.
+const exact = (types: readonly AuthEventType[]) => {
+  const values = new Set<string>(types);
 
   return (type: string) => values.has(type);
 };
@@ -113,11 +120,6 @@ export const eventCategories: EventCategory[] = [
     match: startsWithAny(["system_config_"]),
   },
   {
-    label: "Bootstrap",
-    value: "bootstrap",
-    match: startsWithAny(["bootstrap_admin_"]),
-  },
-  {
     label: "JWKS",
     value: "jwks",
     match: startsWithAny(["jwks_"]),
@@ -125,7 +127,7 @@ export const eventCategories: EventCategory[] = [
   {
     label: "Notifications",
     value: "notification",
-    match: exact(["notification_sent", "notication_sent"]),
+    match: exact(["notification_sent"]),
   },
   {
     label: "Operations",
