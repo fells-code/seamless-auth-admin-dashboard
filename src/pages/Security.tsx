@@ -5,8 +5,11 @@
  */
 
 import type { ComponentType } from "react";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Download } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import RefreshControl from "../components/RefreshControl";
+import { exportCsv } from "../lib/csvExport";
+import { useNow } from "../hooks/useNow";
 import { ArrowRight, ShieldAlert, Siren, Waypoints } from "lucide-react";
 import { useAnomalies } from "../hooks/useAnomalies";
 import type { PartialAuthEvent } from "@seamless-auth/types";
@@ -37,7 +40,9 @@ function buildEventFilterUrl(type?: string) {
 
 export default function Security() {
   const navigate = useNavigate();
-  const [referenceNow] = useState(() => Date.now());
+  // Advances while the screen is open; it was captured once at mount, so every
+  // "time ago" froze at whatever it read when the screen loaded.
+  const referenceNow = useNow();
 
   const {
     data: anomalies,
@@ -45,6 +50,7 @@ export default function Security() {
     isError: anomaliesError,
     error: anomaliesErrorValue,
     refetch: refetchAnomalies,
+    isFetching: fetchingAnomalies,
   } = useAnomalies();
   const {
     data: stats,
@@ -52,11 +58,33 @@ export default function Security() {
     isError: statsError,
     error: statsErrorValue,
     refetch: refetchStats,
+    isFetching: fetchingStats,
   } = useLoginStats();
 
   const suspiciousEvents: PartialAuthEvent[] =
     anomalies?.suspiciousEvents ?? [];
   const loginStats = stats;
+
+  // anomalies.total is what the API reports; suspiciousEvents is what it
+  // actually returned. The header used the first while the table and every
+  // figure derived from it used the second, so the two halves of the screen
+  // could disagree with no explanation.
+  const returnedCount = suspiciousEvents.length;
+  const reportedTotal = anomalies?.total ?? returnedCount;
+  const isTruncated = reportedTotal > returnedCount;
+
+  const exportSignals = () =>
+    exportCsv(
+      `suspicious-activity-${new Date().toISOString().slice(0, 10)}.csv`,
+      suspiciousEvents,
+      [
+        { header: "Type", value: (row) => row.type },
+        { header: "User ID", value: (row) => row.user_id },
+        { header: "IP address", value: (row) => row.ip_address },
+        { header: "User agent", value: (row) => row.user_agent },
+        { header: "Created", value: (row) => row.created_at },
+      ],
+    );
 
   const uniqueIps = new Set(
     suspiciousEvents.map((event) => event.ip_address).filter(Boolean),
@@ -143,7 +171,11 @@ export default function Security() {
               <div className="flex flex-wrap gap-2">
                 <SignalPill
                   label="Suspicious signals"
-                  value={`${anomalies?.total ?? 0}`}
+                  value={
+                    isTruncated
+                      ? `${returnedCount} of ${reportedTotal}`
+                      : `${returnedCount}`
+                  }
                 />
                 <SignalPill label="Unique flagged IPs" value={`${uniqueIps}`} />
                 <SignalPill
@@ -207,8 +239,12 @@ export default function Security() {
         />
         <StatCard
           label="Suspicious Events"
-          value={anomalies?.total ?? 0}
-          hint="Signals currently surfaced by the anomaly feed"
+          value={returnedCount}
+          hint={
+            isTruncated
+              ? `Showing ${returnedCount} of ${reportedTotal} reported signals`
+              : "Signals currently surfaced by the anomaly feed"
+          }
         />
       </div>
 
@@ -227,9 +263,9 @@ export default function Security() {
           />
 
           <ActionCard
-            tone={(anomalies?.total ?? 0) > 0 ? "danger" : "neutral"}
+            tone={returnedCount > 0 ? "danger" : "neutral"}
             title="Suspicious event load"
-            value={`${anomalies?.total ?? 0}`}
+            value={`${returnedCount}`}
             description="Suspicious events deserve a deeper look when they cluster around the same IPs or types."
             actionLabel="Open events"
             onClick={() => navigate("/events")}
@@ -250,12 +286,32 @@ export default function Security() {
         title="Suspicious Activity"
         description="Security-related anomalies currently surfaced by the backend anomaly feed."
         actions={
-          <button
-            onClick={() => navigate("/events")}
-            className="btn btn-secondary"
-          >
-            View Full Event Stream
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <RefreshControl
+              onRefresh={() => {
+                void refetchStats();
+                void refetchAnomalies();
+              }}
+              isRefreshing={fetchingStats || fetchingAnomalies}
+            />
+
+            <button
+              type="button"
+              onClick={exportSignals}
+              disabled={suspiciousEvents.length === 0}
+              className="btn btn-secondary disabled:opacity-50"
+            >
+              <Download size={14} aria-hidden="true" />
+              Export CSV
+            </button>
+
+            <button
+              onClick={() => navigate("/events")}
+              className="btn btn-secondary"
+            >
+              View Full Event Stream
+            </button>
+          </div>
         }
       >
         <Table<PartialAuthEvent>
@@ -274,9 +330,19 @@ export default function Security() {
                     {(value as string) ?? "Unknown type"}
                   </span>
                   <span className="text-xs text-muted">
-                    {row.user_id
-                      ? `User ${row.user_id}`
-                      : "System-level signal"}
+                    {row.user_id ? (
+                      // The events table already links this through; from a
+                      // flagged signal the account involved is the most likely
+                      // next step.
+                      <Link
+                        to={`/users/${row.user_id}`}
+                        className="text-[var(--primary)] underline-offset-2 hover:underline"
+                      >
+                        User {row.user_id}
+                      </Link>
+                    ) : (
+                      "System-level signal"
+                    )}
                   </span>
                 </div>
               ),

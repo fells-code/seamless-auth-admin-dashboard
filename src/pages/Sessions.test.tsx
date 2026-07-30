@@ -68,7 +68,27 @@ const sessions = [
   },
 ];
 
-function renderPage() {
+const baseSession = {
+  id: "session_base",
+  ipAddress: "10.0.0.9",
+  userAgent: "Mozilla/5.0 Firefox/125.0",
+  lastUsedAt: new Date(now - 60_000).toISOString(),
+  expiresAt: new Date(now + 86_400_000).toISOString(),
+};
+
+function renderPage(rows?: typeof sessions) {
+  if (rows) {
+    mocks.useSessions.mockReturnValue({
+      data: { sessions: rows, total: rows.length },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: mocks.refetch,
+      isFetching: false,
+      dataUpdatedAt: now,
+    });
+  }
+
   return render(
     <MemoryRouter>
       <Sessions />
@@ -243,5 +263,45 @@ describe("Sessions", () => {
       screen.queryByText("No sessions match this view"),
     ).not.toBeInTheDocument();
     expect(screen.getByText("10.0.0.1")).toBeInTheDocument();
+  });
+
+  it("labels an Edge session as Edge rather than Chrome", () => {
+    renderPage([
+      {
+        ...baseSession,
+        id: "session_edge",
+        userAgent:
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+      },
+    ]);
+
+    // Edge and most Chromium user agents also contain "Chrome", which was
+    // matched first.
+    expect(screen.getByText("Edge")).toBeInTheDocument();
+    expect(screen.queryByText("Chrome")).not.toBeInTheDocument();
+  });
+
+  it("excludes expired sessions from the active count", () => {
+    const now = Date.now();
+
+    renderPage([
+      {
+        ...baseSession,
+        id: "live",
+        expiresAt: new Date(now + 60 * 60 * 1000).toISOString(),
+      },
+      {
+        ...baseSession,
+        id: "dead",
+        expiresAt: new Date(now - 60 * 60 * 1000).toISOString(),
+      },
+    ]);
+
+    const card = screen
+      .getByText("Active Sessions")
+      .closest("div")!.parentElement!;
+
+    expect(card).toHaveTextContent("1");
+    expect(card).toHaveTextContent("1 expired session excluded");
   });
 });
