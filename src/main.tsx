@@ -13,9 +13,20 @@ import ThemeProvider from "./components/ThemeProvider";
 import ToastProvider from "./components/ToastProvider";
 import ConfirmProvider from "./components/ConfirmProvider";
 import { getBasePath } from "./lib/runtimeConfig";
+import { ApiError } from "./lib/api";
 import "./index.css";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // An expired session is not a transient failure, and retrying it delays
+      // the redirect while firing more requests that cannot succeed.
+      retry: (failureCount, error) =>
+        !(error instanceof ApiError && error.status === 401) &&
+        failureCount < 3,
+    },
+  },
+});
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

@@ -5,6 +5,18 @@
  */
 
 import { getApiUrl } from "./runtimeConfig";
+import { notifySessionExpired } from "./sessionExpiry";
+
+/** Carries the HTTP status so callers can branch on it instead of the message. */
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
 
 export async function apiFetch<T>(
   path: string,
@@ -26,7 +38,15 @@ export async function apiFetch<T>(
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(formatApiError(res.status, text, path));
+
+    // Handled once, centrally. Leaving it to each caller meant every panel on
+    // the screen rendered its own "session has expired" message and nobody
+    // returned the user to sign-in.
+    if (res.status === 401) {
+      notifySessionExpired();
+    }
+
+    throw new ApiError(formatApiError(res.status, text, path), res.status);
   }
 
   if (res.status === 204) {
