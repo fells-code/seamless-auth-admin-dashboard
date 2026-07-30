@@ -25,7 +25,6 @@ describe("eventGroups", () => {
       "logout",
       "user",
       "system",
-      "bootstrap",
       "jwks",
       "notification",
       "operation",
