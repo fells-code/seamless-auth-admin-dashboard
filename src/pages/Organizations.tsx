@@ -5,9 +5,13 @@
  */
 
 import type { ComponentType, FormEvent, ReactNode } from "react";
-import { useMemo, useState } from "react";
-import { Building2, Plus, Save, Trash2, Users2 } from "lucide-react";
+import { useId, useMemo, useState } from "react";
+import { Building2, Pencil, Plus, Save, Trash2, Users2 } from "lucide-react";
 import Table from "../components/Table";
+import Dialog from "../components/Dialog";
+import SearchInput from "../components/SearchInput";
+import RoleChips from "../components/RoleChips";
+import { useRoles } from "../hooks/useRoles";
 import Skeleton from "../components/Skeleton";
 import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
@@ -22,6 +26,7 @@ import {
   useCreateOrganization,
   useOrganizationMembers,
   useOrganizations,
+  useUpdateOrganizationMember,
   useRemoveOrganizationMember,
   useUpdateOrganization,
 } from "../hooks/useOrganizations";
@@ -72,6 +77,7 @@ export default function Organizations() {
 
   const organizations = useMemo(() => data?.organizations ?? [], [data]);
   const total = data?.total ?? organizations.length;
+
   const memberTotal = organizations.reduce(
     (sum, organization) => sum + (organization.memberCount ?? 0),
     0,
@@ -93,7 +99,32 @@ export default function Organizations() {
   const [createName, setCreateName] = useState("");
   const [createSlug, setCreateSlug] = useState("");
   const [memberEmail, setMemberEmail] = useState("");
-  const [memberRoles, setMemberRoles] = useState("member");
+  const updateMember = useUpdateOrganizationMember();
+  const { data: roleData } = useRoles();
+  // Roles are chosen from what the instance actually defines. Free-form text
+  // accepted typos silently, and a mistyped role simply grants nothing.
+  const availableRoles = roleData?.roles ?? [];
+  const defaultMemberRoles = availableRoles.includes("member")
+    ? ["member"]
+    : [];
+  const [organizationSearch, setOrganizationSearch] = useState("");
+  // Filters what the feed returned. The endpoint takes no search parameter, so
+  // this narrows the loaded page rather than querying the server.
+  const visibleOrganizations = useMemo(() => {
+    const query = organizationSearch.trim().toLowerCase();
+    if (!query) return organizations;
+
+    return organizations.filter((organization) =>
+      `${organization.name} ${organization.slug}`.toLowerCase().includes(query),
+    );
+  }, [organizations, organizationSearch]);
+
+  const [memberRoles, setMemberRoles] = useState<string[]>([]);
+  const [editingMember, setEditingMember] = useState<
+    OrganizationMembership | undefined
+  >(undefined);
+  const [editMemberRoles, setEditMemberRoles] = useState<string[]>([]);
+  const [editMemberScopes, setEditMemberScopes] = useState("");
   const [memberScopes, setMemberScopes] = useState("");
 
   const {
@@ -168,18 +199,46 @@ export default function Organizations() {
       {
         organizationId: selectedOrganization.id,
         email,
-        roles: parseCsv(memberRoles),
+        roles: memberRoles,
         scopes: parseCsv(memberScopes),
       },
       {
         onSuccess: () => {
           setMemberEmail("");
-          setMemberRoles("member");
+          setMemberRoles(defaultMemberRoles);
           setMemberScopes("");
           toast.success("Member added", `${email} was added.`);
         },
         onError: (error) => {
           toast.error("Member add failed", getErrorMessage(error));
+        },
+      },
+    );
+  };
+
+  const handleSaveMember = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!canWrite || !selectedOrganization || !editingMember) return;
+
+    if (!(await ensureStepUp())) return;
+
+    updateMember.mutate(
+      {
+        organizationId: selectedOrganization.id,
+        userId: editingMember.userId,
+        roles: editMemberRoles,
+        scopes: parseCsv(editMemberScopes),
+      },
+      {
+        onSuccess: () => {
+          setEditingMember(undefined);
+          toast.success(
+            "Membership updated",
+            `${editingMember.user?.email ?? editingMember.userId} was updated.`,
+          );
+        },
+        onError: (error) => {
+          toast.error("Membership update failed", getErrorMessage(error));
         },
       },
     );
@@ -340,6 +399,15 @@ export default function Organizations() {
           }
         >
           {!canWrite && <ReadOnlyNotice />}
+
+          <div className="mb-3 w-full max-w-sm">
+            <SearchInput
+              value={organizationSearch}
+              onChange={setOrganizationSearch}
+              placeholder="Search name or slug"
+            />
+          </div>
+
           {createOrganization.isError && (
             <StateMessage
               tone="error"
@@ -349,8 +417,8 @@ export default function Organizations() {
           )}
           <Table<OrganizationRow>
             label="Organizations"
-            data={organizations as OrganizationRow[]}
-            total={total}
+            data={visibleOrganizations as OrganizationRow[]}
+            total={visibleOrganizations.length}
             emptyTitle="No organizations"
             emptyDescription={
               canWrite
@@ -459,14 +527,24 @@ export default function Organizations() {
                 disabled={!selectedOrganization}
                 className="min-w-0 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] disabled:opacity-60"
               />
-              <input
+              <select
+                multiple
                 value={memberRoles}
-                onChange={(event) => setMemberRoles(event.target.value)}
-                placeholder="Roles"
+                onChange={(event) =>
+                  setMemberRoles(
+                    Array.from(event.target.selectedOptions, (o) => o.value),
+                  )
+                }
                 aria-label="Member roles"
-                disabled={!selectedOrganization}
+                disabled={!selectedOrganization || availableRoles.length === 0}
                 className="min-w-0 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] disabled:opacity-60"
-              />
+              >
+                {availableRoles.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
               <input
                 value={memberScopes}
                 onChange={(event) => setMemberScopes(event.target.value)}
@@ -570,6 +648,17 @@ export default function Organizations() {
               canWrite
                 ? [
                     {
+                      // Changing a role previously meant removing and re-adding
+                      // the member, which discarded their membership history.
+                      icon: Pencil,
+                      label: "Edit roles",
+                      onClick: (row: OrganizationMembershipRow) => {
+                        setEditingMember(row);
+                        setEditMemberRoles(row.roles ?? []);
+                        setEditMemberScopes((row.scopes ?? []).join(", "));
+                      },
+                    },
+                    {
                       icon: Trash2,
                       label: "Remove",
                       variant: "danger" as const,
@@ -582,6 +671,54 @@ export default function Organizations() {
           />
         )}
       </Section>
+
+      {editingMember && selectedOrganization && (
+        <Dialog
+          title="Edit membership"
+          description={`Roles and scopes for ${editingMember.user?.email ?? editingMember.userId}.`}
+          onClose={() => setEditingMember(undefined)}
+        >
+          <form
+            className="space-y-4"
+            onSubmit={(event) => void handleSaveMember(event)}
+          >
+            <Field label="Roles">
+              <RoleChips
+                roles={availableRoles}
+                selected={editMemberRoles}
+                onChange={setEditMemberRoles}
+              />
+            </Field>
+
+            <Field label="Scopes">
+              <input
+                value={editMemberScopes}
+                onChange={(event) => setEditMemberScopes(event.target.value)}
+                aria-label="Membership scopes"
+                placeholder="Comma-separated"
+                className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+              />
+            </Field>
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setEditingMember(undefined)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={updateMember.isPending}
+                className="btn btn-primary disabled:opacity-50"
+              >
+                {updateMember.isPending ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </form>
+        </Dialog>
+      )}
     </div>
   );
 }
@@ -629,13 +766,20 @@ function SelectedOrganizationForm({
 }) {
   const [editName, setEditName] = useState(organization.name);
   const [editSlug, setEditSlug] = useState(organization.slug);
+  const nameErrorId = useId();
+
+  const trimmedName = editName.trim();
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    // Saving an empty name wrote it straight through, leaving the organization
+    // unidentifiable in every list. The create form already guards this.
+    if (!trimmedName) return;
+
     onSave({
       organizationId: organization.id,
-      name: editName.trim(),
+      name: trimmedName,
       slug: editSlug.trim(),
     });
   };
@@ -647,8 +791,15 @@ function SelectedOrganizationForm({
           value={editName}
           onChange={(event) => setEditName(event.target.value)}
           disabled={!canWrite}
+          aria-invalid={!trimmedName ? true : undefined}
+          aria-describedby={!trimmedName ? nameErrorId : undefined}
           className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
         />
+        {!trimmedName && (
+          <p id={nameErrorId} className="text-sm text-[var(--highlight)]">
+            A name is required.
+          </p>
+        )}
       </Field>
 
       <Field label="Slug">
@@ -673,8 +824,8 @@ function SelectedOrganizationForm({
       {canWrite ? (
         <button
           type="submit"
-          disabled={isPending}
-          className="btn btn-secondary inline-flex items-center gap-2"
+          disabled={isPending || !trimmedName}
+          className="btn btn-secondary inline-flex items-center gap-2 disabled:opacity-50"
         >
           <Save size={16} />
           Save

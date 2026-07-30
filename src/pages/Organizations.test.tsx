@@ -19,8 +19,11 @@ const mocks = vi.hoisted(() => ({
   useOrganizations: vi.fn(),
   useRemoveOrganizationMember: vi.fn(),
   useUpdateOrganization: vi.fn(),
+  useUpdateOrganizationMember: vi.fn(),
+  useRoles: vi.fn(),
   useAdminPermissions: vi.fn(),
   useStepUpGuard: vi.fn(),
+  updateMemberMutate: vi.fn(),
 }));
 
 vi.mock("../hooks/useOrganizations", () => ({
@@ -30,6 +33,11 @@ vi.mock("../hooks/useOrganizations", () => ({
   useOrganizations: mocks.useOrganizations,
   useRemoveOrganizationMember: mocks.useRemoveOrganizationMember,
   useUpdateOrganization: mocks.useUpdateOrganization,
+  useUpdateOrganizationMember: mocks.useUpdateOrganizationMember,
+}));
+
+vi.mock("../hooks/useRoles", () => ({
+  useRoles: mocks.useRoles,
 }));
 
 vi.mock("../hooks/useAdminPermissions", () => ({
@@ -91,6 +99,13 @@ describe("Organizations", () => {
       mutate: mocks.updateOrganization,
       isPending: false,
     });
+    mocks.useUpdateOrganizationMember.mockReturnValue({
+      mutate: mocks.updateMemberMutate,
+      isPending: false,
+    });
+    mocks.useRoles.mockReturnValue({
+      data: { roles: ["member", "admin"] },
+    });
     mocks.useAddOrganizationMember.mockReturnValue({
       mutate: mocks.addMember,
       isPending: false,
@@ -139,9 +154,10 @@ describe("Organizations", () => {
     fireEvent.change(screen.getByPlaceholderText("member@example.com"), {
       target: { value: "member@example.com" },
     });
-    fireEvent.change(screen.getByPlaceholderText("Roles"), {
-      target: { value: "admin, member" },
-    });
+    // Roles now come from a constrained selector rather than free-form text,
+    // so a typo cannot be submitted.
+    const roleSelect = screen.getByLabelText("Member roles");
+    fireEvent.change(roleSelect, { target: { value: "admin" } });
     fireEvent.change(screen.getByPlaceholderText("Scopes"), {
       target: { value: "organization:read, members:write" },
     });
@@ -152,12 +168,44 @@ describe("Organizations", () => {
         {
           organizationId: "org-1",
           email: "member@example.com",
-          roles: ["admin", "member"],
+          roles: ["admin"],
           scopes: ["organization:read", "members:write"],
         },
         expect.any(Object),
       ),
     );
     expect(mocks.useStepUpGuard()).toHaveBeenCalled();
+  });
+
+  it("offers only the roles the instance defines", () => {
+    render(<Organizations />);
+
+    const roleSelect = screen.getByLabelText("Member roles");
+
+    expect(
+      Array.from(roleSelect.querySelectorAll("option")).map((o) => o.value),
+    ).toEqual(["member", "admin"]);
+  });
+
+  it("refuses to save an organization with an empty name", () => {
+    render(<Organizations />);
+
+    const nameField = screen.getByDisplayValue(organization.name);
+    fireEvent.change(nameField, { target: { value: "   " } });
+
+    // The create form already guarded this; the edit form wrote it through and
+    // left the organization unidentifiable in every list.
+    expect(screen.getByText("A name is required.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
+  });
+
+  it("filters the organization list by name or slug", () => {
+    render(<Organizations />);
+
+    fireEvent.change(screen.getByPlaceholderText("Search name or slug"), {
+      target: { value: "nomatch" },
+    });
+
+    expect(screen.getByText("No organizations")).toBeInTheDocument();
   });
 });
