@@ -6,6 +6,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { apiFetch } from "./api";
+import { onSessionExpired, resetSessionExpiryNotice } from "./sessionExpiry";
 
 vi.mock("./runtimeConfig", () => ({
   getApiUrl: () => "https://api.example.com/",
@@ -229,5 +230,44 @@ describe("apiFetch", () => {
 
     consoleError.mockRestore();
     vi.unstubAllEnvs();
+  });
+
+  it("reports an expired session centrally and carries the status", async () => {
+    const listener = vi.fn();
+    resetSessionExpiryNotice();
+    const unsubscribe = onSessionExpired(listener);
+
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 }),
+    );
+
+    // The status travels on the error so callers, and the query retry policy,
+    // can branch on it rather than matching the message text.
+    await expect(apiFetch("/admin/users")).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    unsubscribe();
+    resetSessionExpiryNotice();
+  });
+
+  it("does not report an expired session for other failures", async () => {
+    const listener = vi.fn();
+    resetSessionExpiryNotice();
+    const unsubscribe = onSessionExpired(listener);
+
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: "nope" }), { status: 403 }),
+    );
+
+    await expect(apiFetch("/admin/users")).rejects.toMatchObject({
+      status: 403,
+    });
+    expect(listener).not.toHaveBeenCalled();
+
+    unsubscribe();
   });
 });
