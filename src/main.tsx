@@ -12,6 +12,7 @@ import App from "./App";
 import ThemeProvider from "./components/ThemeProvider";
 import ToastProvider from "./components/ToastProvider";
 import ConfirmProvider from "./components/ConfirmProvider";
+import TotpPromptProvider from "./components/TotpPromptProvider";
 import { getBasePath } from "./lib/runtimeConfig";
 import { ApiError } from "./lib/api";
 import "./index.css";
@@ -33,11 +34,13 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <ThemeProvider>
       <ToastProvider>
         <ConfirmProvider>
-          <QueryClientProvider client={queryClient}>
-            <BrowserRouter basename={getBasePath()}>
-              <App />
-            </BrowserRouter>
-          </QueryClientProvider>
+          <TotpPromptProvider>
+            <QueryClientProvider client={queryClient}>
+              <BrowserRouter basename={getBasePath()}>
+                <App />
+              </BrowserRouter>
+            </QueryClientProvider>
+          </TotpPromptProvider>
         </ConfirmProvider>
       </ToastProvider>
     </ThemeProvider>
