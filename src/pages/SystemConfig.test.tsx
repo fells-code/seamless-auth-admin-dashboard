@@ -4,7 +4,13 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SystemConfigPage from "./SystemConfig";
 
@@ -65,6 +71,25 @@ const baseConfig = {
   },
   rpid: "example.com",
   origins: ["https://example.com"],
+};
+
+const storedProvider = {
+  id: "google",
+  name: "Google",
+  enabled: true,
+  clientId: "old-client",
+  clientSecretEnv: "GOOGLE_CLIENT_SECRET",
+  authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+  tokenUrl: "https://oauth2.googleapis.com/token",
+  userInfoUrl: "https://openidconnect.googleapis.com/v1/userinfo",
+  scopes: ["openid"],
+  redirectUris: [],
+  subjectJsonPath: "sub",
+  emailJsonPath: "email",
+  emailVerifiedJsonPath: "email_verified",
+  allowSignup: true,
+  accountLinking: "email",
+  requireEmailVerified: false,
 };
 
 describe("SystemConfigPage", () => {
@@ -243,34 +268,66 @@ describe("SystemConfigPage", () => {
     expect(mocks.useStepUpGuard()).toHaveBeenCalled();
   });
 
-  it("updates an existing provider in place when its id is re-submitted", async () => {
+  it("loads a stored provider into the form and sends only what changed", async () => {
+    mocks.useSystemConfig.mockReturnValue({
+      data: { ...baseConfig, oauth_providers: [storedProvider] },
+      isLoading: false,
+    });
+
+    render(<SystemConfigPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /edit google/i }));
+
+    // The stored values populate the form, so nothing has to be retyped.
+    expect(screen.getByLabelText(/authorization url/i)).toHaveValue(
+      "https://accounts.google.com/o/oauth2/v2/auth",
+    );
+    expect(screen.getByLabelText(/^client id$/i)).toHaveValue("old-client");
+
+    fireEvent.change(screen.getByLabelText(/^client id$/i), {
+      target: { value: "new-client" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save provider/i }));
+
+    await waitFor(() => expect(mocks.updateProvider).toHaveBeenCalled());
+
+    const [payload] = mocks.updateProvider.mock.calls[0]!;
+    expect(payload.id).toBe("google");
+    // Only the edited field travels. Everything the operator did not touch,
+    // including the URLs and the JSON paths, stays out of the PATCH body.
+    expect(payload.updates).toEqual({ clientId: "new-client" });
+    expect(mocks.createProvider).not.toHaveBeenCalled();
+  });
+
+  it("preserves a disabled allowSignup instead of resetting it on save", async () => {
     mocks.useSystemConfig.mockReturnValue({
       data: {
         ...baseConfig,
-        oauth_providers: [
-          {
-            id: "google",
-            name: "Google",
-            enabled: true,
-            clientId: "old-client",
-            clientSecretEnv: "GOOGLE_CLIENT_SECRET",
-            authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
-            tokenUrl: "https://oauth2.googleapis.com/token",
-            userInfoUrl: "https://openidconnect.googleapis.com/v1/userinfo",
-            scopes: ["openid"],
-            redirectUris: [],
-            subjectJsonPath: "sub",
-            emailJsonPath: "email",
-            emailVerifiedJsonPath: "email_verified",
-            allowSignup: true,
-            accountLinking: "email",
-            requireEmailVerified: false,
-          },
-        ],
+        oauth_providers: [{ ...storedProvider, allowSignup: false }],
       },
       isLoading: false,
     });
 
+    render(<SystemConfigPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /edit google/i }));
+
+    expect(
+      screen.getByRole("checkbox", { name: /allow just-in-time signup/i }),
+    ).not.toBeChecked();
+
+    fireEvent.change(screen.getByLabelText(/^client id$/i), {
+      target: { value: "new-client" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save provider/i }));
+
+    await waitFor(() => expect(mocks.updateProvider).toHaveBeenCalled());
+
+    const [payload] = mocks.updateProvider.mock.calls[0]!;
+    expect(payload.updates).not.toHaveProperty("allowSignup");
+  });
+
+  it("refuses to submit a provider whose required URLs are blank", async () => {
     render(<SystemConfigPage />);
 
     fireEvent.change(screen.getByLabelText(/provider id/i), {
@@ -279,8 +336,8 @@ describe("SystemConfigPage", () => {
     fireEvent.change(screen.getByLabelText(/display name/i), {
       target: { value: "Google" },
     });
-    fireEvent.change(screen.getByLabelText(/client id/i), {
-      target: { value: "new-client" },
+    fireEvent.change(screen.getByLabelText(/^client id$/i), {
+      target: { value: "client-id" },
     });
     fireEvent.change(screen.getByLabelText(/client secret env/i), {
       target: { value: "GOOGLE_CLIENT_SECRET" },
@@ -288,18 +345,76 @@ describe("SystemConfigPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /add provider/i }));
 
-    await waitFor(() =>
-      expect(mocks.updateProvider).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: "google",
-          updates: expect.objectContaining({ clientId: "new-client" }),
-        }),
-        expect.anything(),
-      ),
-    );
-    const updateArg = mocks.updateProvider.mock.calls[0]![0];
-    expect(updateArg.updates).not.toHaveProperty("id");
+    expect(
+      await screen.findAllByText("This URL is required for OAuth to work."),
+    ).toHaveLength(3);
     expect(mocks.createProvider).not.toHaveBeenCalled();
+  });
+
+  it("rejects a malformed url and a provider id that is not kebab-case", async () => {
+    render(<SystemConfigPage />);
+
+    fireEvent.change(screen.getByLabelText(/provider id/i), {
+      target: { value: "Google Provider" },
+    });
+    fireEvent.change(screen.getByLabelText(/display name/i), {
+      target: { value: "Google" },
+    });
+    fireEvent.change(screen.getByLabelText(/^client id$/i), {
+      target: { value: "client-id" },
+    });
+    fireEvent.change(screen.getByLabelText(/client secret env/i), {
+      target: { value: "GOOGLE_CLIENT_SECRET" },
+    });
+    fireEvent.change(screen.getByLabelText(/authorization url/i), {
+      target: { value: "accounts.google.com/auth" },
+    });
+    fireEvent.change(screen.getByLabelText(/token url/i), {
+      target: { value: "https://oauth2.googleapis.com/token" },
+    });
+    fireEvent.change(screen.getByLabelText(/user info url/i), {
+      target: { value: "https://openidconnect.googleapis.com/v1/userinfo" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /add provider/i }));
+
+    expect(
+      await screen.findByText(
+        "Use lowercase kebab-case, such as google or azure-ad.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Enter a full URL, including https://."),
+    ).toBeInTheDocument();
+    expect(mocks.createProvider).not.toHaveBeenCalled();
+  });
+
+  it("shows each provider's enabled state and counts both redirect fields", () => {
+    mocks.useSystemConfig.mockReturnValue({
+      data: {
+        ...baseConfig,
+        oauth_providers: [
+          {
+            ...storedProvider,
+            enabled: false,
+            redirectUri: "https://example.com/oauth/callback",
+            redirectUris: ["https://example.com/oauth/callback"],
+          },
+        ],
+      },
+      isLoading: false,
+    });
+
+    render(<SystemConfigPage />);
+
+    const card = within(screen.getByRole("group", { name: "Google" }));
+
+    expect(card.getByText("Disabled")).toBeInTheDocument();
+    // The summary previously counted the allowlist only, so a provider with just
+    // the single redirect URI was described as falling back to the origin.
+    expect(
+      card.getByText("Redirects: 1 fixed, 1 allowlisted"),
+    ).toBeInTheDocument();
   });
 
   it("disables a provider through the dedicated route after step-up", async () => {
@@ -528,5 +643,95 @@ describe("SystemConfigPage", () => {
     expect(
       screen.getByRole("group", { name: /enabled login methods/i }),
     ).toBeInTheDocument();
+  });
+
+  it("does not stage a cleared or negative numeric field", () => {
+    render(<SystemConfigPage />);
+
+    const rateLimit = screen.getByLabelText(/rate limit/i);
+
+    fireEvent.change(rateLimit, { target: { value: "" } });
+    expect(
+      screen.getByText("Enter a whole number of 1 or greater."),
+    ).toBeInTheDocument();
+
+    fireEvent.change(rateLimit, { target: { value: "-5" } });
+    expect(
+      screen.getByText("Enter a whole number of 1 or greater."),
+    ).toBeInTheDocument();
+
+    // Blur restores the staged value, so the field never shows something the
+    // Save action would not send.
+    fireEvent.blur(rateLimit);
+    expect(rateLimit).toHaveValue(100);
+
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+    expect(mocks.mutate).not.toHaveBeenCalled();
+  });
+
+  it("disables the configuration inputs for a read-only administrator", () => {
+    mocks.useAdminPermissions.mockReturnValue({
+      canRead: true,
+      canWrite: false,
+    });
+
+    render(<SystemConfigPage />);
+
+    expect(screen.getByLabelText(/app name/i)).toBeDisabled();
+    expect(screen.getByLabelText(/rate limit/i)).toBeDisabled();
+    expect(screen.getByLabelText(/rp id/i)).toBeDisabled();
+    expect(
+      screen.getByRole("checkbox", { name: /passkey login fallback/i }),
+    ).toBeDisabled();
+    expect(screen.getByLabelText("Add a role")).toBeDisabled();
+    expect(screen.getByLabelText(/allowed origins/i)).toBeDisabled();
+  });
+
+  it("confirms before discarding a dirty draft", async () => {
+    mocks.confirm.mockResolvedValue(false);
+
+    render(<SystemConfigPage />);
+
+    fireEvent.change(screen.getByLabelText(/app name/i), {
+      target: { value: "Renamed" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /discard/i }));
+
+    await waitFor(() =>
+      expect(mocks.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Discard changes" }),
+      ),
+    );
+    // Declining leaves the draft untouched.
+    expect(screen.getByLabelText(/app name/i)).toHaveValue("Renamed");
+  });
+
+  it("warns before saving a changed relying-party id", async () => {
+    mocks.confirm.mockResolvedValue(false);
+
+    render(<SystemConfigPage />);
+
+    fireEvent.change(screen.getByLabelText(/rp id/i), {
+      target: { value: "new.example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() =>
+      expect(mocks.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Confirm WebAuthn changes",
+          description: expect.stringContaining("invalidates every passkey"),
+        }),
+      ),
+    );
+    expect(mocks.mutate).not.toHaveBeenCalled();
+  });
+
+  it("refuses to remove the only allowed origin", () => {
+    render(<SystemConfigPage />);
+
+    expect(
+      screen.getByRole("button", { name: "Remove https://example.com" }),
+    ).toBeDisabled();
   });
 });
