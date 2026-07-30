@@ -97,4 +97,121 @@ describe("EventFilters", () => {
       to: "2026-04-21T11:45",
     });
   });
+
+  it("adds a second event type instead of replacing the first", async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <EventFilters
+        value={{ ...defaultValue, type: ["login"] }}
+        onChange={onChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Security" }));
+
+    // The query layer and the URL format both already accepted several types;
+    // the interface was the only thing preventing it.
+    expect(onChange).toHaveBeenCalledWith({
+      ...defaultValue,
+      type: ["login", "security"],
+    });
+  });
+
+  it("removes a selected type when it is chosen again", async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <EventFilters
+        value={{ ...defaultValue, type: ["login", "security"] }}
+        onChange={onChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Login" }));
+
+    expect(onChange).toHaveBeenCalledWith({
+      ...defaultValue,
+      type: ["security"],
+    });
+  });
+
+  it("clears every type when All is chosen", async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <EventFilters
+        value={{ ...defaultValue, type: ["login", "security"] }}
+        onChange={onChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "All" }));
+
+    expect(onChange).toHaveBeenCalledWith({ ...defaultValue, type: [] });
+  });
+
+  it("exposes the selected state of each type toggle", () => {
+    render(
+      <EventFilters
+        value={{ ...defaultValue, type: ["login"] }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Login" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "OAuth" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("reports an inverted custom range instead of just returning nothing", () => {
+    render(
+      <EventFilters
+        value={{
+          type: [],
+          range: "custom",
+          from: "2026-07-20T10:00",
+          to: "2026-07-19T10:00",
+        }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    // Without this the table simply came back empty with the generic no-results
+    // message and no hint that the range itself was the problem.
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "The start must not be after the end.",
+    );
+    expect(screen.getByLabelText("Range start")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+  });
+
+  it("names the timezone the custom range is interpreted in", () => {
+    render(
+      <EventFilters
+        value={{
+          type: [],
+          range: "custom",
+          from: "2026-07-19T10:00",
+          to: "2026-07-20T10:00",
+        }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(/Times are interpreted in your local timezone/),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 });

@@ -34,6 +34,7 @@ const concreteEventTypes = AUTH_EVENT_TYPES.filter(
 );
 
 const EVENT_RANGES: EventFilter["range"][] = ["1h", "24h", "7d", "custom"];
+const DEFAULT_EVENT_RANGE: EventFilter["range"] = "24h";
 
 function isEventRange(value: string | null): value is EventFilter["range"] {
   return value !== null && EVENT_RANGES.includes(value as EventFilter["range"]);
@@ -46,7 +47,7 @@ function getFiltersFromSearch(search: string): EventFilter {
 
   // The chosen range is carried in the URL rather than inferred from the
   // bounds, so a relative selection survives a reload and stays highlighted.
-  const range = isEventRange(rangeParam) ? rangeParam : "24h";
+  const range = isEventRange(rangeParam) ? rangeParam : DEFAULT_EVENT_RANGE;
 
   return {
     type,
@@ -115,6 +116,15 @@ export default function Events() {
     offset,
     limit,
   });
+
+  // A relative range sets no explicit bounds, so counting from/to alone
+  // reported "0 active filters" for "last 7 days" while a custom range counted
+  // as two. Any non-default range is one filter, however it is expressed.
+  // A figure that is not known yet must not be rendered as a real one.
+  const summary = (value: string | number) => (isLoading ? "—" : `${value}`);
+
+  const activeFilterCount =
+    filters.type.length + (filters.range === DEFAULT_EVENT_RANGE ? 0 : 1);
 
   const events: AuthEvent[] = data?.events ?? [];
   const total = data?.total ?? 0;
@@ -187,12 +197,12 @@ export default function Events() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <InfoPill label="Matched events" value={`${total}`} />
+                <InfoPill label="Matched events" value={summary(total)} />
                 <InfoPill
                   label="Visible event types"
-                  value={`${uniqueTypes}`}
+                  value={summary(uniqueTypes)}
                 />
-                <InfoPill label="Visible IPs" value={`${uniqueIps}`} />
+                <InfoPill label="Visible IPs" value={summary(uniqueIps)} />
               </div>
             </div>
 
@@ -200,27 +210,25 @@ export default function Events() {
               <FocusPanel
                 icon={Clock3}
                 title="Latest event"
-                value={
-                  latestEvent ? formatTimeAgo(latestEvent, referenceNow) : "n/a"
-                }
+                value={summary(
+                  latestEvent
+                    ? formatTimeAgo(latestEvent, referenceNow)
+                    : "n/a",
+                )}
                 description="How recently the newest visible event occurred."
               />
 
               <FocusPanel
                 icon={Filter}
                 title="Filters active"
-                value={`${
-                  filters.type.length +
-                  (filters.from ? 1 : 0) +
-                  (filters.to ? 1 : 0)
-                }`}
+                value={`${activeFilterCount}`}
                 description="Current filter count applied to the event stream."
               />
 
               <FocusPanel
                 icon={ShieldAlert}
                 title="Security signals"
-                value={`${securitySignalCount}`}
+                value={summary(securitySignalCount)}
                 description="Suspicious event volume inside the current visible set."
               />
             </div>
@@ -228,27 +236,39 @@ export default function Events() {
         </div>
       </section>
 
+      {/* Held behind the same loading state as the table. Rendering these
+          immediately reported no matched events and no suspicious signals,
+          which on a security surface reads as an all-clear, before the values
+          popped to their real numbers. */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Matched Events"
-          value={total}
-          hint="Total events matching the current filter set"
-        />
-        <StatCard
-          label="Event Types"
-          value={uniqueTypes}
-          hint="Distinct event categories visible in the current page"
-        />
-        <StatCard
-          label="Visible IPs"
-          value={uniqueIps}
-          hint="Unique network origins in the current page of results"
-        />
-        <StatCard
-          label="Suspicious Signals"
-          value={securitySignalCount}
-          hint="Suspicious event count inside the currently visible page"
-        />
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-2xl" />
+          ))
+        ) : (
+          <>
+            <StatCard
+              label="Matched Events"
+              value={total}
+              hint="Total events matching the current filter set"
+            />
+            <StatCard
+              label="Event Types"
+              value={uniqueTypes}
+              hint="Distinct event categories visible in the current page"
+            />
+            <StatCard
+              label="Visible IPs"
+              value={uniqueIps}
+              hint="Unique network origins in the current page of results"
+            />
+            <StatCard
+              label="Suspicious Signals"
+              value={securitySignalCount}
+              hint="Suspicious event count inside the currently visible page"
+            />
+          </>
+        )}
       </div>
 
       <Section
@@ -275,23 +295,23 @@ export default function Events() {
         <div className="grid gap-4 lg:grid-cols-3">
           <ActionCard
             title="Latest activity"
-            value={
-              latestEvent ? formatTimeAgo(latestEvent, referenceNow) : "n/a"
-            }
+            value={summary(
+              latestEvent ? formatTimeAgo(latestEvent, referenceNow) : "n/a",
+            )}
             description="How recent the newest visible event is in the current result set."
           />
 
           <ActionCard
             title="Dominant direction"
-            value={
-              securitySignalCount > 0 ? "Security review" : "General traffic"
-            }
+            value={summary(
+              securitySignalCount > 0 ? "Security review" : "General traffic",
+            )}
             description="A fast read on whether the current slice looks operational or security-oriented."
           />
 
           <ActionCard
             title="Linked identities"
-            value={`${events.filter((event) => event.user_id).length}`}
+            value={summary(events.filter((event) => event.user_id).length)}
             description="How many visible events are tied directly to known users."
           />
         </div>
