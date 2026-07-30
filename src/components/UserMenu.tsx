@@ -5,11 +5,12 @@
  */
 
 // src/components/UserMenu.tsx
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useAuth } from "@seamless-auth/react";
 import { useNavigate } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
 import { useTheme } from "../hooks/useTheme";
+import { focusableWithin, trapTabKey } from "../lib/focusTrap";
 
 function getInitials(email: string) {
   if (!email) return "?";
@@ -25,6 +26,9 @@ export default function UserMenu() {
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const popupRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuId = useId();
   const navigate = useNavigate();
   const { themeName, setThemeName, themes } = useTheme();
 
@@ -44,11 +48,45 @@ export default function UserMenu() {
     };
   }, [open]);
 
+  // An outside pointer press was the only way to dismiss this, and focus was
+  // neither moved in on open nor returned on close, so keyboard users lost
+  // their place at the primary control for account, appearance, and sign-out.
+  useEffect(() => {
+    if (!open) return;
+
+    const popup = popupRef.current;
+    focusableWithin(popup ?? document.body)[0]?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        setOpen(false);
+        triggerRef.current?.focus();
+        return;
+      }
+
+      if (popup) {
+        trapTabKey(event, popup);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown, true);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown, true);
+    };
+  }, [open]);
+
   if (!user) return null;
 
   return (
     <div ref={menuRef} className="relative z-50">
       <button
+        ref={triggerRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
         onClick={() => setOpen(!open)}
         className="flex items-center gap-3 rounded-lg px-3 py-1.5 transition hover:bg-[var(--surface-alt)]"
       >
@@ -67,7 +105,13 @@ export default function UserMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-[min(20rem,calc(100vw-1rem))] rounded-xl border border-subtle bg-surface p-2 shadow-lg">
+        <div
+          ref={popupRef}
+          id={menuId}
+          role="menu"
+          aria-label="Account menu"
+          className="absolute right-0 mt-2 w-[min(20rem,calc(100vw-1rem))] rounded-xl border border-subtle bg-surface p-2 shadow-lg"
+        >
           <div className="border-b border-subtle px-3 pb-3 pt-2">
             <div className="text-sm font-medium">Appearance</div>
             <div className="mt-1 text-xs text-[var(--text-muted)]">
@@ -82,6 +126,9 @@ export default function UserMenu() {
               return (
                 <button
                   key={theme.value}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={active}
                   onClick={() => setThemeName(theme.value)}
                   className={`w-full rounded-xl border px-3 py-3 text-left transition ${
                     active
@@ -118,6 +165,8 @@ export default function UserMenu() {
 
           <div className="border-t border-subtle px-2 pt-2">
             <button
+              type="button"
+              role="menuitem"
               onClick={() => {
                 navigate("/profile");
                 setOpen(false);
@@ -128,6 +177,8 @@ export default function UserMenu() {
             </button>
 
             <button
+              type="button"
+              role="menuitem"
               onClick={() => {
                 setOpen(false);
                 logout();

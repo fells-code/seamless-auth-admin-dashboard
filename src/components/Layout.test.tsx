@@ -17,6 +17,18 @@ vi.mock("./Topbar", () => ({
   default: () => <div>Topbar shell</div>,
 }));
 
+function renderLayout() {
+  return render(
+    <MemoryRouter initialEntries={["/"]}>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route index element={<div>Overview content</div>} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
 describe("Layout", () => {
   it("renders the shell and the nested route outlet", () => {
     render(
@@ -32,5 +44,16 @@ describe("Layout", () => {
     expect(screen.getByText("Sidebar shell")).toBeInTheDocument();
     expect(screen.getByText("Topbar shell")).toBeInTheDocument();
     expect(screen.getByText("Overview content")).toBeInTheDocument();
+  });
+
+  it("offers a skip link targeting the main region", () => {
+    renderLayout();
+
+    const skip = screen.getByRole("link", { name: "Skip to main content" });
+
+    // Keyboard users otherwise tab through the entire navigation on every
+    // screen before reaching the content.
+    expect(skip).toHaveAttribute("href", "#main-content");
+    expect(screen.getByRole("main")).toHaveAttribute("id", "main-content");
   });
 });

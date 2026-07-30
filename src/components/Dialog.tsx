@@ -6,24 +6,7 @@
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import clsx from "clsx";
-
-const FOCUSABLE = [
-  "a[href]",
-  "button:not([disabled])",
-  "input:not([disabled])",
-  "select:not([disabled])",
-  "textarea:not([disabled])",
-  '[tabindex]:not([tabindex="-1"])',
-].join(", ");
-
-function focusableWithin(container: HTMLElement): HTMLElement[] {
-  // Deliberately not filtering on offsetParent: it is null for anything inside
-  // a fixed-position ancestor, which is exactly what a modal is, and it is
-  // always null under jsdom. Hidden markup is the thing worth excluding.
-  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-    (node) => !node.hasAttribute("hidden") && !node.closest("[aria-hidden]"),
-  );
-}
+import { focusableWithin, trapTabKey } from "../lib/focusTrap";
 
 /**
  * A modal dialog with the behaviour assistive technology and keyboard users
@@ -77,29 +60,9 @@ export default function Dialog({
         return;
       }
 
-      if (event.key !== "Tab") return;
-
       const container = dialogRef.current;
-      if (!container) return;
-
-      const focusable = focusableWithin(container);
-      if (focusable.length === 0) {
-        event.preventDefault();
-        container.focus();
-        return;
-      }
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      const active = document.activeElement;
-
-      // Wrap at both ends so Tab cannot escape into the page behind.
-      if (event.shiftKey && (active === first || !container.contains(active))) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && active === last) {
-        event.preventDefault();
-        first.focus();
+      if (container) {
+        trapTabKey(event, container);
       }
     };
 

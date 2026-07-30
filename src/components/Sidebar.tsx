@@ -17,6 +17,7 @@ import {
   Building2,
 } from "lucide-react";
 import packageJson from "../../package.json";
+import { trapTabKey } from "../lib/focusTrap";
 
 const navItems = [
   { name: "Overview", path: "/", icon: LayoutDashboard },
@@ -122,6 +123,14 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
       if (event.key === "Escape") {
         event.stopPropagation();
         onClose?.();
+        return;
+      }
+
+      // The drawer advertises aria-modal, but Tab walked straight out into the
+      // page behind it, which was still reachable. Dialog already did this.
+      const drawer = drawerRef.current;
+      if (drawer) {
+        trapTabKey(event, drawer);
       }
     };
 
@@ -136,12 +145,12 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
 
   return (
     <>
-      <aside className="hidden h-full w-64 flex-col border-r border-subtle bg-surface px-4 py-5 xl:flex">
+      <aside className="hidden h-full w-64 flex-col border-r border-subtle bg-surface px-4 py-5 lg:flex">
         <SidebarContent />
       </aside>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 xl:hidden">
+        <div className="fixed inset-0 z-50 lg:hidden">
           {/* Presentational backdrop. A full-viewport button was a screen-sized
               tab stop; Escape and the close control are the keyboard paths out. */}
           <div
