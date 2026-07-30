@@ -407,9 +407,12 @@ export default function UserDetail() {
                       </button>
                       <button
                         onClick={() => void revokeAllSessions()}
-                        className="btn btn-secondary"
+                        disabled={revokeAllUserSessions.isPending}
+                        className="btn btn-secondary disabled:opacity-50"
                       >
-                        Revoke Sessions
+                        {revokeAllUserSessions.isPending
+                          ? "Revoking..."
+                          : "Revoke Sessions"}
                       </button>
                       <button
                         onClick={() => void prepareDeviceReplacement()}
@@ -420,9 +423,10 @@ export default function UserDetail() {
                       </button>
                       <button
                         onClick={() => void handleDeleteUser()}
-                        className="btn btn-danger"
+                        disabled={deleteUser.isPending}
+                        className="btn btn-danger disabled:opacity-50"
                       >
-                        Delete User
+                        {deleteUser.isPending ? "Deleting..." : "Delete User"}
                       </button>
                     </div>
                   ) : (
@@ -468,7 +472,7 @@ export default function UserDetail() {
           value={suspiciousCount}
           hint={
             suspiciousCount > 0
-              ? `${failedLogins} failed logins in this detail record`
+              ? "Suspicious signals in this detail record"
               : "No suspicious activity currently surfaced"
           }
         />

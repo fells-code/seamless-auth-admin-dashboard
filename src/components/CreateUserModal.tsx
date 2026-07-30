@@ -11,6 +11,7 @@ import { useCreateUser } from "../hooks/useCreateUser";
 import { useRoles } from "../hooks/useRoles";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import RoleChips from "./RoleChips";
+import Skeleton from "./Skeleton";
 import { StateMessage } from "./StateMessage";
 import { getErrorMessage } from "../lib/errorMessage";
 import { useToast } from "../hooks/useToast";
@@ -21,7 +22,13 @@ export default function CreateUserModal({ onClose }: { onClose: () => void }) {
   const [roles, setRoles] = useState<string[]>([]);
   const [stepUpPending, setStepUpPending] = useState(false);
 
-  const { data: roleData } = useRoles();
+  const {
+    data: roleData,
+    isLoading: rolesLoading,
+    isError: rolesError,
+    error: rolesQueryError,
+    refetch: refetchRoles,
+  } = useRoles();
   const availableRoles = roleData?.roles ?? [];
 
   const createUser = useCreateUser();
@@ -79,11 +86,39 @@ export default function CreateUserModal({ onClose }: { onClose: () => void }) {
               Roles
             </label>
 
-            <RoleChips
-              roles={availableRoles}
-              selected={roles}
-              onChange={setRoles}
-            />
+            {rolesLoading ? (
+              <Skeleton className="h-8 w-full rounded-full" />
+            ) : rolesError ? (
+              // Distinguished from "no roles selected": the dialog previously
+              // rendered an empty roles area and a permanently disabled submit,
+              // with nothing saying why or offering a way out.
+              <StateMessage
+                tone="error"
+                title="Roles could not be loaded"
+                description={getErrorMessage(rolesQueryError)}
+                action={
+                  <button
+                    type="button"
+                    onClick={() => void refetchRoles()}
+                    className="btn btn-secondary"
+                  >
+                    Retry
+                  </button>
+                }
+              />
+            ) : availableRoles.length === 0 ? (
+              <StateMessage
+                tone="warning"
+                title="No roles are configured"
+                description="Add roles in System Configuration before creating users."
+              />
+            ) : (
+              <RoleChips
+                roles={availableRoles}
+                selected={roles}
+                onChange={setRoles}
+              />
+            )}
           </div>
         </div>
 
@@ -95,10 +130,20 @@ export default function CreateUserModal({ onClose }: { onClose: () => void }) {
 
           <button
             onClick={() => void submit()}
-            disabled={isSaving || !email.trim() || roles.length === 0}
+            disabled={
+              isSaving ||
+              rolesLoading ||
+              rolesError ||
+              !email.trim() ||
+              roles.length === 0
+            }
             className="btn btn-primary disabled:opacity-50"
           >
-            {stepUpPending ? "Verifying..." : "Create"}
+            {stepUpPending
+              ? "Verifying..."
+              : isSaving
+                ? "Creating..."
+                : "Create"}
           </button>
         </div>
       </>

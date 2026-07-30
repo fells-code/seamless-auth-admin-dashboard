@@ -197,4 +197,45 @@ describe("Users", () => {
       "Not allowed",
     );
   });
+
+  it("steps back a page when the last row on it is deleted", async () => {
+    // One row left, and the table is on page 2.
+    mocks.useUsers.mockReturnValue({
+      data: { users: [users[0]], total: 11 },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: mocks.refetch,
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(screen.getAllByTitle("Delete")[0]);
+
+    await waitFor(() => expect(mocks.deleteMutate).toHaveBeenCalled());
+
+    const callbacks = mocks.deleteMutate.mock.calls[0][1] as {
+      onSuccess: () => void;
+    };
+    callbacks.onSuccess();
+
+    // Without this the offset points past the end of the result set: the table
+    // renders its empty state with Next disabled and the screen looks broken.
+    await waitFor(() =>
+      expect(mocks.useUsers).toHaveBeenLastCalledWith(
+        expect.objectContaining({ offset: 0 }),
+      ),
+    );
+  });
+
+  it("labels the summary tiles as describing the current page", () => {
+    renderPage();
+
+    expect(screen.getByText("Verified On Page")).toBeInTheDocument();
+    expect(screen.getByText("Admins On Page")).toBeInTheDocument();
+    expect(screen.getByText("Active On Page")).toBeInTheDocument();
+    // The one tile that genuinely covers the whole result set keeps its wording.
+    expect(screen.getByText("Matched Users")).toBeInTheDocument();
+  });
 });

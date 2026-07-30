@@ -120,6 +120,13 @@ export default function Users() {
     deleteUser.mutate(user.id, {
       onSuccess: () => {
         toast.success("User deleted", `${user.email} was removed.`);
+
+        // Removing the only row left on a page past the first leaves the offset
+        // beyond the end of the result set, so the table renders its empty
+        // state with Next disabled and the screen looks broken.
+        if (users.length === 1 && offset > 0) {
+          setOffset(Math.max(0, offset - limit));
+        }
       },
       onError: (error) => {
         toast.error("User deletion failed", getErrorMessage(error));
@@ -216,17 +223,17 @@ export default function Users() {
         <StatCard
           label="Verified On Page"
           value={verifiedCount}
-          hint="Visible users whose account is verified"
+          hint={`Of ${users.length} shown on this page`}
         />
         <StatCard
-          label="Admin Roles"
+          label="Admins On Page"
           value={adminCount}
-          hint="Visible users carrying the admin role"
+          hint={`Of ${users.length} shown on this page`}
         />
         <StatCard
-          label="Recent Activity"
+          label="Active On Page"
           value={recentlyActiveCount}
-          hint="Visible users active in the last 24 hours"
+          hint={`Of ${users.length} shown, in the last 24 hours`}
         />
       </div>
 

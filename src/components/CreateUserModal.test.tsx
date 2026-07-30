@@ -11,19 +11,21 @@ import CreateUserModal from "./CreateUserModal";
 
 const mutate = vi.hoisted(() => vi.fn());
 const ensureStepUp = vi.hoisted(() => vi.fn());
+const rolesQuery = vi.hoisted(() => ({
+  current: {} as Record<string, unknown>,
+}));
+const createUserState = vi.hoisted(() => ({ isPending: false }));
 
 vi.mock("../hooks/useRoles", () => ({
-  useRoles: () => ({
-    data: {
-      roles: ["admin", "operator"],
-    },
-  }),
+  useRoles: () => rolesQuery.current,
 }));
 
 vi.mock("../hooks/useCreateUser", () => ({
   useCreateUser: () => ({
     mutate,
-    isPending: false,
+    get isPending() {
+      return createUserState.isPending;
+    },
   }),
 }));
 
@@ -36,6 +38,14 @@ describe("CreateUserModal", () => {
     mutate.mockReset();
     ensureStepUp.mockReset();
     ensureStepUp.mockResolvedValue(true);
+    createUserState.isPending = false;
+    rolesQuery.current = {
+      data: { roles: ["admin", "operator"] },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
   });
 
   it("submits the new user values and closes on success", async () => {
@@ -107,5 +117,54 @@ describe("CreateUserModal", () => {
       const field = screen.getByLabelText(name);
       expect(field.tagName).toBe("INPUT");
     }
+  });
+
+  it("surfaces a roles load failure with a retry", async () => {
+    const refetch = vi.fn();
+    rolesQuery.current = {
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error("Roles endpoint unreachable"),
+      refetch,
+    };
+
+    const user = userEvent.setup();
+    render(<CreateUserModal onClose={vi.fn()} />);
+
+    // Previously this rendered an empty roles area and a disabled submit with
+    // no explanation, leaving the dialog unusable and unrecoverable.
+    expect(screen.getByText("Roles could not be loaded")).toBeInTheDocument();
+    expect(screen.getByText("Roles endpoint unreachable")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    expect(refetch).toHaveBeenCalled();
+  });
+
+  it("distinguishes an empty role set from a failed load", () => {
+    rolesQuery.current = {
+      data: { roles: [] },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    render(<CreateUserModal onClose={vi.fn()} />);
+
+    expect(screen.getByText("No roles are configured")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Roles could not be loaded"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows progress for the request itself, not just verification", () => {
+    createUserState.isPending = true;
+
+    render(<CreateUserModal onClose={vi.fn()} />);
+
+    // The control used to return to its normal label while the request was in
+    // flight, so the dialog looked stalled.
+    expect(screen.getByRole("button", { name: "Creating..." })).toBeDisabled();
   });
 });
