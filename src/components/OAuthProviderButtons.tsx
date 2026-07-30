@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { useHref } from "react-router-dom";
 import { useAuthClient, type OAuthProvider } from "@seamless-auth/react";
+import { getErrorMessage } from "../lib/errorMessage";
 
 /**
  * The chosen provider id is stashed here before the browser leaves for the
@@ -19,6 +20,7 @@ export default function OAuthProviderButtons() {
   const authClient = useAuthClient();
   const [providers, setProviders] = useState<OAuthProvider[]>([]);
   const [pending, setPending] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
   // The callback route is fixed and registered with the OAuth providers as an
   // allowed redirect URI. useHref applies the router basename so the /console
@@ -48,32 +50,44 @@ export default function OAuthProviderButtons() {
     return null;
   }
 
-  const startProvider = async (providerId: string) => {
-    setPending(providerId);
+  const startProvider = async (provider: OAuthProvider) => {
+    setPending(provider.id);
+    setError("");
+
+    // Every failure path here used to return silently, so the button reverted
+    // from "Redirecting..." to its label with no message and the operator could
+    // not tell whether the click had registered.
+    const fail = (message: string) => {
+      sessionStorage.removeItem(OAUTH_PROVIDER_STORAGE_KEY);
+      setPending(null);
+      setError(message);
+    };
 
     try {
-      sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, providerId);
+      sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, provider.id);
 
       const redirectUri = new URL(
         callbackHref,
         window.location.origin,
       ).toString();
 
-      const { data, error } = await authClient.startOAuthLogin({
-        providerId,
+      const { data, error: startError } = await authClient.startOAuthLogin({
+        providerId: provider.id,
         redirectUri,
       });
 
-      if (error || !data) {
-        sessionStorage.removeItem(OAUTH_PROVIDER_STORAGE_KEY);
-        setPending(null);
+      if (startError || !data) {
+        fail(
+          `${provider.name} sign-in could not be started. ${getErrorMessage(startError)}`,
+        );
         return;
       }
 
       window.location.assign(data.authorizationUrl);
-    } catch {
-      sessionStorage.removeItem(OAUTH_PROVIDER_STORAGE_KEY);
-      setPending(null);
+    } catch (caught) {
+      fail(
+        `${provider.name} sign-in could not be started. ${getErrorMessage(caught)}`,
+      );
     }
   };
 
@@ -90,7 +104,7 @@ export default function OAuthProviderButtons() {
           key={provider.id}
           type="button"
           disabled={pending !== null}
-          onClick={() => void startProvider(provider.id)}
+          onClick={() => void startProvider(provider)}
           className="btn btn-secondary w-full disabled:opacity-60"
         >
           {pending === provider.id
@@ -98,6 +112,15 @@ export default function OAuthProviderButtons() {
             : `Continue with ${provider.name}`}
         </button>
       ))}
+
+      {error && (
+        <div
+          role="alert"
+          className="rounded-md border border-[color:var(--highlight)]/30 bg-[color:var(--highlight)]/10 px-3 py-2 text-sm text-[var(--highlight)]"
+        >
+          {error}
+        </div>
+      )}
     </div>
   );
 }

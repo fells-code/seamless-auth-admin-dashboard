@@ -144,4 +144,30 @@ describe("OAuthProviderButtons", () => {
     );
     expect(mocks.assign).not.toHaveBeenCalled();
   });
+
+  it("surfaces the failure and leaves the operator able to retry", async () => {
+    const user = userEvent.setup();
+    mocks.listOAuthProviders.mockResolvedValue({
+      data: { providers: [{ id: "google", name: "Google", scopes: [] }] },
+      error: null,
+    });
+    mocks.startOAuthLogin.mockResolvedValue({
+      data: null,
+      error: new Error("Provider is not configured."),
+    });
+
+    renderButtons();
+    await user.click(
+      await screen.findByRole("button", { name: "Continue with Google" }),
+    );
+
+    // Every failure path here used to return silently: the button reverted to
+    // its label with no message at all.
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Google sign-in could not be started.");
+    expect(alert).toHaveTextContent("Provider is not configured.");
+    expect(
+      screen.getByRole("button", { name: "Continue with Google" }),
+    ).toBeEnabled();
+  });
 });

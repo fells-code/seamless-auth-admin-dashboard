@@ -4,6 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
+import { useState } from "react";
 import { useAuth } from "@seamless-auth/react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import LayoutSkeleton from "../components/LayoutSkeleton";
@@ -11,9 +12,10 @@ import { getLastProtectedRoute, resolveProtectedRoute } from "../lib/lastRoute";
 import { hasScopedRole } from "../lib/scopedRoles";
 
 export default function Unauthenticated() {
-  const { isAuthenticated, user, loading } = useAuth();
+  const { isAuthenticated, user, loading, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [signingOut, setSigningOut] = useState(false);
 
   const redirectTo = resolveProtectedRoute(
     (location.state as { from?: unknown } | null)?.from,
@@ -29,6 +31,19 @@ export default function Unauthenticated() {
   if (isAuthenticated && hasAdminReadAccess) {
     return <Navigate to={redirectTo} replace />;
   }
+
+  // Sign out regardless of what logout reports. A failed logout still means the
+  // operator wants a different account, and the sign-in screen is where they
+  // recover from either outcome.
+  const signOutAndSwitch = async () => {
+    setSigningOut(true);
+    try {
+      await logout();
+    } finally {
+      setSigningOut(false);
+      navigate("/login", { replace: true, state: { from: redirectTo } });
+    }
+  };
 
   return (
     <div className="relative h-screen flex items-center justify-center bg-base text-primary">
@@ -47,7 +62,7 @@ export default function Unauthenticated() {
         </div>
 
         {isAuthenticated && !hasAdminReadAccess ? (
-          <div className="text-sm text-[var(--highlight)]">
+          <div role="alert" className="text-sm text-[var(--highlight)]">
             Your account does not have admin access.
           </div>
         ) : (
@@ -56,8 +71,19 @@ export default function Unauthenticated() {
           </div>
         )}
 
-        {/* Action */}
-        {!isAuthenticated && (
+        {/* Action. This screen renders outside the app layout, so there is no
+            account menu here. Without an explicit action, someone who signed in
+            with the wrong account had no in-app way out and had to clear
+            cookies to try another one. */}
+        {isAuthenticated ? (
+          <button
+            onClick={() => void signOutAndSwitch()}
+            disabled={signingOut}
+            className="btn btn-primary w-full disabled:opacity-50"
+          >
+            {signingOut ? "Signing out..." : "Use a different account"}
+          </button>
+        ) : (
           <button
             onClick={() => navigate("/login", { state: { from: redirectTo } })}
             className="btn btn-primary w-full"
