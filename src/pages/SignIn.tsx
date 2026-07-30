@@ -23,6 +23,7 @@ import { getErrorMessage } from "../lib/errorMessage";
 import OAuthProviderButtons from "../components/OAuthProviderButtons";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getLastProtectedRoute, resolveProtectedRoute } from "../lib/lastRoute";
+import { hasScopedRole } from "../lib/scopedRoles";
 import { useToast } from "../hooks/useToast";
 
 const DEFAULT_LOGIN_METHODS: LoginMethod[] = [
@@ -34,14 +35,6 @@ const DEFAULT_LOGIN_METHODS: LoginMethod[] = [
 type LoginView = "identifier" | "fallback" | "emailOtp" | "phoneOtp" | "magic";
 type BusyState =
   "idle" | "starting" | "passkey" | "magic" | "emailOtp" | "phoneOtp";
-
-function isEmailIdentifier(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
-}
-
-function isPhoneIdentifier(value: string) {
-  return /^\+\d[\d\s().-]{6,}$/.test(value.trim());
-}
 
 export default function SignIn() {
   const { markSignedIn, refreshSession } = useAuth();
@@ -69,7 +62,20 @@ export default function SignIn() {
 
   const completeSignIn = useCallback(async () => {
     markSignedIn();
-    await refreshSession();
+    const { data } = await refreshSession();
+
+    // Announcing success before this check produced a confirmation of an admin
+    // session immediately followed by the route guard's no-access screen, which
+    // contradicted it. Confirm the requirement first, then say so.
+    if (!hasScopedRole(data?.user?.roles, "admin:read")) {
+      toast.error(
+        "Admin access required",
+        "You are signed in, but this account does not have admin access.",
+      );
+      navigate("/unauthenticated", { replace: true });
+      return;
+    }
+
     toast.success("Signed in", "Admin session established.");
     navigate(redirectTo, { replace: true });
   }, [markSignedIn, navigate, redirectTo, refreshSession, toast]);
@@ -289,19 +295,22 @@ export default function SignIn() {
     };
   }, [checkMagicLink, view]);
 
-  const identifierIsEmail = isEmailIdentifier(identifier);
-  const identifierIsPhone = isPhoneIdentifier(identifier);
   const canSubmitIdentifier = Boolean(identifier.trim());
-  const canUseMagicLink =
-    loginMethods.includes("magic_link") && identifierIsEmail;
-  const canUseEmailOtp =
-    loginMethods.includes("email_otp") && identifierIsEmail;
-  const canUsePhoneOtp =
-    loginMethods.includes("phone_otp") && identifierIsPhone;
+
+  // The server decides which methods apply to an identifier. Re-deriving that
+  // locally from strict email and phone patterns discarded methods the server
+  // had offered, and the screen then reported that none were returned, which
+  // was not true. The local patterns are gone rather than merely loosened.
+  const canUseMagicLink = loginMethods.includes("magic_link");
+  const canUseEmailOtp = loginMethods.includes("email_otp");
+  const canUsePhoneOtp = loginMethods.includes("phone_otp");
   const canUsePasskey =
     loginMethods.includes("passkey") &&
     passkeySupported &&
     !passkeySupportLoading;
+  // A passkey method the browser cannot service is still a method the server
+  // offered, so it must not be reported as "nothing came back".
+  const serverOfferedMethods = loginMethods.length > 0;
   const isBusy = busy !== "idle";
 
   const submitLabel =
@@ -402,12 +411,19 @@ export default function SignIn() {
                     {!canUsePasskey &&
                       !canUseMagicLink &&
                       !canUseEmailOtp &&
-                      !canUsePhoneOtp && (
+                      !canUsePhoneOtp &&
+                      (serverOfferedMethods ? (
+                        <p className="text-sm text-muted">
+                          The sign-in methods available for this account cannot
+                          be used in this browser. Try another browser or
+                          device, or use a provider below.
+                        </p>
+                      ) : (
                         <p className="text-sm text-muted">
                           No available sign-in method was returned for this
                           identifier.
                         </p>
-                      )}
+                      ))}
                   </div>
                 )}
               </form>
@@ -416,6 +432,8 @@ export default function SignIn() {
                 {view === "magic" ? (
                   <MagicLinkState
                     identifier={identifier}
+                    busy={isBusy}
+                    resending={busy === "magic"}
                     onChangeIdentifier={() => {
                       setView("identifier");
                       setError("");
@@ -444,7 +462,10 @@ export default function SignIn() {
             )}
 
             {error && (
-              <div className="mt-5 rounded-md border border-[color:var(--highlight)]/30 bg-[color:var(--highlight)]/10 px-3 py-2 text-sm text-[var(--highlight)]">
+              <div
+                role="alert"
+                className="mt-5 rounded-md border border-[color:var(--highlight)]/30 bg-[color:var(--highlight)]/10 px-3 py-2 text-sm text-[var(--highlight)]"
+              >
                 {error}
               </div>
             )}
@@ -567,10 +588,14 @@ function OtpState({
 
 function MagicLinkState({
   identifier,
+  busy,
+  resending,
   onChangeIdentifier,
   onResend,
 }: {
   identifier: string;
+  busy: boolean;
+  resending: boolean;
   onChangeIdentifier: () => void;
   onResend: () => void;
 }) {
@@ -586,11 +611,22 @@ function MagicLinkState({
       </div>
 
       <div className="flex flex-wrap justify-between gap-2">
-        <button onClick={onChangeIdentifier} className="btn btn-secondary">
+        <button
+          type="button"
+          onClick={onChangeIdentifier}
+          disabled={busy}
+          className="btn btn-secondary disabled:opacity-50"
+        >
           Change
         </button>
-        <button onClick={onResend} className="btn btn-primary">
-          Resend
+        <button
+          type="button"
+          onClick={onResend}
+          disabled={busy}
+          className="btn btn-primary justify-center disabled:opacity-50"
+        >
+          {resending && <Loader2 size={16} className="animate-spin" />}
+          {resending ? "Sending..." : "Resend"}
         </button>
       </div>
     </div>

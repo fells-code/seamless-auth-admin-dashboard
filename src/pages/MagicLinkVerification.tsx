@@ -83,9 +83,28 @@ export default function MagicLinkVerification() {
           <h1 className="text-lg font-semibold tracking-tight">
             {error ? "Verification Failed" : "Finishing Sign In"}
           </h1>
-          <p className="text-sm text-muted">
-            {error || "Completing the secure sign-in request."}
-          </p>
+
+          {error ? (
+            <>
+              <p role="alert" className="text-sm text-muted">
+                {error} The link may have expired or already been used.
+              </p>
+
+              {/* Without this the screen was a dead end: the only escape was
+                  editing the URL. The OAuth callback already offers a way back. */}
+              <button
+                type="button"
+                onClick={() => navigate("/login", { replace: true })}
+                className="btn btn-secondary mt-2"
+              >
+                Back to sign in
+              </button>
+            </>
+          ) : (
+            <p className="text-sm text-muted">
+              Completing the secure sign-in request.
+            </p>
+          )}
         </div>
       </div>
     </div>
