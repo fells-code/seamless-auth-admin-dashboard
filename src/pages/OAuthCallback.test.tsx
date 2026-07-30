@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   finishOAuthLogin: vi.fn(),
   markSignedIn: vi.fn(),
   refreshSession: vi.fn(),
+  getOAuthErrorCode: vi.fn(),
 }));
 
 vi.mock("@seamless-auth/react", () => ({
@@ -22,6 +23,7 @@ vi.mock("@seamless-auth/react", () => ({
     markSignedIn: mocks.markSignedIn,
     refreshSession: mocks.refreshSession,
   }),
+  getOAuthErrorCode: (error: unknown) => mocks.getOAuthErrorCode(error),
 }));
 
 function renderCallback(search: string) {
@@ -42,6 +44,8 @@ describe("OAuthCallback", () => {
     mocks.markSignedIn.mockReset();
     mocks.refreshSession.mockReset();
     mocks.refreshSession.mockResolvedValue({ data: null, error: null });
+    mocks.getOAuthErrorCode.mockReset();
+    mocks.getOAuthErrorCode.mockReturnValue(undefined);
     sessionStorage.clear();
   });
 
@@ -108,6 +112,42 @@ describe("OAuthCallback", () => {
     // the "Back to sign in" recovery must be offered.
     expect(
       screen.getByRole("button", { name: "Back to sign in" }),
+    ).toBeInTheDocument();
+  });
+
+  it("explains the failure when the provider returned no email address", async () => {
+    sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, "google");
+    mocks.finishOAuthLogin.mockResolvedValue({ data: null, error: {} });
+    mocks.getOAuthErrorCode.mockReturnValue("oauth_missing_email");
+
+    renderCallback("?code=abc&state=xyz");
+
+    expect(
+      await screen.findByText(/did not return an email address/),
+    ).toBeInTheDocument();
+  });
+
+  it("explains the failure when the provider reports the email as unverified", async () => {
+    sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, "google");
+    mocks.finishOAuthLogin.mockResolvedValue({ data: null, error: {} });
+    mocks.getOAuthErrorCode.mockReturnValue("oauth_email_not_verified");
+
+    renderCallback("?code=abc&state=xyz");
+
+    expect(await screen.findByText(/as unverified/)).toBeInTheDocument();
+  });
+
+  it("falls back to the generic message for an unrecognized code", async () => {
+    sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, "google");
+    mocks.finishOAuthLogin.mockResolvedValue({ data: null, error: {} });
+    mocks.getOAuthErrorCode.mockReturnValue(undefined);
+
+    renderCallback("?code=abc&state=xyz");
+
+    expect(
+      await screen.findByText(
+        "We could not complete sign-in. Try signing in again.",
+      ),
     ).toBeInTheDocument();
   });
 });

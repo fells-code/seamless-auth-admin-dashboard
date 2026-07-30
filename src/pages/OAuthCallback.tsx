@@ -6,10 +6,27 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Loader2, ShieldAlert } from "lucide-react";
-import { useAuth, useAuthClient } from "@seamless-auth/react";
+import {
+  getOAuthErrorCode,
+  useAuth,
+  useAuthClient,
+  type OAuthErrorCode,
+} from "@seamless-auth/react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getLastProtectedRoute } from "../lib/lastRoute";
 import { OAUTH_PROVIDER_STORAGE_KEY } from "../components/OAuthProviderButtons";
+
+const OAUTH_ERROR_MESSAGES: Record<OAuthErrorCode, string> = {
+  oauth_missing_email:
+    "The provider did not return an email address for this account. Add one to the provider account, or sign in with another method.",
+  oauth_email_not_verified:
+    "The provider reports this account's email address as unverified. Verify it with the provider, then try again.",
+  oauth_missing_subject:
+    "The provider did not return an account identifier, so the account could not be matched. Try signing in again.",
+};
+
+const GENERIC_OAUTH_ERROR =
+  "We could not complete sign-in. Try signing in again.";
 
 export default function OAuthCallback() {
   const authClient = useAuthClient();
@@ -44,7 +61,8 @@ export default function OAuthCallback() {
       });
 
       if (finishError) {
-        setError("We could not complete sign-in. Try signing in again.");
+        const code = getOAuthErrorCode(finishError);
+        setError(code ? OAUTH_ERROR_MESSAGES[code] : GENERIC_OAUTH_ERROR);
         return;
       }
 
