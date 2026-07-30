@@ -122,4 +122,39 @@ describe("Events time range", () => {
       expect(input.value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
     }
   });
+
+  it("counts a relative range as an active filter", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    const panel = () =>
+      screen.getByText("Filters active").closest("div.rounded-2xl")!;
+
+    // The default 24h window is the unfiltered view, so it is not a filter.
+    expect(panel()).toHaveTextContent("0");
+
+    await user.click(screen.getByRole("button", { name: "7d" }));
+
+    // Choosing "last 7 days" used to still report zero, because the count came
+    // from explicit from/to bounds that a relative range never sets, while a
+    // custom range counted as two.
+    await waitFor(() => expect(panel()).toHaveTextContent("1"));
+  });
+
+  it("holds the summary figures behind the loading state", () => {
+    mocks.useEvents.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    // Reporting no matched events and no suspicious signals before the request
+    // resolves reads as an all-clear on a security surface.
+    expect(screen.queryByText("Matched Events")).not.toBeInTheDocument();
+    expect(screen.queryByText("Suspicious Signals")).not.toBeInTheDocument();
+  });
 });

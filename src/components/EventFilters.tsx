@@ -4,9 +4,13 @@
  * See LICENSE file in the project root for full license information
  */
 
+import { useId } from "react";
 import { eventGroups } from "../lib/eventGroups";
 import { getRange, toDateTimeLocalValue } from "../lib/timeRange";
 import type { EventFilter } from "../pages/Events";
+
+const localTimeZone =
+  Intl.DateTimeFormat().resolvedOptions().timeZone ?? "local time";
 
 export default function EventFilters({
   value,
@@ -20,14 +24,26 @@ export default function EventFilters({
   };
   onChange: (v: EventFilter) => void;
 }) {
-  const applyGroup = (group: {
-    label: string;
-    value: string;
-    match: (t: string) => boolean;
-  }) => {
+  const rangeErrorId = useId();
+  const rangeInverted = Boolean(
+    value.from && value.to && new Date(value.from) > new Date(value.to),
+  );
+  // Selecting a type used to replace the selection rather than add to it, even
+  // though the query layer and the URL format both accept several. "All" stays
+  // exclusive: it means no type filter.
+  const toggleGroup = (group: { value: string }) => {
+    if (group.value === "") {
+      onChange({ ...value, type: [] });
+      return;
+    }
+
+    const selected = value.type.includes(group.value);
+
     onChange({
       ...value,
-      type: group.value === "" ? [] : [group.value],
+      type: selected
+        ? value.type.filter((current) => current !== group.value)
+        : [...value.type, group.value],
     });
   };
 
@@ -66,7 +82,8 @@ export default function EventFilters({
             <button
               type="button"
               key={group.value}
-              onClick={() => applyGroup(group)}
+              aria-pressed={active}
+              onClick={() => toggleGroup(group)}
               className={`px-3 py-1.5 rounded-full text-sm border transition ${
                 active
                   ? "bg-primary text-[var(--on-primary)] border-transparent"
@@ -100,22 +117,48 @@ export default function EventFilters({
         ))}
 
         {value.range === "custom" && (
-          <div className="grid w-full gap-2 sm:grid-cols-2">
-            <input
-              type="datetime-local"
-              aria-label="Range start"
-              value={value.from ?? ""}
-              onChange={(e) => onChange({ ...value, from: e.target.value })}
-              className="min-h-10 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm"
-            />
+          <div className="w-full space-y-2">
+            <div className="grid w-full gap-2 sm:grid-cols-2">
+              <input
+                type="datetime-local"
+                aria-label="Range start"
+                value={value.from ?? ""}
+                max={value.to || undefined}
+                aria-invalid={rangeInverted ? true : undefined}
+                aria-describedby={rangeInverted ? rangeErrorId : undefined}
+                onChange={(e) => onChange({ ...value, from: e.target.value })}
+                className="min-h-10 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm"
+              />
 
-            <input
-              type="datetime-local"
-              aria-label="Range end"
-              value={value.to ?? ""}
-              onChange={(e) => onChange({ ...value, to: e.target.value })}
-              className="min-h-10 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm"
-            />
+              <input
+                type="datetime-local"
+                aria-label="Range end"
+                value={value.to ?? ""}
+                min={value.from || undefined}
+                aria-invalid={rangeInverted ? true : undefined}
+                aria-describedby={rangeInverted ? rangeErrorId : undefined}
+                onChange={(e) => onChange({ ...value, to: e.target.value })}
+                className="min-h-10 rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm"
+              />
+            </div>
+
+            {rangeInverted ? (
+              // An inverted range produced an empty table with only the generic
+              // no-results message, giving no hint that the range was the
+              // problem.
+              <p
+                id={rangeErrorId}
+                role="alert"
+                className="text-sm text-[var(--highlight)]"
+              >
+                The start must not be after the end. Times are interpreted in
+                your local timezone ({localTimeZone}).
+              </p>
+            ) : (
+              <p className="text-sm text-muted">
+                Times are interpreted in your local timezone ({localTimeZone}).
+              </p>
+            )}
           </div>
         )}
       </div>
