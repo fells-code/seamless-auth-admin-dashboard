@@ -1,5 +1,31 @@
 # seamless-auth-admin-dashboard
 
+## 0.5.0
+
+### Minor Changes
+
+- c80f182: Show who performed an administrative action in the events table.
+
+  The API now records the acting administrator separately from the subject of an
+  action. An administrative event names two people, and showing only the subject
+  reads as though they did it to themselves, so the User column now shows the
+  target with the administrator beneath it, each linking to their own detail page.
+
+  Administrative events are also labelled as such rather than as ordinary
+  user-linked events.
+
+  Also upgrades `@seamless-auth/types` to 0.10.0.
+
+- eb6526a: Collect identity proofing before preparing a device replacement.
+
+  The API now refuses this recovery unless it records how the operator established
+  who they were talking to, so the button opens a form rather than a plain
+  confirmation. It asks how identity was confirmed, for a reference to the
+  evidence, and for an approver when the operator takes the remote exception
+  rather than proofing in person.
+
+  Also upgrades `@seamless-auth/types` from 0.4.0 to 0.9.0.
+
 ## 0.4.0
 
 ### Minor Changes
