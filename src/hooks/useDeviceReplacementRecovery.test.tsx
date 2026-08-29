@@ -55,6 +55,7 @@ describe("useDeviceReplacementRecovery", () => {
     await act(async () => {
       await result.current.mutateAsync({
         userId: "user_1",
+        proofing: { method: "in_person", evidenceRef: "TICKET-1042" },
         revokeSessions: true,
         removePasskeys: true,
         disableTotp: false,
@@ -66,6 +67,7 @@ describe("useDeviceReplacementRecovery", () => {
       {
         method: "POST",
         body: JSON.stringify({
+          proofing: { method: "in_person", evidenceRef: "TICKET-1042" },
           revokeSessions: true,
           removePasskeys: true,
           disableTotp: false,
@@ -91,7 +93,10 @@ describe("useDeviceReplacementRecovery", () => {
 
     await act(async () => {
       await expect(
-        result.current.mutateAsync({ userId: "user_1" }),
+        result.current.mutateAsync({
+          userId: "user_1",
+          proofing: { method: "in_person", evidenceRef: "TICKET-1042" },
+        }),
       ).rejects.toThrow("Not allowed");
     });
 
