@@ -22,6 +22,7 @@ import Tabs from "../components/Tabs";
 import Table from "../components/Table";
 import Skeleton from "../components/Skeleton";
 import EditUserModal from "../components/EditUserModal";
+import DeviceReplacementModal from "../components/DeviceReplacementModal";
 import RiskBadge from "../components/RiskBadge";
 import MiniLineChart from "../components/MiniLineChart";
 import StatCard from "../components/StatCard";
@@ -106,6 +107,7 @@ export default function UserDetail() {
   const confirm = useConfirm();
 
   const [editing, setEditing] = useState(false);
+  const [replacingDevice, setReplacingDevice] = useState(false);
   const [tab, setTab] = useState<
     "Overview" | "Sessions" | "Credentials" | "Events" | "Security"
   >("Overview");
@@ -274,39 +276,6 @@ export default function UserDetail() {
     }
   };
 
-  const prepareDeviceReplacement = async () => {
-    if (
-      !(await confirm({
-        title: "Prepare device replacement",
-        description:
-          "Prepare this user for device replacement by revoking sessions, removing passkeys, and disabling TOTP?",
-        confirmLabel: "Prepare",
-        tone: "danger",
-      }))
-    ) {
-      return;
-    }
-
-    if (!(await ensureStepUp())) {
-      return;
-    }
-
-    deviceReplacement.mutate(
-      { userId: user.id },
-      {
-        onSuccess: (result) => {
-          toast.success(
-            "Device replacement prepared",
-            `${result.revokedSessions} sessions revoked, ${result.removedCredentials} passkeys removed, ${result.disabledTotpCredentials} TOTP credentials disabled.`,
-          );
-        },
-        onError: (error) => {
-          toast.error("Device replacement failed", getErrorMessage(error));
-        },
-      },
-    );
-  };
-
   return (
     <div className="space-y-8">
       <section className="overflow-hidden rounded-[28px] border border-subtle bg-surface shadow-[0_1px_0_rgba(255,255,255,0.35)_inset]">
@@ -415,7 +384,7 @@ export default function UserDetail() {
                           : "Revoke Sessions"}
                       </button>
                       <button
-                        onClick={() => void prepareDeviceReplacement()}
+                        onClick={() => setReplacingDevice(true)}
                         disabled={deviceReplacement.isPending}
                         className="btn btn-secondary disabled:opacity-50"
                       >
@@ -844,6 +813,13 @@ export default function UserDetail() {
 
       {editing && canWrite && (
         <EditUserModal user={user} onClose={() => setEditing(false)} />
+      )}
+      {replacingDevice && canWrite && (
+        <DeviceReplacementModal
+          userId={user.id}
+          userLabel={user.email ?? user.phone ?? user.id}
+          onClose={() => setReplacingDevice(false)}
+        />
       )}
     </div>
   );

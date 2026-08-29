@@ -11,12 +11,14 @@ import type {
   DeviceReplacementRecoveryResponse,
 } from "@seamless-auth/types";
 
-// The user id travels in the path rather than the body. Every recovery step is
-// Partial because the server applies its own defaults for any step left out,
-// and DeviceReplacementRecoveryRequest models the parsed body, where those
-// defaults have already been filled in.
-type DeviceReplacementRecoveryInput =
-  Partial<DeviceReplacementRecoveryRequest> & {
+// The user id travels in the path rather than the body. The clearing steps stay
+// Partial because the server applies its own defaults for any left out, but
+// proofing is required: the server refuses a recovery that records no identity
+// proofing, and making it optional here hides that at compile time.
+type DeviceReplacementRecoveryInput = Partial<
+  Omit<DeviceReplacementRecoveryRequest, "proofing">
+> &
+  Pick<DeviceReplacementRecoveryRequest, "proofing"> & {
     userId: string;
   };
 

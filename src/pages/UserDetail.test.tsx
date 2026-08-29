@@ -108,6 +108,31 @@ function clickAction(name: string) {
   fireEvent.click(screen.getByRole("button", { name }));
 }
 
+/** Opens the device replacement modal, fills the required proofing, and submits. */
+async function submitDeviceReplacement(
+  proofing: { method?: string; evidenceRef?: string; approver?: string } = {},
+) {
+  clickAction("Device Replacement");
+
+  if (proofing.method) {
+    fireEvent.change(screen.getByLabelText("How was identity confirmed?"), {
+      target: { value: proofing.method },
+    });
+  }
+
+  fireEvent.change(screen.getByLabelText("Evidence reference"), {
+    target: { value: proofing.evidenceRef ?? "TICKET-1042" },
+  });
+
+  if (proofing.approver) {
+    fireEvent.change(screen.getByLabelText("Approver"), {
+      target: { value: proofing.approver },
+    });
+  }
+
+  fireEvent.click(screen.getByRole("button", { name: "Prepare" }));
+}
+
 describe("UserDetail", () => {
   beforeEach(() => {
     Object.values(mocks).forEach((mock) => mock.mockReset?.());
@@ -199,7 +224,6 @@ describe("UserDetail", () => {
   const destructiveActions = [
     { button: "Delete User", mutation: "deleteMutate" },
     { button: "Revoke Sessions", mutation: "revokeAllMutate" },
-    { button: "Device Replacement", mutation: "deviceReplacementMutate" },
   ] as const;
 
   describe.each(destructiveActions)("$button", ({ button, mutation }) => {
@@ -232,9 +256,65 @@ describe("UserDetail", () => {
     });
   });
 
+  describe("device replacement proofing", () => {
+    it("does not submit until an evidence reference is given", () => {
+      renderPage();
+      clickAction("Device Replacement");
+
+      expect(screen.getByRole("button", { name: "Prepare" })).toBeDisabled();
+      expect(mocks.deviceReplacementMutate).not.toHaveBeenCalled();
+    });
+
+    it("requires an approver before a remote exception can be submitted", () => {
+      renderPage();
+      clickAction("Device Replacement");
+
+      fireEvent.change(screen.getByLabelText("How was identity confirmed?"), {
+        target: { value: "remote_exception" },
+      });
+      fireEvent.change(screen.getByLabelText("Evidence reference"), {
+        target: { value: "TICKET-7" },
+      });
+
+      expect(screen.getByRole("button", { name: "Prepare" })).toBeDisabled();
+    });
+
+    it("sends the proofing record once it is complete", async () => {
+      renderPage();
+      await submitDeviceReplacement({
+        method: "remote_exception",
+        evidenceRef: "TICKET-7",
+        approver: "j.reyes",
+      });
+
+      await waitFor(() =>
+        expect(mocks.deviceReplacementMutate).toHaveBeenCalled(),
+      );
+
+      expect(mocks.deviceReplacementMutate.mock.calls[0][0]).toEqual({
+        userId: "user_1",
+        proofing: {
+          method: "remote_exception",
+          evidenceRef: "TICKET-7",
+          approver: "j.reyes",
+        },
+      });
+    });
+
+    it("is abandoned when step-up verification fails", async () => {
+      mocks.ensureStepUp.mockResolvedValue(false);
+
+      renderPage();
+      await submitDeviceReplacement();
+
+      await waitFor(() => expect(mocks.ensureStepUp).toHaveBeenCalled());
+      expect(mocks.deviceReplacementMutate).not.toHaveBeenCalled();
+    });
+  });
+
   it("reports device replacement results in the success toast", async () => {
     renderPage();
-    clickAction("Device Replacement");
+    await submitDeviceReplacement();
 
     await waitFor(() =>
       expect(mocks.deviceReplacementMutate).toHaveBeenCalled(),
