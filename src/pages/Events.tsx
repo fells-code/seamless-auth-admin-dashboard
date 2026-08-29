@@ -345,7 +345,11 @@ export default function Events() {
                       {value as string}
                     </span>
                     <span className="text-xs text-muted">
-                      {row.user_id ? "User-linked event" : "System-level event"}
+                      {row.actor_user_id
+                        ? "Administrative action"
+                        : row.user_id
+                          ? "User-linked event"
+                          : "System-level event"}
                     </span>
                   </div>
                 ),
@@ -354,20 +358,38 @@ export default function Events() {
                 key: "user_id",
                 label: "User",
                 width: "small",
-                render: (value) =>
-                  value ? (
-                    <button
-                      onClick={() => navigate(`/users/${value}`)}
-                      className="inline-flex items-center gap-2 text-sm text-muted transition hover:text-primary"
-                    >
-                      <span className="font-mono">
-                        {(value as string).slice(0, 8)}...
-                      </span>
-                      <ArrowRight size={12} />
-                    </button>
-                  ) : (
-                    <span className="text-sm text-subtle">System</span>
-                  ),
+                // An administrative event names two people. Showing only the
+                // subject reads as though they did it to themselves.
+                render: (value, row) => (
+                  <div className="flex flex-col gap-0.5">
+                    {value ? (
+                      <button
+                        onClick={() => navigate(`/users/${value}`)}
+                        className="inline-flex items-center gap-2 text-sm text-muted transition hover:text-primary"
+                      >
+                        <span className="font-mono">
+                          {(value as string).slice(0, 8)}...
+                        </span>
+                        <ArrowRight size={12} />
+                      </button>
+                    ) : (
+                      <span className="text-sm text-subtle">System</span>
+                    )}
+
+                    {row.actor_user_id && (
+                      <button
+                        onClick={() => navigate(`/users/${row.actor_user_id}`)}
+                        className="inline-flex items-center gap-1 text-xs text-muted transition hover:text-primary"
+                        title="The administrator who performed this action"
+                      >
+                        <span>by</span>
+                        <span className="font-mono">
+                          {row.actor_user_id.slice(0, 8)}...
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                ),
               },
               {
                 key: "ip_address",
