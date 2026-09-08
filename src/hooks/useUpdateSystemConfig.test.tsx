@@ -51,6 +51,10 @@ const config: SystemConfig = {
     windowSeconds: 300,
     lockoutSeconds: 900,
   },
+  authenticator_policy: {
+    attachment: "any",
+  },
+  session_idle_ttl: "8h",
   rpid: "example.com",
   origins: ["https://example.com"],
 };

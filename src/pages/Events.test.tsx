@@ -158,3 +158,57 @@ describe("Events time range", () => {
     expect(screen.queryByText("Suspicious Signals")).not.toBeInTheDocument();
   });
 });
+
+describe("Events actor attribution", () => {
+  function withEvents(events: unknown[]) {
+    mocks.useEvents.mockReset();
+    mocks.useEvents.mockReturnValue({
+      data: { events, total: events.length },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+  }
+
+  const base = {
+    id: "evt-1",
+    type: "admin_device_replacement_recovery",
+    ip_address: "127.0.0.1",
+    user_agent: "agent",
+    metadata: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  it("names the administrator alongside the target", () => {
+    withEvents([
+      {
+        ...base,
+        user_id: "11111111-aaaa-bbbb-cccc-222222222222",
+        actor_user_id: "99999999-dddd-eeee-ffff-333333333333",
+      },
+    ]);
+
+    renderPage();
+
+    expect(screen.getByText("11111111...")).toBeInTheDocument();
+    expect(screen.getByText("99999999...")).toBeInTheDocument();
+    expect(screen.getByText("Administrative action")).toBeInTheDocument();
+  });
+
+  it("leaves an ordinary user event unattributed", () => {
+    withEvents([
+      {
+        ...base,
+        type: "login_success",
+        user_id: "11111111-aaaa-bbbb-cccc-222222222222",
+      },
+    ]);
+
+    renderPage();
+
+    expect(screen.getByText("User-linked event")).toBeInTheDocument();
+    expect(screen.queryByText("by")).not.toBeInTheDocument();
+  });
+});
