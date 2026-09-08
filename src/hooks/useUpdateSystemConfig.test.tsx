@@ -40,6 +40,7 @@ const config: SystemConfig = {
   default_roles: [],
   access_token_ttl: "15m",
   refresh_token_ttl: "30d",
+  max_concurrent_sessions: null,
   rate_limit: 100,
   delay_after: 50,
   login_methods: ["passkey"],
@@ -53,8 +54,15 @@ const config: SystemConfig = {
   },
   authenticator_policy: {
     attachment: "any",
+    userVerification: "required",
+    attestation: "none",
+    requireKnownAuthenticator: false,
+    syncedPasskeys: "block",
+    aaguidAllowList: [],
+    aaguidDenyList: [],
   },
   session_idle_ttl: "8h",
+  magic_link_redirect_uris: [],
   rpid: "example.com",
   origins: ["https://example.com"],
 };
