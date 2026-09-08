@@ -11,10 +11,12 @@ import Organizations from "./Organizations";
 const mocks = vi.hoisted(() => ({
   addMember: vi.fn(),
   createOrganization: vi.fn(),
+  deleteOrganization: vi.fn(),
   removeMember: vi.fn(),
   updateOrganization: vi.fn(),
   useAddOrganizationMember: vi.fn(),
   useCreateOrganization: vi.fn(),
+  useDeleteOrganization: vi.fn(),
   useOrganizationMembers: vi.fn(),
   useOrganizations: vi.fn(),
   useRemoveOrganizationMember: vi.fn(),
@@ -23,12 +25,19 @@ const mocks = vi.hoisted(() => ({
   useRoles: vi.fn(),
   useAdminPermissions: vi.fn(),
   useStepUpGuard: vi.fn(),
+  useToast: vi.fn(),
+  useConfirm: vi.fn(),
+  ensureStepUp: vi.fn(),
+  confirm: vi.fn(),
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
   updateMemberMutate: vi.fn(),
 }));
 
 vi.mock("../hooks/useOrganizations", () => ({
   useAddOrganizationMember: mocks.useAddOrganizationMember,
   useCreateOrganization: mocks.useCreateOrganization,
+  useDeleteOrganization: mocks.useDeleteOrganization,
   useOrganizationMembers: mocks.useOrganizationMembers,
   useOrganizations: mocks.useOrganizations,
   useRemoveOrganizationMember: mocks.useRemoveOrganizationMember,
@@ -48,6 +57,14 @@ vi.mock("../hooks/useStepUpGuard", () => ({
   useStepUpGuard: mocks.useStepUpGuard,
 }));
 
+vi.mock("../hooks/useToast", () => ({
+  useToast: mocks.useToast,
+}));
+
+vi.mock("../hooks/useConfirm", () => ({
+  useConfirm: mocks.useConfirm,
+}));
+
 const organization = {
   id: "org-1",
   name: "Acme",
@@ -63,6 +80,7 @@ describe("Organizations", () => {
   beforeEach(() => {
     mocks.addMember.mockReset();
     mocks.createOrganization.mockReset();
+    mocks.deleteOrganization.mockReset();
     mocks.removeMember.mockReset();
     mocks.updateOrganization.mockReset();
 
@@ -114,11 +132,26 @@ describe("Organizations", () => {
       mutate: mocks.removeMember,
       isPending: false,
     });
+    mocks.useDeleteOrganization.mockReturnValue({
+      mutate: mocks.deleteOrganization,
+      isPending: false,
+    });
     mocks.useAdminPermissions.mockReturnValue({
       canRead: true,
       canWrite: true,
     });
-    mocks.useStepUpGuard.mockReturnValue(vi.fn().mockResolvedValue(true));
+    mocks.ensureStepUp.mockReset();
+    mocks.ensureStepUp.mockResolvedValue(true);
+    mocks.useStepUpGuard.mockReturnValue(mocks.ensureStepUp);
+    mocks.confirm.mockReset();
+    mocks.confirm.mockResolvedValue(true);
+    mocks.useConfirm.mockReturnValue(mocks.confirm);
+    mocks.toastSuccess.mockReset();
+    mocks.toastError.mockReset();
+    mocks.useToast.mockReturnValue({
+      success: mocks.toastSuccess,
+      error: mocks.toastError,
+    });
   });
 
   it("renders organizations and members", () => {
@@ -199,13 +232,169 @@ describe("Organizations", () => {
     expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
   });
 
-  it("filters the organization list by name or slug", () => {
+  it("asks the server for the first page on mount", () => {
+    render(<Organizations />);
+
+    expect(mocks.useOrganizations).toHaveBeenCalledWith({
+      limit: 50,
+      offset: 0,
+      search: "",
+    });
+  });
+
+  // The filter used to narrow the rows already loaded, which could not reach an
+  // organization the endpoint had not returned. It is a query parameter now.
+  it("sends the search term to the server once typing settles", async () => {
     render(<Organizations />);
 
     fireEvent.change(screen.getByPlaceholderText("Search name or slug"), {
-      target: { value: "nomatch" },
+      target: { value: "beta" },
     });
 
-    expect(screen.getByText("No organizations")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(mocks.useOrganizations).toHaveBeenLastCalledWith({
+        limit: 50,
+        offset: 0,
+        search: "beta",
+      }),
+    );
+  });
+
+  it("pages through the result set on the server", async () => {
+    mocks.useOrganizations.mockReturnValue({
+      data: { organizations: [organization], total: 140 },
+      isLoading: false,
+    });
+
+    render(<Organizations />);
+
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+
+    await waitFor(() =>
+      expect(mocks.useOrganizations).toHaveBeenLastCalledWith({
+        limit: 50,
+        offset: 50,
+        search: "",
+      }),
+    );
+  });
+
+  // A new term describes a different result set, so page three of the old one
+  // is meaningless and would strand the caller on an empty screen.
+  it("returns to the first page when the search term changes", async () => {
+    mocks.useOrganizations.mockReturnValue({
+      data: { organizations: [organization], total: 140 },
+      isLoading: false,
+    });
+
+    render(<Organizations />);
+
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    await waitFor(() =>
+      expect(mocks.useOrganizations).toHaveBeenLastCalledWith(
+        expect.objectContaining({ offset: 50 }),
+      ),
+    );
+
+    fireEvent.change(screen.getByPlaceholderText("Search name or slug"), {
+      target: { value: "beta" },
+    });
+
+    await waitFor(() =>
+      expect(mocks.useOrganizations).toHaveBeenLastCalledWith({
+        limit: 50,
+        offset: 0,
+        search: "beta",
+      }),
+    );
+  });
+
+  it("requires confirmation and step-up before deleting an organization", async () => {
+    render(<Organizations />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Acme" }));
+
+    await waitFor(() => expect(mocks.ensureStepUp).toHaveBeenCalled());
+    expect(mocks.deleteOrganization).toHaveBeenCalledWith(
+      "org-1",
+      expect.any(Object),
+    );
+  });
+
+  // The count comes from the row, so an operator is told what the cascade costs
+  // before they agree to it rather than afterwards.
+  it("names the membership count in the confirmation", async () => {
+    render(<Organizations />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Acme" }));
+
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalled());
+    expect(mocks.confirm.mock.calls[0][0].description).toContain(
+      "1 membership",
+    );
+    expect(mocks.confirm.mock.calls[0][0].description).toContain(
+      "member accounts themselves are not deleted",
+    );
+  });
+
+  it("does not delete an organization when the confirmation is dismissed", async () => {
+    mocks.confirm.mockResolvedValue(false);
+
+    render(<Organizations />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Acme" }));
+
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalled());
+    expect(mocks.ensureStepUp).not.toHaveBeenCalled();
+    expect(mocks.deleteOrganization).not.toHaveBeenCalled();
+  });
+
+  it("does not delete an organization when step-up fails", async () => {
+    mocks.ensureStepUp.mockResolvedValue(false);
+
+    render(<Organizations />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Acme" }));
+
+    await waitFor(() => expect(mocks.ensureStepUp).toHaveBeenCalled());
+    expect(mocks.deleteOrganization).not.toHaveBeenCalled();
+  });
+
+  it("reports the outcome of an organization delete through toasts", async () => {
+    render(<Organizations />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Acme" }));
+
+    await waitFor(() => expect(mocks.deleteOrganization).toHaveBeenCalled());
+
+    const callbacks = mocks.deleteOrganization.mock.calls[0][1] as {
+      onSuccess: () => void;
+      onError: (error: Error) => void;
+    };
+
+    callbacks.onSuccess();
+    expect(mocks.toastSuccess).toHaveBeenCalledWith(
+      "Organization removed",
+      "Acme was deleted.",
+    );
+
+    callbacks.onError(new Error("nope"));
+    expect(mocks.toastError).toHaveBeenCalledWith(
+      "Organization removal failed",
+      expect.any(String),
+    );
+  });
+
+  it("offers no Remove action to a read-only admin", () => {
+    mocks.useAdminPermissions.mockReturnValue({
+      canRead: true,
+      canWrite: false,
+    });
+
+    render(<Organizations />);
+
+    expect(
+      screen.queryByRole("button", { name: "Remove Acme" }),
+    ).not.toBeInTheDocument();
   });
 });
