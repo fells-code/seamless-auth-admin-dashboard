@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Profile from "./Profile";
@@ -69,12 +69,38 @@ const queryStates = {
   },
 };
 
+const credentials = [
+  {
+    id: "credential_1",
+    friendlyName: "Work MacBook",
+    deviceType: "singleDevice",
+    browser: "Chrome",
+    createdAt: "2026-06-01T00:00:00.000Z",
+  },
+  {
+    id: "credential_2",
+    friendlyName: null,
+    deviceType: "multiDevice",
+    browser: "Chrome",
+    createdAt: "2026-06-02T00:00:00.000Z",
+  },
+];
+
 function renderPage() {
   return render(
     <MemoryRouter>
       <Profile />
     </MemoryRouter>,
   );
+}
+
+/** The Device cell of a credential row, counted from the first record. */
+function credentialDeviceCell(row: number) {
+  const table = screen.getByRole("table", { name: "Your passkeys" });
+  const rows = within(table).getAllByRole("row");
+
+  // The first row is the header, which holds columnheaders rather than cells.
+  return within(rows[row + 1]).getAllByRole("cell")[0];
 }
 
 describe("Profile", () => {
@@ -149,5 +175,32 @@ describe("Profile", () => {
       screen.queryByText("Could not load profile"),
     ).not.toBeInTheDocument();
     expect(screen.getByDisplayValue("ada@example.com")).toBeInTheDocument();
+  });
+
+  describe("credentials", () => {
+    beforeEach(() => {
+      mocks.useUserDetail.mockReturnValue({
+        ...queryStates.loaded,
+        data: { sessions: [], credentials },
+        refetch: mocks.refetch,
+      });
+    });
+
+    it("leads with the friendly name and keeps the device type beneath it", () => {
+      renderPage();
+
+      const device = credentialDeviceCell(0);
+
+      expect(device).toHaveTextContent(/^Work MacBook/);
+      expect(within(device).getByText("singleDevice")).toBeInTheDocument();
+    });
+
+    it("falls back to the device type when no friendly name is set", () => {
+      renderPage();
+
+      // Nothing but the device type, so an unnamed credential does not render
+      // a blank primary line above it.
+      expect(credentialDeviceCell(1)).toHaveTextContent(/^multiDevice$/);
+    });
   });
 });

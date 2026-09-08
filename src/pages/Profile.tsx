@@ -14,6 +14,7 @@ import { useToast } from "../hooks/useToast";
 import { useConfirm } from "../hooks/useConfirm";
 
 import Table from "../components/Table";
+import CredentialDevice from "../components/CredentialDevice";
 import Skeleton from "../components/Skeleton";
 import { useId, useState } from "react";
 import { Section } from "../components/Section";
@@ -226,7 +227,18 @@ export default function Profile() {
         <Table<CredentialResponse>
           label="Your passkeys"
           columns={[
-            { key: "deviceType", label: "Device", width: "large", wrap: true },
+            {
+              key: "friendlyName",
+              label: "Device",
+              width: "large",
+              wrap: true,
+              render: (v, row) => (
+                <CredentialDevice
+                  friendlyName={v}
+                  deviceType={row.deviceType}
+                />
+              ),
+            },
             { key: "browser", label: "Browser", width: "medium" },
             {
               key: "createdAt",

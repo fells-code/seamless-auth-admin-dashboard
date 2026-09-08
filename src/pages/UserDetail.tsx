@@ -24,6 +24,7 @@ import Skeleton from "../components/Skeleton";
 import EditUserModal from "../components/EditUserModal";
 import DeviceReplacementModal from "../components/DeviceReplacementModal";
 import RiskBadge from "../components/RiskBadge";
+import CredentialDevice from "../components/CredentialDevice";
 import MiniLineChart from "../components/MiniLineChart";
 import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
@@ -621,14 +622,15 @@ export default function UserDetail() {
             emptyDescription="This user does not currently have credential records in the dashboard feed."
             columns={[
               {
-                key: "deviceType",
+                key: "friendlyName",
                 label: "Device",
                 width: "large",
                 wrap: true,
-                render: (value) => (
-                  <span className="text-sm text-primary">
-                    {(value as string) ?? "Unknown device"}
-                  </span>
+                render: (value, row) => (
+                  <CredentialDevice
+                    friendlyName={value}
+                    deviceType={row.deviceType}
+                  />
                 ),
               },
               { key: "browser", label: "Browser", width: "medium" },
