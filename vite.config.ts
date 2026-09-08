@@ -15,6 +15,9 @@ export default defineConfig(({ mode }) => {
     base: basePath,
     plugins: [react(), tailwindcss()],
     test: {
+      // Scoped to the unit suite. Playwright specs live in e2e/ and would
+      // otherwise be picked up by the default glob and fail on import.
+      include: ["src/**/*.{test,spec}.{ts,tsx}"],
       environment: "jsdom",
       setupFiles: "./src/test/setup.ts",
       css: true,
