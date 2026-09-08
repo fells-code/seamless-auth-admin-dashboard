@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ShieldAlert, ShieldOff, UserRound } from "lucide-react";
 import { useUserDetail } from "../hooks/useUserDetail";
@@ -35,6 +35,7 @@ import {
 } from "../components/StateMessage";
 import { getErrorMessage } from "../lib/errorMessage";
 import { calculateRiskScore } from "../lib/riskScore";
+import { tabId, tabPanelId } from "../lib/tabIds";
 import type {
   AdminUserDetailResponse,
   AuthEvent,
@@ -112,6 +113,7 @@ export default function UserDetail() {
   const [tab, setTab] = useState<
     "Overview" | "Sessions" | "Credentials" | "Events" | "Security"
   >("Overview");
+  const tabsId = useId();
 
   if (isLoading) {
     return (
@@ -477,305 +479,219 @@ export default function UserDetail() {
       )}
 
       <Tabs
+        idBase={tabsId}
         tabs={["Overview", "Sessions", "Credentials", "Events", "Security"]}
         active={tab}
         onChange={(nextTab) => setTab(nextTab as typeof tab)}
       />
 
-      {tab === "Overview" && (
-        <div className="space-y-6">
-          <Section
-            title="Login Activity"
-            description="Recent login pattern for this user, split between successful and failed auth events."
-          >
-            <MiniLineChart data={timeseries?.timeseries} />
-          </Section>
-
-          <div className="grid gap-4 lg:grid-cols-3">
-            <ActionCard
-              title="Account posture"
-              value={user.verified ? "Verified" : "Needs verification"}
-              description="A quick status check for whether the user has completed verification."
-            />
-
-            <ActionCard
-              title="Session recency"
-              value={
-                latestSession
-                  ? formatTimeAgo(latestSession.lastUsedAt, referenceNow)
-                  : "No sessions"
-              }
-              description="Most recent activity seen in the user’s session footprint."
-            />
-
-            <ActionCard
-              title="Risk summary"
-              value={risk.level}
-              description={
-                suspiciousCount > 0
-                  ? "Suspicious signals are present and worth a closer review."
-                  : "No suspicious signals currently surfaced for this user."
-              }
-            />
-          </div>
-        </div>
-      )}
-
-      {tab === "Sessions" && (
-        <Section
-          title="Session Inventory"
-          description="Current sessions for this user, including recency and expiry timing."
-        >
-          <Table<Session>
-            label="User sessions"
-            selectable={canWrite}
-            emptyTitle="No sessions for this user"
-            emptyDescription="This user currently has no active sessions to revoke or review."
-            columns={[
-              {
-                key: "ipAddress",
-                label: "Network",
-                width: "medium",
-                wrap: true,
-                render: (value, row) => (
-                  <div className="flex flex-col">
-                    <span className="font-mono text-sm text-primary">
-                      {value ?? "Unknown IP"}
-                    </span>
-                    <span className="text-xs text-muted">
-                      Expires {formatTimeUntil(row.expiresAt, referenceNow)}
-                    </span>
-                  </div>
-                ),
-              },
-              {
-                key: "userAgent",
-                label: "Device",
-                width: "wide",
-                wrap: true,
-                render: (value) => (
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-primary">
-                      {formatUserAgent(value)}
-                    </span>
-                    <span className="truncate text-xs text-muted">
-                      {value ?? "No user agent provided"}
-                    </span>
-                  </div>
-                ),
-              },
-              {
-                key: "lastUsedAt",
-                label: "Last Used",
-                sortable: true,
-                width: "medium",
-                wrap: true,
-                render: (value) => (
-                  <div className="flex flex-col">
-                    <span className="text-sm text-primary">
-                      {formatTimeAgo(value as string, referenceNow)}
-                    </span>
-                    <span className="text-xs text-muted">
-                      {new Date(value as string).toLocaleString()}
-                    </span>
-                  </div>
-                ),
-              },
-            ]}
-            actions={
-              canWrite
-                ? [
-                    {
-                      icon: ShieldOff,
-                      label: "Revoke",
-                      variant: "danger",
-                      onClick: (row: Session) => void revokeUserSession(row),
-                    },
-                  ]
-                : []
-            }
-            bulkActions={
-              canWrite
-                ? [
-                    {
-                      label: "Revoke Selected",
-                      variant: "danger" as const,
-                      onClick: (rows: Session[]) =>
-                        void revokeSelectedSessions(rows),
-                    },
-                  ]
-                : []
-            }
-            data={sessions}
-          />
-        </Section>
-      )}
-
-      {tab === "Credentials" && (
-        <Section
-          title="Credential Inventory"
-          description="Registered credential and device details associated with this user."
-        >
-          <Table<CredentialResponse>
-            label="User passkeys"
-            emptyTitle="No credentials found"
-            emptyDescription="This user does not currently have credential records in the dashboard feed."
-            columns={[
-              {
-                key: "friendlyName",
-                label: "Device",
-                width: "large",
-                wrap: true,
-                render: (value, row) => (
-                  <CredentialDevice
-                    friendlyName={value}
-                    deviceType={row.deviceType}
-                  />
-                ),
-              },
-              { key: "browser", label: "Browser", width: "medium" },
-              { key: "platform", label: "Platform", width: "medium" },
-              {
-                key: "createdAt",
-                label: "Created",
-                sortable: true,
-                width: "medium",
-                wrap: true,
-                render: (value) => (
-                  <div className="flex flex-col">
-                    <span className="text-sm text-primary">
-                      {formatTimeAgo(value as string, referenceNow)}
-                    </span>
-                    <span className="text-xs text-muted">
-                      {new Date(value as string).toLocaleString()}
-                    </span>
-                  </div>
-                ),
-              },
-            ]}
-            data={credentials}
-          />
-        </Section>
-      )}
-
-      {tab === "Events" && (
-        <Section
-          title="Recent Events"
-          description="Auth and account-related events returned as part of this user detail record."
-          actions={
-            <button
-              onClick={() => navigate(`/events`)}
-              className="btn btn-secondary"
+      <div
+        id={tabPanelId(tabsId)}
+        role="tabpanel"
+        aria-labelledby={tabId(tabsId, tab)}
+        tabIndex={0}
+      >
+        {tab === "Overview" && (
+          <div className="space-y-6">
+            <Section
+              title="Login Activity"
+              description="Recent login pattern for this user, split between successful and failed auth events."
             >
-              Open Event Stream
-            </button>
-          }
-        >
-          <Table<AuthEvent>
-            label="User events"
-            emptyTitle="No events returned"
-            emptyDescription="No events were returned for this user in the current detail record."
-            columns={[
-              {
-                key: "type",
-                label: "Event",
-                width: "large",
-                wrap: true,
-                render: (value) => (
-                  <span className="text-sm font-medium text-primary">
-                    {value as string}
-                  </span>
-                ),
-              },
-              {
-                key: "ip_address",
-                label: "IP",
-                width: "medium",
-                render: (value) => (
-                  <span className="font-mono text-sm text-primary">
-                    {(value as string) ?? "Unknown IP"}
-                  </span>
-                ),
-              },
-              {
-                key: "created_at",
-                label: "Observed",
-                sortable: true,
-                width: "medium",
-                wrap: true,
-                render: (value) => (
-                  <div className="flex flex-col">
-                    <span className="text-sm text-primary">
-                      {formatTimeAgo(value as string, referenceNow)}
-                    </span>
-                    <span className="text-xs text-muted">
-                      {new Date(value as string).toLocaleString()}
-                    </span>
-                  </div>
-                ),
-              },
-            ]}
-            data={events}
-          />
-        </Section>
-      )}
+              <MiniLineChart data={timeseries?.timeseries} />
+            </Section>
 
-      {tab === "Security" && (
-        <div className="space-y-6">
-          <Section
-            title="Security Signals"
-            description="User-specific anomalies, related IPs, and related user agents surfaced by the backend."
-          >
             <div className="grid gap-4 lg:grid-cols-3">
               <ActionCard
-                title="Suspicious events"
-                value={`${suspiciousCount}`}
-                description="User-specific anomalous events currently surfaced."
+                title="Account posture"
+                value={user.verified ? "Verified" : "Needs verification"}
+                description="A quick status check for whether the user has completed verification."
               />
+
               <ActionCard
-                title="Related IPs"
-                value={`${relatedIps.length}`}
-                description="Distinct network origins associated with suspicious activity."
+                title="Session recency"
+                value={
+                  latestSession
+                    ? formatTimeAgo(latestSession.lastUsedAt, referenceNow)
+                    : "No sessions"
+                }
+                description="Most recent activity seen in the user’s session footprint."
               />
+
               <ActionCard
-                title="Related agents"
-                value={`${relatedAgents.length}`}
-                description="Distinct user agents linked to the anomaly feed."
+                title="Risk summary"
+                value={risk.level}
+                description={
+                  suspiciousCount > 0
+                    ? "Suspicious signals are present and worth a closer review."
+                    : "No suspicious signals currently surfaced for this user."
+                }
               />
             </div>
+          </div>
+        )}
 
-            {(relatedIps.length > 0 || relatedAgents.length > 0) && (
-              <div className="grid gap-4 lg:grid-cols-2">
-                <TokenList
-                  title="Related IPs"
-                  emptyLabel="No related IPs"
-                  items={relatedIps}
-                />
-                <TokenList
-                  title="Related User Agents"
-                  emptyLabel="No related user agents"
-                  items={relatedAgents}
-                />
-              </div>
-            )}
-          </Section>
-
+        {tab === "Sessions" && (
           <Section
-            title="Suspicious Activity Feed"
-            description="Detailed suspicious events tied to this user."
+            title="Session Inventory"
+            description="Current sessions for this user, including recency and expiry timing."
+          >
+            <Table<Session>
+              label="User sessions"
+              selectable={canWrite}
+              emptyTitle="No sessions for this user"
+              emptyDescription="This user currently has no active sessions to revoke or review."
+              columns={[
+                {
+                  key: "ipAddress",
+                  label: "Network",
+                  width: "medium",
+                  wrap: true,
+                  render: (value, row) => (
+                    <div className="flex flex-col">
+                      <span className="font-mono text-sm text-primary">
+                        {value ?? "Unknown IP"}
+                      </span>
+                      <span className="text-xs text-muted">
+                        Expires {formatTimeUntil(row.expiresAt, referenceNow)}
+                      </span>
+                    </div>
+                  ),
+                },
+                {
+                  key: "userAgent",
+                  label: "Device",
+                  width: "wide",
+                  wrap: true,
+                  render: (value) => (
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-primary">
+                        {formatUserAgent(value)}
+                      </span>
+                      <span className="truncate text-xs text-muted">
+                        {value ?? "No user agent provided"}
+                      </span>
+                    </div>
+                  ),
+                },
+                {
+                  key: "lastUsedAt",
+                  label: "Last Used",
+                  sortable: true,
+                  width: "medium",
+                  wrap: true,
+                  render: (value) => (
+                    <div className="flex flex-col">
+                      <span className="text-sm text-primary">
+                        {formatTimeAgo(value as string, referenceNow)}
+                      </span>
+                      <span className="text-xs text-muted">
+                        {new Date(value as string).toLocaleString()}
+                      </span>
+                    </div>
+                  ),
+                },
+              ]}
+              actions={
+                canWrite
+                  ? [
+                      {
+                        icon: ShieldOff,
+                        label: "Revoke",
+                        variant: "danger",
+                        onClick: (row: Session) => void revokeUserSession(row),
+                      },
+                    ]
+                  : []
+              }
+              bulkActions={
+                canWrite
+                  ? [
+                      {
+                        label: "Revoke Selected",
+                        variant: "danger" as const,
+                        onClick: (rows: Session[]) =>
+                          void revokeSelectedSessions(rows),
+                      },
+                    ]
+                  : []
+              }
+              data={sessions}
+            />
+          </Section>
+        )}
+
+        {tab === "Credentials" && (
+          <Section
+            title="Credential Inventory"
+            description="Registered credential and device details associated with this user."
+          >
+            <Table<CredentialResponse>
+              label="User passkeys"
+              emptyTitle="No credentials found"
+              emptyDescription="This user does not currently have credential records in the dashboard feed."
+              columns={[
+                {
+                  key: "friendlyName",
+                  label: "Device",
+                  width: "large",
+                  wrap: true,
+                  render: (value, row) => (
+                    <CredentialDevice
+                      friendlyName={value}
+                      deviceType={row.deviceType}
+                    />
+                  ),
+                },
+                { key: "browser", label: "Browser", width: "medium" },
+                { key: "platform", label: "Platform", width: "medium" },
+                {
+                  key: "createdAt",
+                  label: "Created",
+                  sortable: true,
+                  width: "medium",
+                  wrap: true,
+                  render: (value) => (
+                    <div className="flex flex-col">
+                      <span className="text-sm text-primary">
+                        {formatTimeAgo(value as string, referenceNow)}
+                      </span>
+                      <span className="text-xs text-muted">
+                        {new Date(value as string).toLocaleString()}
+                      </span>
+                    </div>
+                  ),
+                },
+              ]}
+              data={credentials}
+            />
+          </Section>
+        )}
+
+        {tab === "Events" && (
+          <Section
+            title="Recent Events"
+            description="Auth and account-related events returned as part of this user detail record."
+            actions={
+              <button
+                onClick={() => navigate(`/events`)}
+                className="btn btn-secondary"
+              >
+                Open Event Stream
+              </button>
+            }
           >
             <Table<AuthEvent>
-              label="Related events"
-              emptyTitle="No suspicious activity detected"
-              emptyDescription="This user currently has no suspicious events in the anomaly feed."
+              label="User events"
+              emptyTitle="No events returned"
+              emptyDescription="No events were returned for this user in the current detail record."
               columns={[
                 {
                   key: "type",
-                  label: "Signal",
+                  label: "Event",
                   width: "large",
                   wrap: true,
                   render: (value) => (
-                    <span className="text-sm font-medium text-[var(--highlight)]">
+                    <span className="text-sm font-medium text-primary">
                       {value as string}
                     </span>
                   ),
@@ -793,6 +709,7 @@ export default function UserDetail() {
                 {
                   key: "created_at",
                   label: "Observed",
+                  sortable: true,
                   width: "medium",
                   wrap: true,
                   render: (value) => (
@@ -807,11 +724,104 @@ export default function UserDetail() {
                   ),
                 },
               ]}
-              data={anomalies?.suspiciousEvents ?? []}
+              data={events}
             />
           </Section>
-        </div>
-      )}
+        )}
+
+        {tab === "Security" && (
+          <div className="space-y-6">
+            <Section
+              title="Security Signals"
+              description="User-specific anomalies, related IPs, and related user agents surfaced by the backend."
+            >
+              <div className="grid gap-4 lg:grid-cols-3">
+                <ActionCard
+                  title="Suspicious events"
+                  value={`${suspiciousCount}`}
+                  description="User-specific anomalous events currently surfaced."
+                />
+                <ActionCard
+                  title="Related IPs"
+                  value={`${relatedIps.length}`}
+                  description="Distinct network origins associated with suspicious activity."
+                />
+                <ActionCard
+                  title="Related agents"
+                  value={`${relatedAgents.length}`}
+                  description="Distinct user agents linked to the anomaly feed."
+                />
+              </div>
+
+              {(relatedIps.length > 0 || relatedAgents.length > 0) && (
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <TokenList
+                    title="Related IPs"
+                    emptyLabel="No related IPs"
+                    items={relatedIps}
+                  />
+                  <TokenList
+                    title="Related User Agents"
+                    emptyLabel="No related user agents"
+                    items={relatedAgents}
+                  />
+                </div>
+              )}
+            </Section>
+
+            <Section
+              title="Suspicious Activity Feed"
+              description="Detailed suspicious events tied to this user."
+            >
+              <Table<AuthEvent>
+                label="Related events"
+                emptyTitle="No suspicious activity detected"
+                emptyDescription="This user currently has no suspicious events in the anomaly feed."
+                columns={[
+                  {
+                    key: "type",
+                    label: "Signal",
+                    width: "large",
+                    wrap: true,
+                    render: (value) => (
+                      <span className="text-sm font-medium text-[var(--highlight)]">
+                        {value as string}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "ip_address",
+                    label: "IP",
+                    width: "medium",
+                    render: (value) => (
+                      <span className="font-mono text-sm text-primary">
+                        {(value as string) ?? "Unknown IP"}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "created_at",
+                    label: "Observed",
+                    width: "medium",
+                    wrap: true,
+                    render: (value) => (
+                      <div className="flex flex-col">
+                        <span className="text-sm text-primary">
+                          {formatTimeAgo(value as string, referenceNow)}
+                        </span>
+                        <span className="text-xs text-muted">
+                          {new Date(value as string).toLocaleString()}
+                        </span>
+                      </div>
+                    ),
+                  },
+                ]}
+                data={anomalies?.suspiciousEvents ?? []}
+              />
+            </Section>
+          </div>
+        )}
+      </div>
 
       {editing && canWrite && (
         <EditUserModal user={user} onClose={() => setEditing(false)} />
