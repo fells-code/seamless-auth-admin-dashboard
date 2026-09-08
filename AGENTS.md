@@ -229,8 +229,13 @@ Release workflow:
 
 - `.github/workflows/release.yml` prepares a Changesets version PR when changes land on `main`
 - it should run `npm run version-packages` through `changesets/action`
-- it should not run `changeset publish`, create GitHub releases, or push release tags
-- release generation is intentionally manual after the version PR is reviewed and merged
+- it should not run `changeset publish`; this package is private and is never published to npm
+- once that version PR is merged there are no changesets left, so the same workflow tags
+  `v<version>` and creates the GitHub Release from the matching `CHANGELOG.md` section
+- tagging is idempotent: if the tag already exists the release steps are skipped
+- pushes made with `GITHUB_TOKEN` do not trigger other workflows, so the tag push does not
+  start `docker-publish.yml`. Release.yml calls that workflow directly through
+  `workflow_call`, which is why it accepts an `image_tag` input as well as a tag push
 
 Current test stack:
 

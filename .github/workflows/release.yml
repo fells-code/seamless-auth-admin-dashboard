@@ -21,6 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HUSKY: 0
+    outputs:
+      new_tag: ${{ steps.tag.outputs.new_tag }}
+      version: ${{ steps.tag.outputs.version }}
 
     steps:
       - name: Checkout repo
@@ -53,8 +56,71 @@ jobs:
         run: npm run build
 
       - name: Create or update version PR
+        id: changesets
         uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
         with:
           version-script: npm run version-packages
           pr-title: "Version dashboard"
           commit-message: "Version dashboard"
+
+      # Once the version PR merges there are no changesets left, so the version
+      # in package.json is the one to release. The tag is created here rather
+      # than by hand so it cannot drift from the changelog. Pushes made with
+      # GITHUB_TOKEN do not trigger other workflows, so the tag push will not
+      # start docker-publish.yml; the publish-image job below calls it directly.
+      - name: Tag release
+        id: tag
+        # The output name is hyphenated, so it needs index syntax. The v1 name
+        # (hasChangesets) reads as empty here, never equals 'false', and would
+        # silently skip every release.
+        if: steps.changesets.outputs['has-changesets'] == 'false'
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          TAG="v${VERSION}"
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "Tag ${TAG} already exists; nothing to release."
+            echo "new_tag=false" >> "$GITHUB_OUTPUT"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag "${TAG}"
+            git push origin "${TAG}"
+            echo "new_tag=true" >> "$GITHUB_OUTPUT"
+            echo "version=${TAG}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Reuse the notes Changesets already wrote to CHANGELOG.md so the release
+      # body matches the changelog rather than a raw commit list.
+      - name: Create GitHub Release
+        if: steps.tag.outputs.new_tag == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          TAG="v${VERSION}"
+          awk -v header="## ${VERSION}" '
+            $0 == header { capture = 1; next }
+            capture && /^## / { exit }
+            capture { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ -s release-notes.md ]; then
+            gh release create "${TAG}" --title "${TAG}" --notes-file release-notes.md
+          else
+            echo "No CHANGELOG section for ${VERSION}; using generated notes."
+            gh release create "${TAG}" --title "${TAG}" --generate-notes
+          fi
+
+  publish-image:
+    name: Publish versioned image
+    needs: prepare-release
+    if: needs.prepare-release.outputs.new_tag == 'true'
+    # A called workflow cannot be granted more than the caller holds, so this
+    # has to match docker-publish.yml's own permissions block.
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/docker-publish.yml
+    with:
+      image_tag: ${{ needs.prepare-release.outputs.version }}
