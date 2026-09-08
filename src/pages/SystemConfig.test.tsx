@@ -745,4 +745,182 @@ describe("SystemConfigPage", () => {
       screen.getByRole("button", { name: "Remove https://example.com" }),
     ).toBeDisabled();
   });
+
+  describe("authenticator policy", () => {
+    const policyConfig = {
+      ...baseConfig,
+      authenticator_policy: {
+        attachment: "any",
+        userVerification: "required",
+        attestation: "none",
+        requireKnownAuthenticator: false,
+        syncedPasskeys: "block",
+        aaguidAllowList: [],
+        aaguidDenyList: [],
+      },
+    };
+
+    function renderWithPolicy(policy: Record<string, unknown> = {}) {
+      mocks.useSystemConfig.mockReturnValue({
+        data: {
+          ...policyConfig,
+          authenticator_policy: {
+            ...policyConfig.authenticator_policy,
+            ...policy,
+          },
+        },
+        isLoading: false,
+      });
+
+      return renderPage();
+    }
+
+    it("says plainly that the default blocks most consumer passkeys", () => {
+      renderWithPolicy();
+
+      expect(
+        screen.getByText("Synced passkeys are blocked"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/iCloud Keychain, Google Password Manager/),
+      ).toBeInTheDocument();
+    });
+
+    it("saves a change to the synced passkey policy", async () => {
+      renderWithPolicy();
+
+      fireEvent.change(screen.getByLabelText(/synced passkeys/i), {
+        target: { value: "allow" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() =>
+        expect(mocks.mutate).toHaveBeenCalledWith(
+          {
+            authenticator_policy: {
+              ...policyConfig.authenticator_policy,
+              syncedPasskeys: "allow",
+            },
+          },
+          expect.anything(),
+        ),
+      );
+    });
+
+    it("renders controls for a config whose API predates the policy", () => {
+      // baseConfig carries no authenticator_policy at all, so every control
+      // has to fall back to the schema defaults rather than go uncontrolled.
+      renderPage();
+
+      expect(screen.getByLabelText(/synced passkeys/i)).toHaveValue("block");
+      expect(screen.getByLabelText(/attestation/i)).toHaveValue("none");
+      expect(screen.getByLabelText(/^attachment$/i)).toHaveValue("any");
+      expect(screen.getByLabelText(/user verification/i)).toHaveValue(
+        "required",
+      );
+    });
+
+    it("says model restrictions are inert without direct attestation", () => {
+      renderWithPolicy();
+
+      expect(
+        screen.getByText("Model restrictions are not being applied"),
+      ).toBeInTheDocument();
+    });
+
+    it("drops that warning once direct attestation is configured", () => {
+      renderWithPolicy({ attestation: "direct" });
+
+      expect(
+        screen.queryByText("Model restrictions are not being applied"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("rejects an AAGUID that is not a UUID", () => {
+      renderWithPolicy();
+
+      const field = screen.getByLabelText(/aaguid allow list/i);
+      fireEvent.change(field, { target: { value: "yubikey-5" } });
+      fireEvent.keyDown(field, { key: "Enter" });
+
+      // A mistyped AAGUID is never rejected downstream, it simply matches no
+      // authenticator, so the list would silently refuse every registration.
+      expect(screen.getByText(/Enter an AAGUID as a UUID/)).toBeInTheDocument();
+    });
+
+    it("normalizes an added AAGUID so casing cannot decide a match", async () => {
+      renderWithPolicy();
+
+      const field = screen.getByLabelText(/aaguid deny list/i);
+      fireEvent.change(field, {
+        target: { value: "ADCE0002-35BC-C60A-648B-0B25F1F05503" },
+      });
+      fireEvent.keyDown(field, { key: "Enter" });
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() =>
+        expect(mocks.mutate).toHaveBeenCalledWith(
+          {
+            authenticator_policy: {
+              ...policyConfig.authenticator_policy,
+              aaguidDenyList: ["adce0002-35bc-c60a-648b-0b25f1f05503"],
+            },
+          },
+          expect.anything(),
+        ),
+      );
+    });
+
+    it("warns that an attestation change needs a restart", async () => {
+      mocks.confirm.mockResolvedValue(false);
+
+      renderWithPolicy();
+
+      fireEvent.change(screen.getByLabelText(/attestation/i), {
+        target: { value: "direct" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() =>
+        expect(mocks.confirm).toHaveBeenCalledWith(
+          expect.objectContaining({
+            description: expect.stringContaining("until the API is restarted"),
+          }),
+        ),
+      );
+      expect(mocks.mutate).not.toHaveBeenCalled();
+    });
+
+    it("warns before blocking synced passkeys", async () => {
+      mocks.confirm.mockResolvedValue(false);
+
+      renderWithPolicy({ syncedPasskeys: "allow" });
+
+      fireEvent.change(screen.getByLabelText(/synced passkeys/i), {
+        target: { value: "block" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() =>
+        expect(mocks.confirm).toHaveBeenCalledWith(
+          expect.objectContaining({
+            description: expect.stringContaining("iCloud Keychain"),
+          }),
+        ),
+      );
+      expect(mocks.mutate).not.toHaveBeenCalled();
+    });
+
+    it("leaves the policy read-only without write access", () => {
+      mocks.useAdminPermissions.mockReturnValue({
+        canRead: true,
+        canWrite: false,
+      });
+
+      renderWithPolicy();
+
+      expect(screen.getByLabelText(/synced passkeys/i)).toBeDisabled();
+      expect(screen.getByLabelText(/aaguid allow list/i)).toBeDisabled();
+    });
+  });
 });

@@ -8,6 +8,7 @@ import { useId, useMemo, useState } from "react";
 import { KeyRound, ShieldCheck, TimerReset, Waypoints } from "lucide-react";
 import { useSystemConfig } from "../hooks/useSystemConfig";
 import type {
+  AuthenticatorPolicy,
   LoginMethod,
   OAuthProviderConfig,
   SystemConfig,
@@ -63,6 +64,62 @@ const LOGIN_METHOD_OPTIONS: {
     description: "External identity providers such as Google or GitHub.",
   },
 ];
+
+/**
+ * Mirrors `DefaultAuthenticatorPolicy` from `@seamless-auth/types`.
+ *
+ * Restated rather than imported so the bundle keeps only the type, and used
+ * solely so a deployment whose API predates one of these fields still renders
+ * controlled inputs instead of switching them to uncontrolled.
+ */
+const AUTHENTICATOR_POLICY_FALLBACK: AuthenticatorPolicy = {
+  attachment: "any",
+  userVerification: "required",
+  attestation: "none",
+  requireKnownAuthenticator: false,
+  syncedPasskeys: "block",
+  aaguidAllowList: [],
+  aaguidDenyList: [],
+};
+
+const SYNCED_PASSKEY_OPTIONS: { value: "allow" | "block"; label: string }[] = [
+  { value: "block", label: "Block (default)" },
+  { value: "allow", label: "Allow" },
+];
+
+const ATTACHMENT_OPTIONS: {
+  value: AuthenticatorPolicy["attachment"];
+  label: string;
+}[] = [
+  { value: "any", label: "Any (default)" },
+  { value: "platform", label: "Platform, built into the device" },
+  { value: "cross-platform", label: "Cross-platform, roaming security keys" },
+];
+
+const USER_VERIFICATION_OPTIONS: {
+  value: AuthenticatorPolicy["userVerification"];
+  label: string;
+}[] = [
+  { value: "required", label: "Required (default)" },
+  { value: "preferred", label: "Preferred" },
+  { value: "discouraged", label: "Discouraged" },
+];
+
+const ATTESTATION_OPTIONS: {
+  value: AuthenticatorPolicy["attestation"];
+  label: string;
+}[] = [
+  { value: "none", label: "None (default)" },
+  {
+    value: "direct",
+    label: "Direct, ask the authenticator to identify itself",
+  },
+];
+
+// An AAGUID is a UUID. A mistyped one is not rejected anywhere, it simply never
+// matches an authenticator, so the shape is checked before it can be staged.
+const AAGUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // The provider schema types authorizationUrl, tokenUrl, userInfoUrl, and both
 // redirect fields as URLs, so a blank or malformed value is rejected by the API
@@ -213,6 +270,19 @@ export default function SystemConfigPage() {
     });
   };
 
+  const authenticatorPolicy: AuthenticatorPolicy = {
+    ...AUTHENTICATOR_POLICY_FALLBACK,
+    ...form.authenticator_policy,
+  };
+
+  // Model restrictions are resolved from an attestation statement, so without
+  // one every authenticator reports an all-zero AAGUID and none of them apply.
+  const enforcesModelRestrictions =
+    authenticatorPolicy.attestation === "direct";
+
+  const updateAuthenticatorPolicy = (patch: Partial<AuthenticatorPolicy>) =>
+    updateField("authenticator_policy", { ...authenticatorPolicy, ...patch });
+
   const removeAvailableRole = async (role: string) => {
     if (!canWrite || !form) return;
 
@@ -285,6 +355,28 @@ export default function SystemConfigPage() {
       warnings.push(
         "Changing the allowed origins stops WebAuthn flows from any origin no longer on the list.",
       );
+    }
+
+    const policyChange = changes.authenticator_policy;
+    if (policyChange && data) {
+      const previous = {
+        ...AUTHENTICATOR_POLICY_FALLBACK,
+        ...data.authenticator_policy,
+      };
+
+      if (policyChange.syncedPasskeys !== previous.syncedPasskeys) {
+        warnings.push(
+          policyChange.syncedPasskeys === "block"
+            ? "Blocking synced passkeys refuses any backup-eligible credential at registration, which includes iCloud Keychain and Google Password Manager passkeys. Users cannot enrol those from that point on."
+            : "Allowing synced passkeys admits credentials whose private key is held by a platform password manager rather than by the authenticator that created it.",
+        );
+      }
+
+      if (policyChange.attestation !== previous.attestation) {
+        warnings.push(
+          "The attestation setting is read when the FIDO metadata service is prepared at startup, so this change does not take effect until the API is restarted.",
+        );
+      }
     }
 
     if (warnings.length > 0) {
@@ -369,6 +461,14 @@ export default function SystemConfigPage() {
                 <InfoPill
                   label="Lockout"
                   value={form.lockout_policy.enabled ? "Enabled" : "Disabled"}
+                />
+                <InfoPill
+                  label="Synced passkeys"
+                  value={
+                    authenticatorPolicy.syncedPasskeys === "block"
+                      ? "Blocked"
+                      : "Allowed"
+                  }
                 />
               </div>
             </div>
@@ -676,6 +776,107 @@ export default function SystemConfigPage() {
             setOrigins={(value) => updateField("origins", value)}
             canWrite={canWrite}
           />
+        </div>
+      </Section>
+
+      <Section
+        title="Authenticator Policy"
+        description="Which authenticators may enrol, and what a registration ceremony asks them to prove."
+      >
+        <div className="space-y-5">
+          {authenticatorPolicy.syncedPasskeys === "block" && (
+            <StateMessage
+              tone="warning"
+              title="Synced passkeys are blocked"
+              description="Registration refuses any backup-eligible credential, which is most consumer passkeys: iCloud Keychain, Google Password Manager, and similar. This is the shipped default. Allow them if your users enrol from a platform password manager."
+            />
+          )}
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Select
+              label="Synced Passkeys"
+              value={authenticatorPolicy.syncedPasskeys}
+              options={SYNCED_PASSKEY_OPTIONS}
+              helperText="Judged on backup eligibility rather than on whether a credential has actually synced yet."
+              onChange={(value) =>
+                updateAuthenticatorPolicy({ syncedPasskeys: value })
+              }
+              disabled={!canWrite}
+            />
+
+            <Select
+              label="Attachment"
+              value={authenticatorPolicy.attachment}
+              options={ATTACHMENT_OPTIONS}
+              helperText="The standing default for the browser picker at registration, and the bound on what a per-request override may ask for."
+              onChange={(value) =>
+                updateAuthenticatorPolicy({ attachment: value })
+              }
+              disabled={!canWrite}
+            />
+
+            <Select
+              label="User Verification"
+              value={authenticatorPolicy.userVerification}
+              options={USER_VERIFICATION_OPTIONS}
+              helperText="Whether the authenticator must verify the human by PIN or biometric rather than only proving it holds the key. This is what separates a second factor from a second signature."
+              onChange={(value) =>
+                updateAuthenticatorPolicy({ userVerification: value })
+              }
+              disabled={!canWrite}
+            />
+
+            <Select
+              label="Attestation"
+              value={authenticatorPolicy.attestation}
+              options={ATTESTATION_OPTIONS}
+              helperText="Requires an API restart to take effect, because the FIDO metadata service is prepared at startup. Direct attestation carries a privacy cost and is what an organisation issuing its own authenticators wants."
+              onChange={(value) =>
+                updateAuthenticatorPolicy({ attestation: value })
+              }
+              disabled={!canWrite}
+            />
+          </div>
+
+          {!enforcesModelRestrictions && (
+            <StateMessage
+              tone="info"
+              title="Model restrictions are not being applied"
+              description="The allow list, the deny list, and the known-authenticator requirement are only honoured under direct attestation. An authenticator that was never asked to identify itself reports an all-zero AAGUID, so there is nothing to match against."
+            />
+          )}
+
+          <CheckboxField
+            label="Require A Known Authenticator"
+            description="Refuse any authenticator the FIDO Metadata Service does not list, rather than registering it anyway."
+            checked={authenticatorPolicy.requireKnownAuthenticator}
+            onChange={(checked) =>
+              updateAuthenticatorPolicy({ requireKnownAuthenticator: checked })
+            }
+            disabled={!canWrite}
+          />
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <AaguidListEditor
+              label="AAGUID Allow List"
+              helperText="Empty means no restriction. A non-empty list admits only these authenticator models."
+              aaguids={authenticatorPolicy.aaguidAllowList}
+              setAaguids={(value) =>
+                updateAuthenticatorPolicy({ aaguidAllowList: value })
+              }
+              canWrite={canWrite}
+            />
+
+            <AaguidListEditor
+              label="AAGUID Deny List"
+              helperText="Applied before the allow list, so a model named here is refused whatever else permits it."
+              aaguids={authenticatorPolicy.aaguidDenyList}
+              setAaguids={(value) =>
+                updateAuthenticatorPolicy({ aaguidDenyList: value })
+              }
+              canWrite={canWrite}
+            />
+          </div>
         </div>
       </Section>
 
@@ -1040,6 +1241,145 @@ function CheckboxField({
         <span className="block text-sm text-muted">{description}</span>
       </span>
     </label>
+  );
+}
+
+function Select<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  helperText,
+  disabled,
+}: {
+  label: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (v: T) => void;
+  helperText?: string;
+  disabled?: boolean;
+}) {
+  const id = useId();
+
+  return (
+    <Field label={label} helperText={helperText} htmlFor={id}>
+      <select
+        id={id}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value as T)}
+        className={controlClassName}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </Field>
+  );
+}
+
+function AaguidListEditor({
+  label,
+  helperText,
+  aaguids,
+  setAaguids,
+  canWrite,
+}: {
+  label: string;
+  helperText: string;
+  aaguids: string[];
+  setAaguids: (v: string[]) => void;
+  canWrite: boolean;
+}) {
+  const [input, setInput] = useState("");
+  const [error, setError] = useState("");
+  const inputId = useId();
+
+  const add = () => {
+    if (!canWrite) return;
+
+    // AAGUIDs are compared as they were recorded, so casing must not decide
+    // whether a model matches.
+    const trimmed = input.trim().toLowerCase();
+    if (!trimmed) return;
+
+    if (!AAGUID_PATTERN.test(trimmed)) {
+      setError(
+        "Enter an AAGUID as a UUID, such as adce0002-35bc-c60a-648b-0b25f1f05503.",
+      );
+      return;
+    }
+
+    if (aaguids.includes(trimmed)) {
+      setError("That AAGUID is already on this list.");
+      return;
+    }
+
+    setAaguids([...aaguids, trimmed]);
+    setInput("");
+    setError("");
+  };
+
+  return (
+    <div className="space-y-3">
+      <Field
+        label={label}
+        helperText={helperText}
+        htmlFor={inputId}
+        error={error || undefined}
+      >
+        <div className="flex gap-2">
+          <input
+            id={inputId}
+            value={input}
+            disabled={!canWrite}
+            aria-invalid={error ? true : undefined}
+            onChange={(e) => {
+              setInput(e.target.value);
+              setError("");
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                add();
+              }
+            }}
+            className={`flex-1 ${controlClassName}`}
+            placeholder="adce0002-35bc-c60a-648b-0b25f1f05503"
+          />
+
+          <button
+            onClick={add}
+            disabled={!canWrite}
+            className="btn btn-secondary"
+          >
+            Add
+          </button>
+        </div>
+      </Field>
+
+      {aaguids.map((aaguid) => (
+        <div
+          key={aaguid}
+          className="flex items-center justify-between gap-3 rounded-md border border-subtle bg-surface px-3 py-2 text-sm"
+        >
+          <span className="truncate font-mono text-primary">{aaguid}</span>
+
+          <button
+            onClick={() =>
+              setAaguids(aaguids.filter((value) => value !== aaguid))
+            }
+            disabled={!canWrite}
+            aria-label={`Remove ${aaguid}`}
+            className="text-[var(--highlight)] transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Remove
+          </button>
+        </div>
+      ))}
+    </div>
   );
 }
 
