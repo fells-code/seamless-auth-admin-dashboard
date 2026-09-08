@@ -24,6 +24,7 @@ import Skeleton from "../components/Skeleton";
 import EditUserModal from "../components/EditUserModal";
 import DeviceReplacementModal from "../components/DeviceReplacementModal";
 import RiskBadge from "../components/RiskBadge";
+import CredentialDevice from "../components/CredentialDevice";
 import MiniLineChart from "../components/MiniLineChart";
 import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
@@ -625,25 +626,12 @@ export default function UserDetail() {
                 label: "Device",
                 width: "large",
                 wrap: true,
-                render: (value, row) => {
-                  const deviceType = row.deviceType ?? "Unknown device";
-                  const friendlyName = value?.trim();
-
-                  if (!friendlyName) {
-                    return (
-                      <span className="text-sm text-primary">{deviceType}</span>
-                    );
-                  }
-
-                  return (
-                    <div className="flex flex-col">
-                      <span className="text-sm text-primary">
-                        {friendlyName}
-                      </span>
-                      <span className="text-xs text-muted">{deviceType}</span>
-                    </div>
-                  );
-                },
+                render: (value, row) => (
+                  <CredentialDevice
+                    friendlyName={value}
+                    deviceType={row.deviceType}
+                  />
+                ),
               },
               { key: "browser", label: "Browser", width: "medium" },
               { key: "platform", label: "Platform", width: "medium" },
