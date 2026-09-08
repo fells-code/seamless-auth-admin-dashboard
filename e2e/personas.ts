@@ -93,7 +93,7 @@ export function seedDeployment(api: MockApi) {
   // Sessions
   api.get("/admin/sessions", { json: { sessions, total: sessions.length } });
   api.delete("/admin/sessions/by-id/:id", { json: { message: "Revoked" } });
-  api.post("/admin/sessions/:userId/revoke-all", { json: { revoked: 2 } });
+  api.delete("/admin/sessions/:userId/revoke-all", { json: { revoked: 2 } });
 
   // Organizations
   api.get("/admin/organizations", {
