@@ -378,4 +378,39 @@ describe("Table", () => {
 
     expect(screen.getByText("Sorted by name asc")).toBeInTheDocument();
   });
+
+  it("reports the range the page covers, not the rows left after filtering", () => {
+    render(
+      <Table<TestRow>
+        label="Filtered page"
+        data={[rows[0]]}
+        columns={columns}
+        total={137}
+        rangeCount={50}
+        limit={50}
+        offset={50}
+        onPageChange={vi.fn()}
+      />,
+    );
+
+    // One row survives a caller-side filter, but the page still spans rows 51
+    // to 100 of the result set.
+    expect(screen.getByText("Showing 51-100 of 137")).toBeInTheDocument();
+  });
+
+  it("falls back to the rendered row count when no page span is given", () => {
+    render(
+      <Table<TestRow>
+        label="Plain page"
+        data={rows}
+        columns={columns}
+        total={40}
+        limit={2}
+        offset={0}
+        onPageChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Showing 1-2 of 40")).toBeInTheDocument();
+  });
 });

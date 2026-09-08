@@ -154,6 +154,7 @@ export default function Table<T extends Record<string, unknown>>({
   emptyTitle = "Nothing to show",
   emptyDescription = "This view does not have any rows yet.",
   total,
+  rangeCount,
   limit = 20,
   offset = 0,
   onPageChange,
@@ -169,6 +170,13 @@ export default function Table<T extends Record<string, unknown>>({
   emptyTitle?: string;
   emptyDescription?: string;
   total?: number;
+  /**
+   * How many rows of the result set the current page actually spans, when the
+   * caller hands over a narrowed subset of that page. Without it the footer
+   * range would shrink to the number of rows rendered and misreport where the
+   * page sits in the result set.
+   */
+  rangeCount?: number;
   limit?: number;
   offset?: number;
   onPageChange?: (offset: number) => void;
@@ -338,8 +346,9 @@ export default function Table<T extends Record<string, unknown>>({
   const hasRows = sortedData.length > 0;
   const displayTotal = total ?? sortedData.length;
   const isPaginated = total !== undefined && total > sortedData.length;
-  const rangeStart = hasRows ? offset + 1 : 0;
-  const rangeEnd = hasRows ? offset + sortedData.length : 0;
+  const pageSpan = rangeCount ?? sortedData.length;
+  const rangeStart = pageSpan > 0 ? offset + 1 : 0;
+  const rangeEnd = pageSpan > 0 ? offset + pageSpan : 0;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-subtle bg-surface shadow-[0_1px_0_rgba(255,255,255,0.35)_inset]">

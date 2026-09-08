@@ -105,6 +105,14 @@ function isExpiringSoon(session: Session) {
 }
 
 export default function Sessions() {
+  const [offset, setOffset] = useState(0);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<ActivityFilter>("all");
+
+  // The server's own default page size. A deployment under the cap therefore
+  // sees the single page it always did, and anything above it is now reachable.
+  const limit = 50;
+
   const {
     data,
     isLoading,
@@ -113,19 +121,15 @@ export default function Sessions() {
     refetch,
     isFetching,
     dataUpdatedAt,
-  } = useSessions();
+  } = useSessions({ limit, offset });
   const revoke = useRevokeSession();
   const { canWrite } = useAdminPermissions();
   const ensureStepUp = useStepUpGuard();
   const toast = useToast();
   const confirm = useConfirm();
 
-  const [offset, setOffset] = useState(0);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<ActivityFilter>("all");
-
-  const limit = 10;
   const sessions = data?.sessions ?? [];
+  const total = data?.total ?? 0;
 
   // The feed can include sessions whose expiry has already passed, and the
   // table already formats those as expired, but every returned row counted as
@@ -133,6 +137,9 @@ export default function Sessions() {
   const expiredCount = sessions.filter(isExpired).length;
   const activeCount = sessions.length - expiredCount;
 
+  // /admin/sessions accepts no search or filter parameter, so both narrow the
+  // page the server returned rather than the deployment. Every figure derived
+  // from them is labelled as page-scoped for that reason.
   const filteredSessions = sessions.filter((session) => {
     const matchesSearch = search
       ? `${session.ipAddress ?? ""} ${session.userAgent ?? ""}`
@@ -152,20 +159,8 @@ export default function Sessions() {
     return matchesSearch && matchesFilter;
   });
 
-  // Revoking a session shrinks the list underneath the current page. Without
-  // clamping, the slice came back empty while the footer still reported rows,
-  // and only Prev or Next could recover. Derived rather than corrected in an
-  // effect so there is no render where the two disagree.
-  const maxOffset = Math.max(
-    0,
-    Math.floor((filteredSessions.length - 1) / limit) * limit,
-  );
-  const effectiveOffset = Math.min(offset, maxOffset);
+  const isNarrowed = search !== "" || filter !== "all";
 
-  const pagedSessions = filteredSessions.slice(
-    effectiveOffset,
-    effectiveOffset + limit,
-  );
   const uniqueIps = new Set(
     sessions.map((session) => session.ipAddress).filter(Boolean),
   ).size;
@@ -178,7 +173,7 @@ export default function Sessions() {
     label: string;
     count: number;
   }[] = [
-    { value: "all", label: "All sessions", count: sessions.length },
+    { value: "all", label: "All on page", count: sessions.length },
     { value: "recent", label: "Recent", count: recentCount },
     { value: "expiring", label: "Expiring soon", count: expiringSoonCount },
     { value: "idle", label: "Idle", count: idleCount },
@@ -186,7 +181,7 @@ export default function Sessions() {
 
   const exportSessions = () =>
     exportCsv(
-      `sessions-${new Date().toISOString().slice(0, 10)}.csv`,
+      `sessions-${new Date().toISOString().slice(0, 10)}-rows-${offset + 1}-${offset + sessions.length}.csv`,
       filteredSessions,
       [
         { header: "Session ID", value: (row) => row.id },
@@ -219,6 +214,13 @@ export default function Sessions() {
     revoke.mutate(session.id, {
       onSuccess: () => {
         toast.success("Session revoked", "The selected session was revoked.");
+
+        // Removing the only row on a page past the first leaves the offset
+        // beyond the end of the result set, so the next fetch returns nothing
+        // and the screen looks broken until Prev is pressed.
+        if (sessions.length === 1 && offset > 0) {
+          setOffset(Math.max(0, offset - limit));
+        }
       },
       onError: (error) => {
         toast.error("Session revoke failed", getErrorMessage(error));
@@ -250,6 +252,10 @@ export default function Sessions() {
         "Sessions revoked",
         `${selectedSessions.length} sessions were revoked.`,
       );
+
+      if (selectedSessions.length >= sessions.length && offset > 0) {
+        setOffset(Math.max(0, offset - limit));
+      }
     } catch (error) {
       toast.error("Session revoke failed", getErrorMessage(error));
     }
@@ -298,7 +304,9 @@ export default function Sessions() {
                 <p className="max-w-2xl text-sm text-muted">
                   Review active sessions, spot stale access, and revoke tokens
                   that no longer look healthy. This view currently emphasizes
-                  IP, device signature, and expiry timing.
+                  IP, device signature, and expiry timing. Sessions are paged{" "}
+                  {limit} at a time, and the filters below narrow the page you
+                  are on.
                 </p>
               </div>
 
@@ -306,10 +314,7 @@ export default function Sessions() {
                 {filterOptions.map((option) => (
                   <button
                     key={option.value}
-                    onClick={() => {
-                      setOffset(0);
-                      setFilter(option.value);
-                    }}
+                    onClick={() => setFilter(option.value)}
                     className={`rounded-full border px-3 py-1.5 text-xs transition ${
                       filter === option.value
                         ? "border-[var(--primary)] bg-[var(--surface-alt)] text-primary"
@@ -331,57 +336,62 @@ export default function Sessions() {
                 icon={Clock3}
                 title="Recent activity"
                 value={`${recentCount}`}
-                description="Sessions seen in the last hour and likely tied to current operator activity."
+                description="Sessions on this page seen in the last hour and likely tied to current operator activity."
               />
 
               <FocusPanel
                 icon={ShieldAlert}
                 title="Needs attention"
                 value={`${expiringSoonCount + idleCount}`}
-                description="Sessions that are expiring soon or have gone quiet long enough to review."
+                description="Sessions on this page that are expiring soon or have gone quiet long enough to review."
               />
 
               <FocusPanel
                 icon={Wifi}
                 title="Network spread"
                 value={`${uniqueIps}`}
-                description="Distinct IP addresses currently associated with active sessions."
+                description="Distinct IP addresses across the sessions on this page."
               />
             </div>
           </div>
         </div>
       </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard
-          label="Active Sessions"
+          label="Total Sessions"
+          value={total}
+          hint="Every session the admin sessions feed reports"
+        />
+        <StatCard
+          label="Active On Page"
           value={activeCount}
           hint={
             expiredCount > 0
-              ? `${expiredCount} expired ${expiredCount === 1 ? "session" : "sessions"} excluded`
-              : "Currently returned by the admin sessions feed"
+              ? `Of ${sessions.length} on this page, ${expiredCount} expired ${expiredCount === 1 ? "session" : "sessions"} excluded`
+              : `Of ${sessions.length} on this page`
           }
         />
         <StatCard
-          label="Distinct IPs"
+          label="Distinct IPs On Page"
           value={uniqueIps}
           hint="Useful for spotting spread and unusual access patterns"
         />
         <StatCard
-          label="Expiring Soon"
+          label="Expiring Soon On Page"
           value={expiringSoonCount}
-          hint="Sessions ending in the next 24 hours"
+          hint="Sessions on this page ending in the next 24 hours"
         />
         <StatCard
-          label="Idle Sessions"
+          label="Idle On Page"
           value={idleCount}
-          hint="Sessions not used in at least the last 24 hours"
+          hint="Sessions on this page not used in at least the last 24 hours"
         />
       </div>
 
       <Section
         title="Session Inventory"
-        description="Filter the session feed by activity level and search by IP address or user agent."
+        description="Page through the session feed, then filter or search within the page by activity level, IP address, or user agent."
         actions={
           <div className="flex w-full flex-wrap items-center justify-end gap-3">
             <RefreshControl
@@ -394,20 +404,18 @@ export default function Sessions() {
               type="button"
               onClick={exportSessions}
               disabled={filteredSessions.length === 0}
+              title="Exports the sessions loaded on this page, not the whole feed"
               className="btn btn-secondary disabled:opacity-50"
             >
               <Download size={14} aria-hidden="true" />
-              Export CSV
+              Export Page
             </button>
 
             <div className="w-full max-w-sm">
               <SearchInput
                 value={search}
-                onChange={(value) => {
-                  setOffset(0);
-                  setSearch(value);
-                }}
-                placeholder="Search IP or device signature"
+                onChange={setSearch}
+                placeholder="Search this page by IP or device"
               />
             </div>
           </div>
@@ -421,6 +429,13 @@ export default function Sessions() {
             description={getErrorMessage(revoke.error)}
           />
         )}
+        {isNarrowed && (
+          <StateMessage
+            tone="info"
+            title={`Showing ${filteredSessions.length} of ${sessions.length} sessions on this page`}
+            description="The admin sessions feed cannot search or filter server-side, so these controls narrow the loaded page only. Move to another page to look further."
+          />
+        )}
         <Table<Session>
           label="Active sessions"
           rowLabel={(session) =>
@@ -428,11 +443,12 @@ export default function Sessions() {
           }
           selectable={canWrite}
           limit={limit}
-          offset={effectiveOffset}
-          total={filteredSessions.length}
+          offset={offset}
+          total={total}
+          rangeCount={sessions.length}
           onPageChange={setOffset}
           emptyTitle="No sessions match this view"
-          emptyDescription="Try clearing the search or switching to a different session state."
+          emptyDescription="Try clearing the search, switching to a different session state, or moving to another page."
           columns={[
             {
               key: "ipAddress",
@@ -485,7 +501,7 @@ export default function Sessions() {
               ),
             },
           ]}
-          data={pagedSessions}
+          data={filteredSessions}
           actions={
             canWrite
               ? [

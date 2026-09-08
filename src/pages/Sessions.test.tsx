@@ -218,51 +218,39 @@ describe("Sessions", () => {
     );
   });
 
-  it("falls back to a valid page when a revoke empties the current one", () => {
-    // 11 sessions over a page size of 10, so the last page holds exactly one.
-    const many = Array.from({ length: 11 }, (_, index) => ({
-      id: `session_${index + 1}`,
-      ipAddress: `10.0.0.${index + 1}`,
-      userAgent: "Mozilla/5.0 Firefox/125.0",
-      lastUsedAt: new Date(now - 60_000).toISOString(),
-      expiresAt: new Date(now + 86_400_000).toISOString(),
-    }));
-
+  it("steps back a page when a revoke empties the current one", async () => {
+    // A second page holding exactly one session, which the revoke removes.
     mocks.useSessions.mockReturnValue({
-      data: { sessions: many, total: many.length },
+      data: { sessions: [baseSession], total: 51 },
       isLoading: false,
       isError: false,
       error: null,
       refetch: mocks.refetch,
+      isFetching: false,
+      dataUpdatedAt: now,
     });
 
-    const { rerender } = renderPage();
+    renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
-
-    // The eleventh session is alone on the second page.
-    expect(screen.getByText("10.0.0.11")).toBeInTheDocument();
-
-    // Revoking it shrinks the list so that page no longer exists.
-    mocks.useSessions.mockReturnValue({
-      data: { sessions: many.slice(0, 10), total: 10 },
-      isLoading: false,
-      isError: false,
-      error: null,
-      refetch: mocks.refetch,
+    expect(mocks.useSessions).toHaveBeenLastCalledWith({
+      limit: 50,
+      offset: 50,
     });
 
-    rerender(
-      <MemoryRouter>
-        <Sessions />
-      </MemoryRouter>,
-    );
+    fireEvent.click(screen.getAllByRole("button", { name: /revoke/i })[0]);
+    await waitFor(() => expect(mocks.revokeMutate).toHaveBeenCalled());
 
-    // Rows are shown rather than an empty view contradicting the row count.
-    expect(
-      screen.queryByText("No sessions match this view"),
-    ).not.toBeInTheDocument();
-    expect(screen.getByText("10.0.0.1")).toBeInTheDocument();
+    mocks.revokeMutate.mock.calls[0][1].onSuccess();
+
+    // Without this the next fetch asks for an offset past the end of the
+    // result set and the screen renders an empty page.
+    await waitFor(() =>
+      expect(mocks.useSessions).toHaveBeenLastCalledWith({
+        limit: 50,
+        offset: 0,
+      }),
+    );
   });
 
   it("labels an Edge session as Edge rather than Chrome", () => {
@@ -298,10 +286,105 @@ describe("Sessions", () => {
     ]);
 
     const card = screen
-      .getByText("Active Sessions")
+      .getByText("Active On Page")
       .closest("div")!.parentElement!;
 
     expect(card).toHaveTextContent("1");
     expect(card).toHaveTextContent("1 expired session excluded");
+  });
+
+  it("asks the server for an explicit window instead of its default page", () => {
+    renderPage();
+
+    expect(mocks.useSessions).toHaveBeenCalledWith({ limit: 50, offset: 0 });
+  });
+
+  it("reports the deployment total rather than the size of the loaded page", () => {
+    mocks.useSessions.mockReturnValue({
+      data: { sessions, total: 137 },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: mocks.refetch,
+      isFetching: false,
+      dataUpdatedAt: now,
+    });
+
+    renderPage();
+
+    const card = screen
+      .getByText("Total Sessions")
+      .closest("div")!.parentElement!;
+
+    expect(card).toHaveTextContent("137");
+    expect(screen.getByText("Showing 1-2 of 137")).toBeInTheDocument();
+  });
+
+  it("fetches the next server page rather than paging the loaded rows", () => {
+    mocks.useSessions.mockReturnValue({
+      data: { sessions, total: 137 },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: mocks.refetch,
+      isFetching: false,
+      dataUpdatedAt: now,
+    });
+
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+
+    expect(mocks.useSessions).toHaveBeenLastCalledWith({
+      limit: 50,
+      offset: 50,
+    });
+  });
+
+  it("says when a search or filter only narrowed the loaded page", () => {
+    mocks.useSessions.mockReturnValue({
+      data: { sessions, total: 137 },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: mocks.refetch,
+      isFetching: false,
+      dataUpdatedAt: now,
+    });
+
+    renderPage();
+
+    fireEvent.change(
+      screen.getByPlaceholderText("Search this page by IP or device"),
+      { target: { value: "10.0.0.1" } },
+    );
+
+    expect(
+      screen.getByText("Showing 1 of 2 sessions on this page"),
+    ).toBeInTheDocument();
+
+    // The pager keeps describing the deployment, so the operator can tell the
+    // difference between "not on this page" and "not in the deployment".
+    expect(screen.getByText("Showing 1-2 of 137")).toBeInTheDocument();
+  });
+
+  it("keeps the current page when a filter changes", () => {
+    mocks.useSessions.mockReturnValue({
+      data: { sessions, total: 137 },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: mocks.refetch,
+      isFetching: false,
+      dataUpdatedAt: now,
+    });
+
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Recent/ }));
+
+    expect(mocks.useSessions).toHaveBeenLastCalledWith({
+      limit: 50,
+      offset: 50,
+    });
   });
 });
