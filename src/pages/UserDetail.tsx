@@ -621,15 +621,29 @@ export default function UserDetail() {
             emptyDescription="This user does not currently have credential records in the dashboard feed."
             columns={[
               {
-                key: "deviceType",
+                key: "friendlyName",
                 label: "Device",
                 width: "large",
                 wrap: true,
-                render: (value) => (
-                  <span className="text-sm text-primary">
-                    {(value as string) ?? "Unknown device"}
-                  </span>
-                ),
+                render: (value, row) => {
+                  const deviceType = row.deviceType ?? "Unknown device";
+                  const friendlyName = value?.trim();
+
+                  if (!friendlyName) {
+                    return (
+                      <span className="text-sm text-primary">{deviceType}</span>
+                    );
+                  }
+
+                  return (
+                    <div className="flex flex-col">
+                      <span className="text-sm text-primary">
+                        {friendlyName}
+                      </span>
+                      <span className="text-xs text-muted">{deviceType}</span>
+                    </div>
+                  );
+                },
               },
               { key: "browser", label: "Browser", width: "medium" },
               { key: "platform", label: "Platform", width: "medium" },

@@ -4,7 +4,13 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import UserDetail from "./UserDetail";
@@ -95,6 +101,25 @@ const detail = {
   events: [],
 };
 
+const credentials = [
+  {
+    id: "credential_1",
+    friendlyName: "Work MacBook",
+    deviceType: "singleDevice",
+    browser: "Chrome",
+    platform: "macOS",
+    createdAt: "2026-06-01T00:00:00.000Z",
+  },
+  {
+    id: "credential_2",
+    friendlyName: null,
+    deviceType: "multiDevice",
+    browser: "Chrome",
+    platform: "macOS",
+    createdAt: "2026-06-02T00:00:00.000Z",
+  },
+];
+
 function renderPage() {
   return render(
     <MemoryRouter>
@@ -106,6 +131,15 @@ function renderPage() {
 /** Click one of the top-level destructive buttons. */
 function clickAction(name: string) {
   fireEvent.click(screen.getByRole("button", { name }));
+}
+
+/** The Device cell of a credential row, counted from the first record. */
+function credentialDeviceCell(row: number) {
+  const table = screen.getByRole("table", { name: "User passkeys" });
+  const rows = within(table).getAllByRole("row");
+
+  // The first row is the header, which holds columnheaders rather than cells.
+  return within(rows[row + 1]).getAllByRole("cell")[0];
 }
 
 /** Opens the device replacement modal, fills the required proofing, and submits. */
@@ -357,6 +391,37 @@ describe("UserDetail", () => {
     // device replacement control alongside them was already correct.
     expect(screen.getByRole("button", { name: "Revoking..." })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Deleting..." })).toBeDisabled();
+  });
+
+  describe("credential inventory", () => {
+    beforeEach(() => {
+      mocks.useUserDetail.mockReturnValue({
+        data: { ...detail, credentials },
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: mocks.refetch,
+      });
+    });
+
+    it("leads with the friendly name and keeps the device type beneath it", () => {
+      renderPage();
+      clickAction("Credentials");
+
+      const device = credentialDeviceCell(0);
+
+      expect(device).toHaveTextContent(/^Work MacBook/);
+      expect(within(device).getByText("singleDevice")).toBeInTheDocument();
+    });
+
+    it("falls back to the device type when no friendly name is set", () => {
+      renderPage();
+      clickAction("Credentials");
+
+      // Nothing but the device type, so an unnamed credential does not render
+      // a blank primary line above it.
+      expect(credentialDeviceCell(1)).toHaveTextContent(/^multiDevice$/);
+    });
   });
 
   it("keeps the suspicious signals tile value and hint on the same metric", () => {
