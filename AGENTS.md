@@ -221,6 +221,8 @@ Current scripts:
 - `npm run typecheck`
 - `npm test`
 - `npm run coverage`
+- `npm run test:e2e`
+- `npm run test:e2e:ui`
 - `npm run build`
 
 Release workflow:
@@ -232,13 +234,31 @@ Release workflow:
 
 Current test stack:
 
-- Vitest
-- Testing Library
-- jsdom
+- Vitest, Testing Library, and jsdom for components, hooks, and helpers
+- Playwright for the built app in a real browser
 
-Coverage is configured in `vite.config.ts` and currently focuses on shared components and `src/lib` helpers.
+Coverage is configured in `vite.config.ts` and currently focuses on shared components and `src/lib` helpers. `test.include` is scoped to `src`, so the Playwright specs are not picked up by `npm test`.
 
 When changing shared behavior, add or update tests. This repo is now in a state where test coverage is expected, not optional.
+
+### End-to-end tests
+
+`e2e/` runs the built SPA against a mocked `/auth/*` backend, so runs are deterministic and need no live API. Run them with `npm run test:e2e`, and `npx playwright install chromium` once before the first run.
+
+The pieces, and the rules that keep the suite honest:
+
+- `e2e/mockApi.ts` intercepts every `/auth/*` call. Registered paths are written the way the dashboard's hooks write them (`/admin/users`), and the `/auth` adapter prefix is stripped on the way in. Registrations match last-first, so a spec overrides one endpoint and inherits the rest.
+- An `/auth/*` call with no registration answers 501 and is recorded. The fixture fails the test at teardown, so a newly added request cannot pass as an empty screen.
+- `e2e/personas.ts` seeds a working deployment plus the three personas. `GET /users/me` is what the SDK bootstraps from, so that is what makes a protected route render. Step-up reports fresh by default; specs about step-up override it.
+- `e2e/factories.ts` builds entities against a frozen clock (`page.clock.install`), so relative copy and relative ranges do not drift between runs.
+- `e2e/webauthn.ts` drives a CDP virtual authenticator. Passkey ceremonies need a registrable relying-party ID, which is why the app is served from `localhost` and not `127.0.0.1`.
+
+When adding a spec:
+
+- start from `signInAs(persona, path)` and override only the endpoints the spec is about
+- assert through roles and accessible names rather than CSS classes
+- cover the happy path plus the empty, loading, and error states of whatever is under test
+- never add a wait on a fixed delay; wait on the state the app reaches
 
 ## Preferred Coding Conventions
 

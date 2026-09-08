@@ -337,6 +337,8 @@ npm run format:check
 npm run typecheck
 npm test
 npm run coverage
+npm run test:e2e
+npm run test:e2e:ui
 npm run build
 npm run build:console
 ```
@@ -362,9 +364,12 @@ In production-like deployments, prefer the runtime `config.js` injection flow in
 
 ## Testing
 
-The repo includes a frontend test setup using Vitest, Testing Library, and jsdom.
+Two suites, run separately.
 
-Useful commands:
+### Unit and integration
+
+Vitest, Testing Library, and jsdom, covering components, hooks, and helpers in
+isolation.
 
 ```bash
 npm test
@@ -372,6 +377,55 @@ npm run coverage
 ```
 
 Coverage is currently focused on shared components and `src/lib` helpers.
+
+### End to end
+
+Playwright, driving the built app in a real browser against a mocked Seamless
+Auth server adapter. No live API or database is needed, and no network request
+leaves the browser.
+
+```bash
+npm run test:e2e
+npm run test:e2e:ui
+```
+
+The first run needs the browser:
+
+```bash
+npx playwright install chromium
+```
+
+The harness lives in `e2e/`:
+
+- `playwright.config.ts` builds the app and serves it with `vite preview`, so
+  the specs exercise the real bundle rather than a dev server
+- `e2e/mockApi.ts` intercepts every `/auth/*` call. Registrations are matched
+  last-first, so a spec overrides one endpoint without restating the rest, and
+  any call with no registration answers 501 and fails the test at teardown
+- `e2e/personas.ts` seeds a working deployment behind every endpoint the
+  dashboard reads, plus the three personas: `unauthenticated`, `readAdmin`
+  (`admin:read`), and `writeAdmin` (`admin:write`)
+- `e2e/factories.ts` builds entities against a frozen clock, so relative copy
+  and relative ranges resolve identically on every run
+- `e2e/webauthn.ts` drives a CDP virtual authenticator, so passkey sign-in and
+  step-up run headless
+
+A spec starts from a persona and overrides only what it is about:
+
+```ts
+import { expect, test } from "../fixtures";
+
+test("shows the seeded users", async ({ page, api, signInAs }) => {
+  api.get("/admin/users", { json: { users: [], total: 0 } });
+
+  await signInAs("writeAdmin", "/users");
+
+  await expect(page.getByText("No users found")).toBeVisible();
+});
+```
+
+The app is served from `localhost` rather than `127.0.0.1`: WebAuthn requires
+the relying-party ID to be a registrable domain, and an IP address is not one.
 
 ## Docker
 
