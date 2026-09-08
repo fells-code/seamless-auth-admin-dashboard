@@ -91,16 +91,6 @@ export async function drainRetries(page: Page) {
   }
 }
 
-/**
- * A tab on a detail screen.
- *
- * The tab strip renders plain buttons rather than a tablist, and every tab name
- * is also a sidebar destination, so the lookup is scoped and exact.
- */
-export function detailTab(page: Page, name: string) {
-  return page.getByRole("main").getByRole("button", { name, exact: true });
-}
-
 export async function expectEmptyState(page: Page, title: string | RegExp) {
   await expect(page.getByText(title)).toBeVisible();
 }

@@ -8,7 +8,6 @@ import { expect, test } from "../fixtures";
 import type { MockApi } from "../mockApi";
 import {
   confirmDialog,
-  detailTab,
   drainRetries,
   expectErrorState,
   expectToast,
@@ -88,18 +87,18 @@ test.describe("user detail", () => {
 
     await signInAs("writeAdmin", "/users/user_1");
 
-    await detailTab(page, "Sessions").click();
+    await page.getByRole("tab", { name: "Sessions" }).click();
     await expect(
       page.getByRole("heading", { name: "Session Inventory" }),
     ).toBeVisible();
 
-    await detailTab(page, "Credentials").click();
+    await page.getByRole("tab", { name: "Credentials" }).click();
     await expect(
       page.getByRole("heading", { name: "Credential Inventory" }),
     ).toBeVisible();
     await expect(page.getByText("macOS")).toBeVisible();
 
-    await detailTab(page, "Events").click();
+    await page.getByRole("tab", { name: "Events" }).click();
     await expect(page.getByText("login_success")).toBeVisible();
   });
 
@@ -114,7 +113,7 @@ test.describe("user detail", () => {
     ]);
 
     await signInAs("writeAdmin", "/users/user_1");
-    await detailTab(page, "Sessions").click();
+    await page.getByRole("tab", { name: "Sessions" }).click();
     await expect(page.getByText("203.0.113.10")).toBeVisible();
 
     await page.getByRole("button", { name: /^Revoke row 1$/ }).click();
@@ -142,7 +141,7 @@ test.describe("user detail", () => {
 
     await expectToast(page, /sessions revoked/i);
 
-    await detailTab(page, "Sessions").click();
+    await page.getByRole("tab", { name: "Sessions" }).click();
     await expect(page.getByText("No sessions for this user")).toBeVisible();
   });
 
@@ -264,7 +263,7 @@ test.describe("user detail", () => {
 
     await signInAs("writeAdmin", "/users/user_1");
 
-    await detailTab(page, "Sessions").click();
+    await page.getByRole("tab", { name: "Sessions" }).click();
     await expect(page.getByText("No sessions for this user")).toBeVisible();
   });
 

@@ -33,8 +33,12 @@ test.describe("Overview", () => {
 
     await signInAs("writeAdmin");
 
-    await expect(page.getByText("Login Activity")).toBeVisible();
-    await expect(page.getByText("Event Distribution")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Login Activity" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Event Distribution" }),
+    ).toBeVisible();
 
     // Recharts renders into SVG, so the chart either drew or it did not.
     await expect(page.locator(".recharts-wrapper").first()).toBeVisible();
@@ -139,7 +143,9 @@ test.describe("Overview", () => {
 
     await expect(page.getByText("Login activity unavailable")).toBeVisible();
     // The rest of the screen is still worth reading.
-    await expect(page.getByText("Event Distribution")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Event Distribution" }),
+    ).toBeVisible();
   });
 
   test("refreshes every panel from one control", async ({
