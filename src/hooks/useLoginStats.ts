@@ -5,15 +5,25 @@
  */
 
 // src/hooks/useLoginStats.ts
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
 import type { LoginStatsResponse } from "@seamless-auth/types";
 
-export function useLoginStats() {
+export function useLoginStats(params: { from?: string; to?: string } = {}) {
+  const query = new URLSearchParams();
+
+  if (params.from) query.set("from", params.from);
+  if (params.to) query.set("to", params.to);
+
+  const search = query.toString();
+
   return useQuery({
-    queryKey: ["loginStats"],
+    queryKey: ["loginStats", params.from, params.to],
     queryFn: () =>
-      apiFetch<LoginStatsResponse>("/internal/auth-events/login-stats"),
+      apiFetch<LoginStatsResponse>(
+        `/internal/auth-events/login-stats${search ? `?${search}` : ""}`,
+      ),
+    placeholderData: keepPreviousData,
     // The monitoring screens describe themselves as live, so revalidate on an
     // interval and when the operator returns to the tab. Manual refresh stays
     // available for anything more immediate.

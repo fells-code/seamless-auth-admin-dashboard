@@ -87,3 +87,88 @@ export function resolveRangeBounds(
     ? { from: bounds.from.toISOString(), to: bounds.to.toISOString() }
     : {};
 }
+
+export type TimeRange = "1h" | "24h" | "7d" | "custom";
+
+export type RangeFilterValue = {
+  range: TimeRange;
+  from?: string;
+  to?: string;
+};
+
+export const TIME_RANGES: TimeRange[] = ["1h", "24h", "7d", "custom"];
+
+export const DEFAULT_TIME_RANGE: TimeRange = "24h";
+
+export function isTimeRange(value: string | null): value is TimeRange {
+  return value !== null && TIME_RANGES.includes(value as TimeRange);
+}
+
+/**
+ * Read a range out of a URL query string.
+ *
+ * The chosen range is carried explicitly rather than inferred from the bounds,
+ * so a relative selection survives a reload and stays highlighted.
+ */
+export function getRangeFromSearch(
+  search: string,
+  fallback: TimeRange = DEFAULT_TIME_RANGE,
+): RangeFilterValue {
+  const params = new URLSearchParams(search);
+  const range = params.get("range");
+
+  return {
+    range: isTimeRange(range) ? range : fallback,
+    from: params.get("from") ?? undefined,
+    to: params.get("to") ?? undefined,
+  };
+}
+
+/**
+ * Write a range into query params, leaving anything else in them untouched.
+ *
+ * Only a custom range carries explicit bounds. Relative ranges are recomputed
+ * on load so they always mean what they say.
+ */
+export function applyRangeToParams(
+  params: URLSearchParams,
+  value: RangeFilterValue,
+): URLSearchParams {
+  params.set("range", value.range);
+  params.delete("from");
+  params.delete("to");
+
+  if (value.range === "custom") {
+    if (value.from) params.set("from", value.from);
+    if (value.to) params.set("to", value.to);
+  }
+
+  return params;
+}
+
+// The metrics endpoints bucket by hour or by day. Hourly buckets over a week
+// are 168 points of noise on a chart sized for a day, so a window wider than
+// two days switches to daily.
+const DAILY_INTERVAL_THRESHOLD_MS = 1000 * 60 * 60 * 48;
+
+export function intervalForRange(
+  filter: RangeFilterValue,
+  reference: number,
+): "hour" | "day" {
+  const bounds = resolveRangeBounds(filter, reference);
+
+  if (!bounds.from || !bounds.to) return "hour";
+
+  const span = new Date(bounds.to).getTime() - new Date(bounds.from).getTime();
+
+  return span > DAILY_INTERVAL_THRESHOLD_MS ? "day" : "hour";
+}
+
+/** Names the selected window for UI copy, so a figure can say what it covers. */
+export function describeRange(filter: RangeFilterValue): string {
+  if (filter.range === "1h") return "the last hour";
+  if (filter.range === "24h") return "the last 24 hours";
+  if (filter.range === "7d") return "the last 7 days";
+
+  return "the selected window";
+}

@@ -5,7 +5,8 @@
  */
 
 import type { ComponentType } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowRight, ShieldAlert, Users, Waves } from "lucide-react";
 import { useDashboard } from "../hooks/useDashboard";
 import RefreshControl from "../components/RefreshControl";
@@ -17,8 +18,16 @@ import Skeleton from "../components/Skeleton";
 import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
 import { QueryErrorState, StateMessage } from "../components/StateMessage";
+import RangeFilter from "../components/RangeFilter";
 import { getErrorMessage } from "../lib/errorMessage";
 import { formatBytes } from "../lib/formatBytes";
+import {
+  applyRangeToParams,
+  describeRange,
+  getRangeFromSearch,
+  intervalForRange,
+  resolveRangeBounds,
+} from "../lib/timeRange";
 
 function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
@@ -26,6 +35,35 @@ function formatPercent(value: number) {
 
 export default function Overview() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [referenceNow] = useState(() => Date.now());
+
+  // The window lives in the URL the way the events feed does, so a narrowed
+  // view is linkable and survives a reload.
+  const range = useMemo(
+    () => getRangeFromSearch(location.search),
+    [location.search],
+  );
+
+  // Relative ranges resolve against a reference captured once, so the bounds
+  // stay stable across renders instead of changing the query key continuously.
+  const bounds = useMemo(
+    () => resolveRangeBounds(range, referenceNow),
+    [range, referenceNow],
+  );
+
+  const interval = useMemo(
+    () => intervalForRange(range, referenceNow),
+    [range, referenceNow],
+  );
+
+  const rangeLabel = describeRange(range);
+
+  const handleRangeChange = (next: typeof range) =>
+    navigate({
+      pathname: "/",
+      search: `?${applyRangeToParams(new URLSearchParams(), next)}`,
+    });
 
   const {
     data,
@@ -41,13 +79,13 @@ export default function Overview() {
     isError: timeseriesError,
     error: timeseriesErrorValue,
     refetch: refetchTimeseries,
-  } = useAuthTimeseries();
+  } = useAuthTimeseries({ ...bounds, interval });
   const {
     data: grouped,
     isError: groupedError,
     error: groupedErrorValue,
     refetch: refetchGrouped,
-  } = useGroupedEvents();
+  } = useGroupedEvents(bounds);
 
   const totalAttempts =
     (data?.loginSuccess24h ?? 0) + (data?.loginFailed24h ?? 0);
@@ -103,7 +141,9 @@ export default function Overview() {
                 <h1 className="heading-1">Overview</h1>
                 <p className="max-w-2xl text-sm text-muted">
                   A live snapshot of authentication health, growth, and operator
-                  attention areas across your Seamless Auth deployment.
+                  attention areas across your Seamless Auth deployment. The
+                  range below drives the activity chart and the event
+                  distribution.
                 </p>
               </div>
 
@@ -119,13 +159,19 @@ export default function Overview() {
                 updatedAt={dataUpdatedAt}
               />
 
+              <RangeFilter
+                value={range}
+                onChange={handleRangeChange}
+                label="Activity time range"
+              />
+
               <div className="flex flex-wrap gap-2">
                 <StatusPill
-                  label="24h auth attempts"
+                  label="24h auth attempts (fixed window)"
                   value={totalAttempts.toLocaleString()}
                 />
                 <StatusPill
-                  label="Peak hour volume"
+                  label={`Peak ${interval} in ${rangeLabel}`}
                   value={
                     busiestBucket
                       ? `${busiestBucket.success + busiestBucket.failed}`
@@ -133,7 +179,7 @@ export default function Overview() {
                   }
                 />
                 <StatusPill
-                  label="Top event"
+                  label={`Top event in ${rangeLabel}`}
                   value={dominantEvent?.label ?? dominantEvent?.type ?? "n/a"}
                 />
               </div>
@@ -143,8 +189,8 @@ export default function Overview() {
               <HighlightPanel
                 icon={ShieldAlert}
                 title="Security posture"
-                value={`${Math.round((securitySignalCount ?? 0) + (data?.loginFailed24h ?? 0))}`}
-                description="Suspicious and failed auth signals worth review today."
+                value={`${securitySignalCount}`}
+                description={`Suspicious auth signals in ${rangeLabel}.`}
                 onClick={() => navigate("/security")}
                 actionLabel="Open Security"
               />
@@ -171,52 +217,62 @@ export default function Overview() {
         </div>
       </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {isLoading ? (
-          Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-32 rounded-2xl" />
-          ))
-        ) : (
-          <>
-            <StatCard
-              label="Users"
-              value={data?.totalUsers ?? 0}
-              hint={`${data?.newUsers24h ?? 0} new in the last 24 hours`}
-            />
-            <StatCard
-              label="Database"
-              value={formatBytes(data?.databaseSize ?? 0)}
-              hint="Current storage footprint"
-            />
-            <StatCard
-              label="Sessions"
-              value={data?.activeSessions ?? 0}
-              hint="Active sessions in the last 24 hours"
-            />
-            <StatCard
-              label="Successful Logins"
-              value={data?.loginSuccess24h ?? 0}
-              hint={`${totalAttempts.toLocaleString()} total attempts in the same window`}
-            />
-            <StatCard
-              label="Failure Rate"
-              value={failureRate === null ? "n/a" : formatPercent(failureRate)}
-              hint={
-                failureRate === null
-                  ? "No authentication attempts in this window"
-                  : failureRate > 0.1
-                    ? "Elevated enough to merit review"
-                    : "Within a low-friction range"
-              }
-            />
-          </>
-        )}
+      <div className="space-y-3">
+        <p className="text-sm text-muted">
+          Deployment metrics cover a fixed 24-hour window. The metrics endpoint
+          takes no date range, so these figures do not follow the range
+          selector.
+        </p>
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          {isLoading ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-32 rounded-2xl" />
+            ))
+          ) : (
+            <>
+              <StatCard
+                label="Users"
+                value={data?.totalUsers ?? 0}
+                hint={`${data?.newUsers24h ?? 0} new in the last 24 hours`}
+              />
+              <StatCard
+                label="Database"
+                value={formatBytes(data?.databaseSize ?? 0)}
+                hint="Current storage footprint"
+              />
+              <StatCard
+                label="Sessions"
+                value={data?.activeSessions ?? 0}
+                hint="Active sessions in the last 24 hours"
+              />
+              <StatCard
+                label="Successful Logins"
+                value={data?.loginSuccess24h ?? 0}
+                hint={`${totalAttempts.toLocaleString()} total attempts in the same window`}
+              />
+              <StatCard
+                label="Failure Rate"
+                value={
+                  failureRate === null ? "n/a" : formatPercent(failureRate)
+                }
+                hint={
+                  failureRate === null
+                    ? "No authentication attempts in this window"
+                    : failureRate > 0.1
+                      ? "Elevated enough to merit review"
+                      : "Within a low-friction range"
+                }
+              />
+            </>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
         <Section
           title="Login Activity"
-          description="Hourly authentication flow for the last 24 hours, split between successful and failed attempts."
+          description={`Authentication flow across ${rangeLabel}, bucketed by ${interval} and split between successful and failed attempts.`}
           actions={
             <button
               onClick={() => navigate("/events")}
@@ -241,7 +297,7 @@ export default function Overview() {
 
         <Section
           title="Event Distribution"
-          description="The highest-volume auth events currently shaping traffic across the system."
+          description={`The highest-volume auth events across ${rangeLabel}.`}
           actions={
             <button
               onClick={() => navigate("/security")}
@@ -267,7 +323,7 @@ export default function Overview() {
 
       <Section
         title="Operator Focus"
-        description="Use this section to quickly decide where to spend attention next."
+        description="Use this section to quickly decide where to spend attention next. These figures come from the fixed 24-hour metrics window."
       >
         <div className="grid gap-4 lg:grid-cols-3">
           <ActionCard
