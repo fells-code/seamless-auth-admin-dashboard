@@ -133,6 +133,10 @@ function clickAction(name: string) {
   fireEvent.click(screen.getByRole("button", { name }));
 }
 
+function selectTab(name: string) {
+  fireEvent.click(screen.getByRole("tab", { name }));
+}
+
 /** The Device cell of a credential row, counted from the first record. */
 function credentialDeviceCell(row: number) {
   const table = screen.getByRole("table", { name: "User passkeys" });
@@ -406,7 +410,7 @@ describe("UserDetail", () => {
 
     it("leads with the friendly name and keeps the device type beneath it", () => {
       renderPage();
-      clickAction("Credentials");
+      selectTab("Credentials");
 
       const device = credentialDeviceCell(0);
 
@@ -416,7 +420,7 @@ describe("UserDetail", () => {
 
     it("falls back to the device type when no friendly name is set", () => {
       renderPage();
-      clickAction("Credentials");
+      selectTab("Credentials");
 
       // Nothing but the device type, so an unnamed credential does not render
       // a blank primary line above it.
