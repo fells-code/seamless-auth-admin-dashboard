@@ -59,6 +59,14 @@ function seedOrganizations(api: MockApi) {
     return { json: { organization: updated } };
   });
 
+  api.delete("/admin/organizations/:organizationId", ({ params }) => {
+    const index = organizations.findIndex(
+      (org) => org.id === params.organizationId,
+    );
+    organizations.splice(index, 1);
+    return { json: { message: "Success" } };
+  });
+
   api.get("/admin/organizations/:organizationId/members", () => ({
     json: { members, total: members.length },
   }));
@@ -236,7 +244,9 @@ test.describe("Organizations", () => {
 
     await expect(page.getByText("ada@example.com")).toBeVisible();
 
-    await page.getByRole("button", { name: /^Remove/ }).click();
+    // Named for the member, not just "Remove": the organizations table above
+    // carries a Remove action of its own now.
+    await page.getByRole("button", { name: "Remove ada@example.com" }).click();
     await confirmDialog(page, "Remove");
 
     await expectToast(page, "Member removed");
@@ -286,5 +296,44 @@ test.describe("Organizations", () => {
     await drainRetries(page);
 
     await expectErrorState(page, "Could not load organizations");
+  });
+
+  test("removes an organization behind a confirmation and step-up", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    seedOrganizations(api);
+
+    await signInAs("writeAdmin", "/organizations");
+
+    await page.getByRole("button", { name: "Remove Acme Corp" }).click();
+    await confirmDialog(page, "Remove");
+
+    await expectToast(page, "Organization removed");
+    expect(api.lastCall("DELETE", "/admin/organizations/org_1")).toBeTruthy();
+  });
+
+  test("asks the server for the window and the search term", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    seedOrganizations(api);
+
+    await signInAs("writeAdmin", "/organizations");
+
+    const listParam = (name: string) => {
+      const call = api.lastCall("GET", "/admin/organizations");
+      return call ? new URL(call.url).searchParams.get(name) : null;
+    };
+
+    await expect.poll(() => listParam("limit")).toBe("50");
+
+    await page.getByPlaceholder("Search name or slug").fill("acme");
+
+    // The filter is a query parameter now, not a pass over the rows already
+    // loaded, so an organization the first page did not return is reachable.
+    await expect.poll(() => listParam("search")).toBe("acme");
   });
 });

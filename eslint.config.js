@@ -13,6 +13,11 @@ export default defineConfig([
     "coverage/**",
     "**.config.**",
     "tests/**",
+    // Agent worktrees are checkouts of this repository, so each carries its own
+    // tsconfig. Linting into them leaves the TypeScript parser with several
+    // candidate root directories and no way to choose, which fails every file
+    // in the repository, not just the copies.
+    ".claude/**",
   ]),
   {
     files: ["**/*.{ts,tsx}"],

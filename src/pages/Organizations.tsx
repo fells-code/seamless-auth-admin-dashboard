@@ -24,6 +24,7 @@ import { getErrorMessage } from "../lib/errorMessage";
 import {
   useAddOrganizationMember,
   useCreateOrganization,
+  useDeleteOrganization,
   useOrganizationMembers,
   useOrganizations,
   useUpdateOrganizationMember,
@@ -38,6 +39,7 @@ import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import { useToast } from "../hooks/useToast";
 import { useConfirm } from "../hooks/useConfirm";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 
 type OrganizationRow = Organization & Record<string, unknown>;
 type OrganizationMembershipRow = OrganizationMembership &
@@ -64,10 +66,23 @@ function formatList(values?: string[]) {
   return values.join(", ");
 }
 
+const PAGE_SIZE = 50;
+
 export default function Organizations() {
-  const { data, isLoading, isError, error, refetch } = useOrganizations();
+  const [offset, setOffset] = useState(0);
+  const [organizationSearch, setOrganizationSearch] = useState("");
+  // Debounced so a search is one request per pause rather than one per
+  // keystroke, matching how the other server-filtered screens behave.
+  const search = useDebouncedValue(organizationSearch, 300);
+
+  const { data, isLoading, isError, error, refetch } = useOrganizations({
+    limit: PAGE_SIZE,
+    offset,
+    search,
+  });
   const createOrganization = useCreateOrganization();
   const updateOrganization = useUpdateOrganization();
+  const deleteOrganization = useDeleteOrganization();
   const addMember = useAddOrganizationMember();
   const removeMember = useRemoveOrganizationMember();
   const { canWrite } = useAdminPermissions();
@@ -107,18 +122,6 @@ export default function Organizations() {
   const defaultMemberRoles = availableRoles.includes("member")
     ? ["member"]
     : [];
-  const [organizationSearch, setOrganizationSearch] = useState("");
-  // Filters what the feed returned. The endpoint takes no search parameter, so
-  // this narrows the loaded page rather than querying the server.
-  const visibleOrganizations = useMemo(() => {
-    const query = organizationSearch.trim().toLowerCase();
-    if (!query) return organizations;
-
-    return organizations.filter((organization) =>
-      `${organization.name} ${organization.slug}`.toLowerCase().includes(query),
-    );
-  }, [organizations, organizationSearch]);
-
   const [memberRoles, setMemberRoles] = useState<string[]>([]);
   const [editingMember, setEditingMember] = useState<
     OrganizationMembership | undefined
@@ -178,6 +181,55 @@ export default function Organizations() {
       },
       onError: (error) => {
         toast.error("Organization update failed", getErrorMessage(error));
+      },
+    });
+  };
+
+  const handleDeleteOrganization = async (organization: Organization) => {
+    if (!canWrite) return;
+
+    const memberCount = organization.memberCount ?? 0;
+
+    if (
+      !(await confirm({
+        title: "Remove organization",
+        // The member count is named because deleting the organization deletes
+        // every membership in it. The accounts survive, and saying so is what
+        // stops this reading as a bulk user deletion.
+        description: `Delete ${organization.name} and its ${memberCount} ${
+          memberCount === 1 ? "membership" : "memberships"
+        }? The member accounts themselves are not deleted. This cannot be undone.`,
+        confirmLabel: "Remove",
+        tone: "danger",
+      }))
+    ) {
+      return;
+    }
+
+    if (!(await ensureStepUp())) {
+      return;
+    }
+
+    deleteOrganization.mutate(organization.id, {
+      onSuccess: () => {
+        toast.success(
+          "Organization removed",
+          `${organization.name} was deleted.`,
+        );
+
+        if (selectedOrganizationId === organization.id) {
+          setSelectedOrganizationId(null);
+        }
+
+        // Removing the only row on a page past the first leaves the offset
+        // beyond the end of the result set, so the next fetch returns nothing
+        // and the screen looks broken until Prev is pressed.
+        if (organizations.length === 1 && offset > 0) {
+          setOffset(Math.max(0, offset - PAGE_SIZE));
+        }
+      },
+      onError: (error) => {
+        toast.error("Organization removal failed", getErrorMessage(error));
       },
     });
   };
@@ -403,7 +455,13 @@ export default function Organizations() {
           <div className="mb-3 w-full max-w-sm">
             <SearchInput
               value={organizationSearch}
-              onChange={setOrganizationSearch}
+              onChange={(value) => {
+                setOrganizationSearch(value);
+                // A new term describes a different result set, so the old page
+                // number does not carry over. Keeping it can land the caller
+                // past the end of the matches and show an empty screen.
+                setOffset(0);
+              }}
               placeholder="Search name or slug"
             />
           </div>
@@ -417,13 +475,21 @@ export default function Organizations() {
           )}
           <Table<OrganizationRow>
             label="Organizations"
-            data={visibleOrganizations as OrganizationRow[]}
-            total={visibleOrganizations.length}
-            emptyTitle="No organizations"
+            data={organizations as OrganizationRow[]}
+            rowLabel={(organization) => organization.name}
+            total={total}
+            limit={PAGE_SIZE}
+            offset={offset}
+            onPageChange={setOffset}
+            emptyTitle={
+              search ? "No matching organizations" : "No organizations"
+            }
             emptyDescription={
-              canWrite
-                ? "Create an organization to start grouping users."
-                : "No organization records are currently visible in this dashboard."
+              search
+                ? "No organization matches that name or slug. Try a different term."
+                : canWrite
+                  ? "Create an organization to start grouping users."
+                  : "No organization records are currently visible in this dashboard."
             }
             columns={[
               {
@@ -473,8 +539,20 @@ export default function Organizations() {
               {
                 icon: Building2,
                 label: "Manage",
-                onClick: (row) => setSelectedOrganizationId(row.id),
+                onClick: (row: OrganizationRow) =>
+                  setSelectedOrganizationId(row.id),
               },
+              ...(canWrite
+                ? [
+                    {
+                      icon: Trash2,
+                      label: "Remove",
+                      variant: "danger" as const,
+                      onClick: (row: OrganizationRow) =>
+                        void handleDeleteOrganization(row),
+                    },
+                  ]
+                : []),
             ]}
           />
         </Section>
@@ -594,6 +672,11 @@ export default function Organizations() {
           <Table<OrganizationMembershipRow>
             label="Organization members"
             data={members as OrganizationMembershipRow[]}
+            // Both tables on this screen carry a Remove action, so each row
+            // action names its own row rather than "row 1" in both.
+            rowLabel={(membership) =>
+              membership.user?.email ?? membership.userId
+            }
             total={members.length}
             emptyTitle="No members"
             emptyDescription="Add a user to this organization to grant scoped tenant access."

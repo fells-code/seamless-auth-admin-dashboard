@@ -4,7 +4,12 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
 import type {
   AddOrganizationMemberRequest,
@@ -35,11 +40,47 @@ export type OrganizationMemberUpdateInput = UpdateOrganizationMemberRequest & {
   userId: string;
 };
 
-export function useOrganizations() {
+export function useOrganizations(
+  params: { limit?: number; offset?: number; search?: string } = {},
+) {
+  const query = new URLSearchParams();
+
+  if (params.limit !== undefined) query.set("limit", String(params.limit));
+  if (params.offset) query.set("offset", String(params.offset));
+  // Sent only when there is something to match. The API rejects an all-whitespace
+  // term with a 400 rather than treating it as no filter.
+  const search = params.search?.trim();
+  if (search) query.set("search", search);
+
+  const queryString = query.toString();
+
   return useQuery({
-    queryKey: ["organizations"],
+    // GET /admin/organizations applies a limit of 50 when none is sent, so
+    // calling it bare returns a capped page. The window is explicit and part of
+    // the key.
+    queryKey: ["organizations", params.limit, params.offset, search ?? ""],
     queryFn: () =>
-      apiFetch<AdminOrganizationListResponse>("/admin/organizations"),
+      apiFetch<AdminOrganizationListResponse>(
+        `/admin/organizations${queryString ? `?${queryString}` : ""}`,
+      ),
+    // Paging and typing in the search box both change the query key. Without
+    // this the screen drops to its full-page skeleton on every keystroke.
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useDeleteOrganization() {
+  const qc = useQueryClient();
+
+  return useMutation<MessageResponse, Error, string>({
+    mutationFn: (organizationId) =>
+      apiFetch<MessageResponse>(`/admin/organizations/${organizationId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: (_data, organizationId) => {
+      qc.invalidateQueries({ queryKey: ["organizations"] });
+      qc.removeQueries({ queryKey: ["organization-members", organizationId] });
+    },
   });
 }
 

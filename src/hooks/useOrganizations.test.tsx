@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   useAddOrganizationMember,
   useCreateOrganization,
+  useDeleteOrganization,
   useOrganizationMembers,
   useOrganizations,
   useRemoveOrganizationMember,
@@ -56,6 +57,105 @@ describe("useOrganizations", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(apiFetch).toHaveBeenCalledWith("/admin/organizations");
+  });
+
+  it("sends the window and the search term", async () => {
+    apiFetch.mockResolvedValue({ organizations: [], total: 0 });
+
+    const { result } = renderHook(
+      () => useOrganizations({ limit: 25, offset: 50, search: "acme" }),
+      { wrapper: createWrapper(createQueryClient()) },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      "/admin/organizations?limit=25&offset=50&search=acme",
+    );
+  });
+
+  // The API rejects an all-whitespace term with a 400 rather than reading it as
+  // no filter, so a search box holding only spaces must not become a parameter.
+  it("omits a search term that is only whitespace", async () => {
+    apiFetch.mockResolvedValue({ organizations: [], total: 0 });
+
+    const { result } = renderHook(
+      () => useOrganizations({ limit: 50, offset: 0, search: "   " }),
+      { wrapper: createWrapper(createQueryClient()) },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(apiFetch).toHaveBeenCalledWith("/admin/organizations?limit=50");
+  });
+
+  it("keeps the window in the query key so a page change refetches", async () => {
+    apiFetch.mockResolvedValue({ organizations: [], total: 0 });
+
+    const queryClient = createQueryClient();
+    const { result, rerender } = renderHook(
+      ({ offset }: { offset: number }) =>
+        useOrganizations({ limit: 50, offset }),
+      {
+        wrapper: createWrapper(queryClient),
+        initialProps: { offset: 0 },
+      },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    rerender({ offset: 50 });
+
+    await waitFor(() =>
+      expect(apiFetch).toHaveBeenCalledWith(
+        "/admin/organizations?limit=50&offset=50",
+      ),
+    );
+  });
+});
+
+describe("useDeleteOrganization", () => {
+  it("deletes the organization and drops its member view", async () => {
+    const queryClient = createQueryClient();
+    const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
+    const removeQueries = vi.spyOn(queryClient, "removeQueries");
+
+    apiFetch.mockResolvedValue({ message: "Success" });
+    const { result } = renderHook(() => useDeleteOrganization(), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync("org_1");
+    });
+
+    expect(apiFetch).toHaveBeenCalledWith("/admin/organizations/org_1", {
+      method: "DELETE",
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["organizations"],
+    });
+    // Removed rather than invalidated: the organization is gone, so refetching
+    // its members would only produce a 404.
+    expect(removeQueries).toHaveBeenCalledWith({
+      queryKey: ["organization-members", "org_1"],
+    });
+  });
+
+  it("does not refresh anything when the delete fails", async () => {
+    const queryClient = createQueryClient();
+    const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
+
+    apiFetch.mockRejectedValue(new Error("Organization not found"));
+    const { result } = renderHook(() => useDeleteOrganization(), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync("org_1").catch(() => undefined);
+    });
+
+    expect(invalidateQueries).not.toHaveBeenCalled();
   });
 });
 
