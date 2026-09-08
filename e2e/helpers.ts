@@ -62,6 +62,45 @@ export async function dismissDialog(page: Page) {
   await expect(dialog).toBeHidden();
 }
 
+/**
+ * A stat card, addressed by its label.
+ *
+ * The label sits two divs above the card root, and the search is scoped to the
+ * main landmark because several labels ("Users", "Sessions") are also sidebar
+ * destinations.
+ */
+export function statCard(page: Page, label: string) {
+  return page
+    .getByRole("main")
+    .getByText(label, { exact: true })
+    .locator("xpath=ancestor::div[2]");
+}
+
+/**
+ * Let the app's query retries run out.
+ *
+ * A failed query retries three times with exponential backoff, and the clock is
+ * frozen for determinism, so an error state never arrives on its own.
+ */
+export async function drainRetries(page: Page) {
+  // Stepped rather than advanced in one jump: each retry only schedules the
+  // next one after its request settles, and a single large advance fires the
+  // timers that exist at that moment and nothing more.
+  for (let step = 0; step < 6; step += 1) {
+    await page.clock.runFor(5_000);
+  }
+}
+
+/**
+ * A tab on a detail screen.
+ *
+ * The tab strip renders plain buttons rather than a tablist, and every tab name
+ * is also a sidebar destination, so the lookup is scoped and exact.
+ */
+export function detailTab(page: Page, name: string) {
+  return page.getByRole("main").getByRole("button", { name, exact: true });
+}
+
 export async function expectEmptyState(page: Page, title: string | RegExp) {
   await expect(page.getByText(title)).toBeVisible();
 }
