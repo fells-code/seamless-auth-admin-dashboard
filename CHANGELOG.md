@@ -1,5 +1,128 @@
 # seamless-auth-admin-dashboard
 
+## 0.6.0
+
+### Minor Changes
+
+- 37e229a: Remove organizations, and page and search the list on the server.
+
+  The Organizations screen fetched the whole list with no window and filtered the
+  returned rows in memory, so a deployment with more organizations than the
+  endpoint returned had no way to reach the rest, and the search box could not
+  find an organization that had not already been loaded. There was also no way to
+  delete an organization, only to rename it.
+
+  The list now sends `limit`, `offset` and `search` to the API and pages through
+  the result with the table's own pager. `total` comes from the server and counts
+  every match rather than the rows on screen, so the range in the footer describes
+  the whole result set. Typing in the search box is debounced and returns to the
+  first page, since a new term describes a different set of matches and the old
+  page number would strand the caller on an empty screen.
+
+  A Remove action sits alongside Manage for admins who can write. It asks for
+  confirmation naming how many memberships go with the organization, and that the
+  member accounts themselves are not deleted, then requires step-up verification
+  like the other destructive actions on the dashboard. Deleting the last row on a
+  page steps back to the previous one rather than leaving the view past the end of
+  the results.
+
+  Requires an auth API that serves `DELETE /admin/organizations/:organizationId`
+  and accepts the list query parameters, and an adapter that passes the delete
+  through.
+
+- 082c81a: Add a time range to the Overview and Security screens.
+
+  Only the events feed offered a date range, so an operator investigating outside
+  the default window could not narrow or shift the period on the screens that
+  lead the investigation. Overview's activity chart and event distribution, and
+  Security's login statistics, now follow a range control, and the selection is
+  carried in the URL so a narrowed view is linkable and survives a reload.
+
+  The range model is shared with the events feed rather than reimplemented: the
+  control is extracted from `EventFilters` and both use it. The activity chart
+  switches to daily buckets for windows wider than two days, so a week is not 168
+  hourly points.
+
+  Two endpoints, `/internal/metrics/dashboard` and `/internal/security/anomalies`,
+  take no date range, so the figures they feed are labelled as fixed-window rather
+  than appearing to respond to the picker.
+
+- 3d467e7: Add an Authenticator Policy section to System Configuration.
+
+  `authenticator_policy` had no control on the page, and a change upstream made
+  that gap operationally significant: `syncedPasskeys` now defaults to `block`,
+  which refuses any backup-eligible credential at registration. On a default
+  deployment that is most consumer passkeys, including iCloud Keychain and Google
+  Password Manager. Allowing them meant a raw PATCH or an env change and a
+  restart, neither discoverable from the console.
+
+  All seven fields are now editable, and two behaviours that were previously
+  documented only upstream are stated in the UI: the allow list, the deny list,
+  and the known-authenticator requirement are inert unless attestation is
+  `direct`, and changing attestation needs an API restart. Blocking synced
+  passkeys and changing attestation both confirm before saving, alongside the
+  existing relying-party and origin warnings.
+
+### Patch Changes
+
+- 7459428: Show the credential friendly name on the user detail and profile screens.
+
+  Both credential tables rendered only the device type, so a user with several
+  passkeys registered from the same machine showed identical rows and neither an
+  operator investigating an account nor the account holder could tell which
+  credential was which. The Device column on both screens now leads with the
+  friendly name the user set, with the device type beneath it, and falls back to
+  the device type alone when no name has been set.
+
+  The presentation lives in a shared `CredentialDevice` component rather than
+  being written once per screen, since the two tables had already drifted apart
+  in which columns they carry.
+
+- 5a322b6: Give the detail tab strip real tab semantics.
+
+  `Tabs` rendered plain buttons, so assistive technology had no notion that the
+  group was a tab strip, which one was selected, or which region each controlled.
+  A screen reader user reached five unrelated buttons, and the arrow keys that the
+  ARIA tabs pattern expects did nothing.
+
+  The strip is now a `tablist` of `tab` elements carrying `aria-selected` and
+  `aria-controls`. Focus follows the standard roving tabindex, so the strip is a
+  single tab stop and Left, Right, Home, and End move between tabs with wrap
+  around at both ends. On the user detail screen, the panel below the strip is a
+  `tabpanel` labelled by the active tab.
+
+  Tab and panel ids come from a shared helper in `src/lib/tabIds.ts` so the two
+  sides cannot drift apart.
+
+- b705858: Page the Sessions screen through the server instead of showing a capped first
+  page as the whole deployment.
+
+  `GET /admin/sessions` applies a limit of 50 when none is sent, and the screen
+  called it bare, so every figure and row described at most the first 50 sessions
+  and the rest were unreachable. `useSessions` now takes a window, the table pages
+  through `total`, and the header reports the deployment total.
+
+  The endpoint accepts no search or filter parameter, so the search box and the
+  activity filter narrow the loaded page. Both are now labelled as page-scoped,
+  along with every count derived from them, and a search that matches nothing on
+  the page says so rather than reading as an address that does not exist. The CSV
+  export covers the loaded page and names the rows it wrote.
+
+- 32355dc: Add a Playwright end-to-end harness.
+
+  The unit suite covers components, hooks, and helpers in isolation. It does not
+  exercise the built app in a real browser across routing, guarded navigation,
+  network calls to `/auth/*`, WebAuthn, and multi-step operator workflows. This
+  adds the layer that does.
+
+  Runs are deterministic and need no live API: the built SPA is served by
+  `vite preview`, every `/auth/*` call is intercepted, and the app is pointed at
+  the mock through the same runtime `config.js` injection the container uses. A
+  call with no mock registered answers 501 and fails the test, so a newly added
+  request cannot pass as an empty screen. Personas cover unauthenticated,
+  read-only admin, and write admin, and a CDP virtual authenticator makes passkey
+  sign-in and step-up run headless.
+
 ## 0.5.0
 
 ### Minor Changes
