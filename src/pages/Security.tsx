@@ -5,8 +5,9 @@
  */
 
 import type { ComponentType } from "react";
+import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import RefreshControl from "../components/RefreshControl";
 import { exportCsv } from "../lib/csvExport";
 import { useNow } from "../hooks/useNow";
@@ -19,6 +20,13 @@ import StatCard from "../components/StatCard";
 import Table from "../components/Table";
 import { Section } from "../components/Section";
 import { QueryErrorState } from "../components/StateMessage";
+import RangeFilter from "../components/RangeFilter";
+import {
+  applyRangeToParams,
+  describeRange,
+  getRangeFromSearch,
+  resolveRangeBounds,
+} from "../lib/timeRange";
 
 function formatTimeAgo(value?: string, now?: number) {
   if (!value) return "Unknown";
@@ -40,9 +48,32 @@ function buildEventFilterUrl(type?: string) {
 
 export default function Security() {
   const navigate = useNavigate();
+  const location = useLocation();
   // Advances while the screen is open; it was captured once at mount, so every
   // "time ago" froze at whatever it read when the screen loaded.
   const referenceNow = useNow();
+
+  // The window lives in the URL the way the events feed does, so a narrowed
+  // view is linkable and survives a reload.
+  const range = useMemo(
+    () => getRangeFromSearch(location.search),
+    [location.search],
+  );
+  const rangeLabel = describeRange(range);
+
+  // Resolved against a reference captured once, so a relative window does not
+  // change the query key on every render.
+  const [boundsReference] = useState(() => Date.now());
+  const bounds = useMemo(
+    () => resolveRangeBounds(range, boundsReference),
+    [range, boundsReference],
+  );
+
+  const handleRangeChange = (next: typeof range) =>
+    navigate({
+      pathname: "/security",
+      search: `?${applyRangeToParams(new URLSearchParams(), next)}`,
+    });
 
   const {
     data: anomalies,
@@ -59,7 +90,7 @@ export default function Security() {
     error: statsErrorValue,
     refetch: refetchStats,
     isFetching: fetchingStats,
-  } = useLoginStats();
+  } = useLoginStats(bounds);
 
   const suspiciousEvents: PartialAuthEvent[] =
     anomalies?.suspiciousEvents ?? [];
@@ -164,13 +195,20 @@ export default function Security() {
                 <h1 className="heading-1">Security</h1>
                 <p className="max-w-2xl text-sm text-muted">
                   Review failed logins, suspicious event types, and the spread
-                  of anomalous activity across IPs and recent auth traffic.
+                  of anomalous activity across IPs and recent auth traffic. The
+                  range below drives the login statistics.
                 </p>
               </div>
 
+              <RangeFilter
+                value={range}
+                onChange={handleRangeChange}
+                label="Login statistics time range"
+              />
+
               <div className="flex flex-wrap gap-2">
                 <SignalPill
-                  label="Suspicious signals"
+                  label="Suspicious signals (fixed window)"
                   value={
                     isTruncated
                       ? `${returnedCount} of ${reportedTotal}`
@@ -190,7 +228,7 @@ export default function Security() {
                 icon={ShieldAlert}
                 title="Failed auth pressure"
                 value={`${loginStats?.failed ?? 0}`}
-                description="Recent failed logins are often the fastest high-volume warning sign."
+                description={`Failed logins in ${rangeLabel}, often the fastest high-volume warning sign.`}
                 actionLabel="Open events"
                 onClick={() => navigate(buildEventFilterUrl("login_failed"))}
               />
@@ -225,25 +263,25 @@ export default function Security() {
         <StatCard
           label="Successful Logins"
           value={loginStats?.success ?? 0}
-          hint="Successful authentication attempts in the current stats window"
+          hint={`Successful authentication attempts in ${rangeLabel}`}
         />
         <StatCard
           label="Failed Logins"
           value={loginStats?.failed ?? 0}
-          hint="Operators should correlate spikes here with suspicious events"
+          hint={`Failed attempts in ${rangeLabel}, worth correlating with suspicious events`}
         />
         <StatCard
           label="Success Rate"
           value={`${Math.round((loginStats?.successRate ?? 0) * 100)}%`}
-          hint="A sharp drop can indicate auth friction or abuse"
+          hint={`Across ${rangeLabel}. A sharp drop can indicate auth friction or abuse`}
         />
         <StatCard
           label="Suspicious Events"
           value={returnedCount}
           hint={
             isTruncated
-              ? `Showing ${returnedCount} of ${reportedTotal} reported signals`
-              : "Signals currently surfaced by the anomaly feed"
+              ? `Showing ${returnedCount} of ${reportedTotal} reported signals, on the feed's own fixed window`
+              : "Signals surfaced by the anomaly feed, on its own fixed window"
           }
         />
       </div>
@@ -257,7 +295,7 @@ export default function Security() {
             tone={(loginStats?.failed ?? 0) > 0 ? "danger" : "neutral"}
             title="Failed login volume"
             value={`${loginStats?.failed ?? 0}`}
-            description="If this climbs quickly, move to events and look for repeated sources or patterns."
+            description={`Failed logins in ${rangeLabel}. If this climbs quickly, move to events and look for repeated sources or patterns.`}
             actionLabel="Inspect failed logins"
             onClick={() => navigate(buildEventFilterUrl("login_failed"))}
           />
@@ -284,7 +322,7 @@ export default function Security() {
 
       <Section
         title="Suspicious Activity"
-        description="Security-related anomalies currently surfaced by the backend anomaly feed."
+        description="Security-related anomalies surfaced by the backend anomaly feed. The feed takes no date range, so this table and the counts drawn from it stay on a fixed window and do not follow the range selector."
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <RefreshControl

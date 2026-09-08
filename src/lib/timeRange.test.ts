@@ -6,8 +6,13 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  applyRangeToParams,
+  describeRange,
   fromDateTimeLocalValue,
   getRange,
+  getRangeFromSearch,
+  intervalForRange,
+  isTimeRange,
   resolveRangeBounds,
   toDateTimeLocalValue,
 } from "./timeRange";
@@ -119,5 +124,125 @@ describe("resolveRangeBounds", () => {
       from: undefined,
       to: undefined,
     });
+  });
+});
+
+describe("isTimeRange", () => {
+  it("accepts the ranges the screens offer", () => {
+    expect(isTimeRange("1h")).toBe(true);
+    expect(isTimeRange("custom")).toBe(true);
+  });
+
+  it("rejects anything else, including a missing param", () => {
+    expect(isTimeRange("30d")).toBe(false);
+    expect(isTimeRange(null)).toBe(false);
+  });
+});
+
+describe("getRangeFromSearch", () => {
+  it("reads the chosen range rather than inferring it from bounds", () => {
+    expect(getRangeFromSearch("?range=7d")).toEqual({
+      range: "7d",
+      from: undefined,
+      to: undefined,
+    });
+  });
+
+  it("carries custom bounds through", () => {
+    expect(
+      getRangeFromSearch(
+        "?range=custom&from=2026-01-01T00:00&to=2026-01-02T00:00",
+      ),
+    ).toEqual({
+      range: "custom",
+      from: "2026-01-01T00:00",
+      to: "2026-01-02T00:00",
+    });
+  });
+
+  it("falls back to the default for an unknown or absent range", () => {
+    expect(getRangeFromSearch("?range=30d").range).toBe("24h");
+    expect(getRangeFromSearch("").range).toBe("24h");
+  });
+
+  it("honours an explicit fallback", () => {
+    expect(getRangeFromSearch("", "7d").range).toBe("7d");
+  });
+});
+
+describe("applyRangeToParams", () => {
+  it("leaves unrelated params in place", () => {
+    const params = new URLSearchParams("type=login_failed&type=login_success");
+
+    applyRangeToParams(params, { range: "1h" });
+
+    expect(params.getAll("type")).toEqual(["login_failed", "login_success"]);
+    expect(params.get("range")).toBe("1h");
+  });
+
+  it("writes bounds only for a custom range", () => {
+    const params = applyRangeToParams(new URLSearchParams(), {
+      range: "custom",
+      from: "2026-01-01T00:00",
+      to: "2026-01-02T00:00",
+    });
+
+    expect(params.toString()).toBe(
+      "range=custom&from=2026-01-01T00%3A00&to=2026-01-02T00%3A00",
+    );
+  });
+
+  it("drops bounds left over from a previous custom range", () => {
+    // A relative range is recomputed on load, so stale bounds in the URL would
+    // survive as a window the highlighted button does not describe.
+    const params = new URLSearchParams(
+      "range=custom&from=2026-01-01T00:00&to=2026-01-02T00:00",
+    );
+
+    applyRangeToParams(params, { range: "24h" });
+
+    expect(params.toString()).toBe("range=24h");
+  });
+});
+
+describe("intervalForRange", () => {
+  const reference = new Date("2026-01-08T12:00:00Z").getTime();
+
+  it("buckets a short window by hour", () => {
+    expect(intervalForRange({ range: "1h" }, reference)).toBe("hour");
+    expect(intervalForRange({ range: "24h" }, reference)).toBe("hour");
+  });
+
+  it("buckets a week by day rather than by 168 hourly points", () => {
+    expect(intervalForRange({ range: "7d" }, reference)).toBe("day");
+  });
+
+  it("chooses from the real span of a custom window", () => {
+    expect(
+      intervalForRange(
+        { range: "custom", from: "2026-01-01T00:00", to: "2026-01-01T06:00" },
+        reference,
+      ),
+    ).toBe("hour");
+
+    expect(
+      intervalForRange(
+        { range: "custom", from: "2026-01-01T00:00", to: "2026-01-08T00:00" },
+        reference,
+      ),
+    ).toBe("day");
+  });
+
+  it("falls back to hourly when a custom window has no bounds", () => {
+    expect(intervalForRange({ range: "custom" }, reference)).toBe("hour");
+  });
+});
+
+describe("describeRange", () => {
+  it("names each window for the copy that reports it", () => {
+    expect(describeRange({ range: "1h" })).toBe("the last hour");
+    expect(describeRange({ range: "24h" })).toBe("the last 24 hours");
+    expect(describeRange({ range: "7d" })).toBe("the last 7 days");
+    expect(describeRange({ range: "custom" })).toBe("the selected window");
   });
 });

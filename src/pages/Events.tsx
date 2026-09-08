@@ -15,14 +15,20 @@ import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
 import { QueryErrorState } from "../components/StateMessage";
 import { eventGroups } from "../lib/eventGroups";
-import { resolveRangeBounds } from "../lib/timeRange";
+import {
+  applyRangeToParams,
+  DEFAULT_TIME_RANGE,
+  getRangeFromSearch,
+  resolveRangeBounds,
+  type TimeRange,
+} from "../lib/timeRange";
 import { AUTH_EVENT_TYPES, type AuthEvent } from "@seamless-auth/types";
 
 export type EventFilter = {
   type: string[];
   from?: string;
   to?: string;
-  range: "1h" | "24h" | "7d" | "custom";
+  range: TimeRange;
 };
 
 const groupedTypeAliases = new Set(
@@ -33,27 +39,10 @@ const concreteEventTypes = AUTH_EVENT_TYPES.filter(
   (type) => !groupedTypeAliases.has(type),
 );
 
-const EVENT_RANGES: EventFilter["range"][] = ["1h", "24h", "7d", "custom"];
-const DEFAULT_EVENT_RANGE: EventFilter["range"] = "24h";
-
-function isEventRange(value: string | null): value is EventFilter["range"] {
-  return value !== null && EVENT_RANGES.includes(value as EventFilter["range"]);
-}
-
 function getFiltersFromSearch(search: string): EventFilter {
-  const params = new URLSearchParams(search);
-  const type = params.getAll("type");
-  const rangeParam = params.get("range");
-
-  // The chosen range is carried in the URL rather than inferred from the
-  // bounds, so a relative selection survives a reload and stays highlighted.
-  const range = isEventRange(rangeParam) ? rangeParam : DEFAULT_EVENT_RANGE;
-
   return {
-    type,
-    from: params.get("from") ?? undefined,
-    to: params.get("to") ?? undefined,
-    range,
+    type: new URLSearchParams(search).getAll("type"),
+    ...getRangeFromSearch(search),
   };
 }
 
@@ -124,7 +113,7 @@ export default function Events() {
   const summary = (value: string | number) => (isLoading ? "—" : `${value}`);
 
   const activeFilterCount =
-    filters.type.length + (filters.range === DEFAULT_EVENT_RANGE ? 0 : 1);
+    filters.type.length + (filters.range === DEFAULT_TIME_RANGE ? 0 : 1);
 
   const events: AuthEvent[] = data?.events ?? [];
   const total = data?.total ?? 0;
@@ -147,14 +136,7 @@ export default function Events() {
     const params = new URLSearchParams();
 
     nextFilters.type.forEach((type) => params.append("type", type));
-    params.set("range", nextFilters.range);
-
-    // Only a custom range carries explicit bounds. Relative ranges are
-    // recomputed on load so they always mean what they say.
-    if (nextFilters.range === "custom") {
-      if (nextFilters.from) params.set("from", nextFilters.from);
-      if (nextFilters.to) params.set("to", nextFilters.to);
-    }
+    applyRangeToParams(params, nextFilters);
 
     setOffset(0);
     navigate({
