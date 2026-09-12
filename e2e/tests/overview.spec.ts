@@ -6,7 +6,11 @@
 
 import { expect, test } from "../fixtures";
 import { drainRetries, expectErrorState, statCard } from "../helpers";
-import { makeDashboardMetrics, makeTimeseries } from "../factories";
+import {
+  makeDashboardMetrics,
+  makeFunnelMetrics,
+  makeTimeseries,
+} from "../factories";
 
 test.describe("Overview", () => {
   test("renders the seeded deployment metrics", async ({ page, signInAs }) => {
@@ -114,6 +118,80 @@ test.describe("Overview", () => {
     await expect(statCard(page, "Failure Rate")).toContainText(
       "No authentication attempts in this window",
     );
+  });
+
+  test("renders the passwordless funnel with the count behind each figure", async ({
+    page,
+    signInAs,
+  }) => {
+    await signInAs("writeAdmin");
+
+    await expect(
+      page.getByRole("heading", { name: "Passwordless Funnel" }),
+    ).toBeVisible();
+
+    await expect(statCard(page, "Time to registration")).toContainText(
+      "1m 24s",
+    );
+    await expect(statCard(page, "Time to registration")).toContainText(
+      "p90 4m 21s across 412 registrations",
+    );
+    await expect(statCard(page, "Passkey adoption")).toContainText("59%");
+    await expect(statCard(page, "Passkey adoption")).toContainText(
+      "301 of 512 accounts",
+    );
+  });
+
+  test("follows the range selector for the funnel", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    const windows: string[] = [];
+
+    api.get("/internal/metrics/funnel", ({ url }) => {
+      windows.push(url.search);
+      return { json: makeFunnelMetrics() };
+    });
+
+    await signInAs("writeAdmin");
+    await expect(
+      page.getByRole("heading", { name: "Passwordless Funnel" }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "7d" }).click();
+
+    await expect.poll(() => windows.length).toBeGreaterThanOrEqual(2);
+
+    const [first, second] = windows.slice(-2).map((search) => {
+      const params = new URLSearchParams(search);
+      return (
+        new Date(params.get("to")!).getTime() -
+        new Date(params.get("from")!).getTime()
+      );
+    });
+
+    expect(first).toBe(24 * 60 * 60 * 1000);
+    expect(second).toBe(7 * 24 * 60 * 60 * 1000);
+  });
+
+  test("keeps the page up when only the funnel query fails", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    api.get("/internal/metrics/funnel", {
+      status: 500,
+      json: { error: "funnel unavailable" },
+    });
+
+    await signInAs("writeAdmin");
+    await drainRetries(page);
+
+    await expect(page.getByText("Funnel metrics unavailable")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Login Activity" }),
+    ).toBeVisible();
   });
 
   test("surfaces a failed metrics query", async ({ page, api, signInAs }) => {

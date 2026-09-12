@@ -12,6 +12,8 @@ import { useDashboard } from "../hooks/useDashboard";
 import RefreshControl from "../components/RefreshControl";
 import { useAuthTimeseries } from "../hooks/useAuthTimeseries";
 import { useGroupedEvents } from "../hooks/useGroupedEvents";
+import { useFunnelMetrics } from "../hooks/useFunnelMetrics";
+import type { IntervalStats } from "../hooks/useFunnelMetrics";
 import LineChart from "../components/LineChart";
 import PieChart from "../components/PieChart";
 import Skeleton from "../components/Skeleton";
@@ -21,6 +23,7 @@ import { QueryErrorState, StateMessage } from "../components/StateMessage";
 import RangeFilter from "../components/RangeFilter";
 import { getErrorMessage } from "../lib/errorMessage";
 import { formatBytes } from "../lib/formatBytes";
+import { formatDuration } from "../lib/formatDuration";
 import {
   applyRangeToParams,
   describeRange,
@@ -31,6 +34,14 @@ import {
 
 function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
+}
+
+// A median means nothing without the count behind it: three readings and three
+// thousand render the same number.
+function describeInterval(stats: IntervalStats, noun: string, range: string) {
+  if (stats.count === 0) return `No ${noun} completed in ${range}`;
+
+  return `p90 ${formatDuration(stats.p90Seconds)} across ${stats.count.toLocaleString()} ${noun} in ${range}`;
 }
 
 export default function Overview() {
@@ -86,6 +97,12 @@ export default function Overview() {
     error: groupedErrorValue,
     refetch: refetchGrouped,
   } = useGroupedEvents(bounds);
+  const {
+    data: funnel,
+    isError: funnelError,
+    error: funnelErrorValue,
+    refetch: refetchFunnel,
+  } = useFunnelMetrics(bounds);
 
   const totalAttempts =
     (data?.loginSuccess24h ?? 0) + (data?.loginFailed24h ?? 0);
@@ -154,6 +171,7 @@ export default function Overview() {
                   void refetch();
                   void refetchTimeseries();
                   void refetchGrouped();
+                  void refetchFunnel();
                 }}
                 isRefreshing={isFetching}
                 updatedAt={dataUpdatedAt}
@@ -269,6 +287,68 @@ export default function Overview() {
         </div>
       </div>
 
+      <Section
+        title="Passwordless Funnel"
+        description={`How long the path takes and how far passkeys are adopted, for what started in ${rangeLabel}. Each figure is a median, with the p90 and the count it was computed over beneath it.`}
+      >
+        {funnelError ? (
+          <StateMessage
+            tone="error"
+            title="Funnel metrics unavailable"
+            description={getErrorMessage(funnelErrorValue)}
+          />
+        ) : funnel ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              label="Time to registration"
+              value={formatDuration(funnel.timeToRegistration.medianSeconds)}
+              hint={describeInterval(
+                funnel.timeToRegistration,
+                "registrations",
+                rangeLabel,
+              )}
+            />
+            <StatCard
+              label="Time to login"
+              value={formatDuration(funnel.timeToLogin.medianSeconds)}
+              hint={describeInterval(
+                funnel.timeToLogin,
+                "sign-ins",
+                rangeLabel,
+              )}
+            />
+            <StatCard
+              label="Passkey adoption"
+              value={
+                funnel.passkeyAdoption.users > 0
+                  ? formatPercent(funnel.passkeyAdoption.rate)
+                  : "n/a"
+              }
+              hint={
+                funnel.passkeyAdoption.users > 0
+                  ? `${funnel.passkeyAdoption.withPasskey.toLocaleString()} of ${funnel.passkeyAdoption.users.toLocaleString()} accounts created in ${rangeLabel} hold a passkey`
+                  : `No accounts created in ${rangeLabel}`
+              }
+            />
+            <StatCard
+              label="Time to first passkey"
+              value={formatDuration(funnel.timeToFirstPasskey.medianSeconds)}
+              hint={describeInterval(
+                funnel.timeToFirstPasskey,
+                "enrollments",
+                rangeLabel,
+              )}
+            />
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-32 rounded-2xl" />
+            ))}
+          </div>
+        )}
+      </Section>
+
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
         <Section
           title="Login Activity"
@@ -335,9 +415,12 @@ export default function Overview() {
             onClick={() => navigate("/security")}
           />
 
+          {/* passkeyUsage24h counts passkey sign-ins. Adoption, the share of
+              accounts holding one, is the funnel figure above, and the two
+              used to share a title. */}
           <ActionCard
             tone="neutral"
-            title="Passkey adoption"
+            title="Passkey sign-ins"
             value={`${data?.passkeyUsage24h ?? 0}`}
             description="Passkey usage helps show whether stronger authentication paths are gaining traction."
             actionLabel="Explore events"

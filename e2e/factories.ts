@@ -241,6 +241,15 @@ export function makeLoginStats(
   return { success: 900, failed: 100, successRate: 0.9, ...overrides };
 }
 
+export function makeFunnelMetrics() {
+  return {
+    timeToRegistration: { count: 412, medianSeconds: 84.2, p90Seconds: 260.5 },
+    timeToLogin: { count: 3188, medianSeconds: 6.4, p90Seconds: 41 },
+    passkeyAdoption: { users: 512, withPasskey: 301, rate: 0.588 },
+    timeToFirstPasskey: { count: 301, medianSeconds: 118, p90Seconds: 86400 },
+  };
+}
+
 export function makeSystemConfig(
   overrides: Partial<SystemConfig> = {},
 ): SystemConfig {

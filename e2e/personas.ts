@@ -12,6 +12,7 @@ import {
   makeDashboardMetrics,
   makeEvent,
   makeEventSummary,
+  makeFunnelMetrics,
   makeLoginStats,
   makeMembership,
   makeMeUser,
@@ -138,6 +139,7 @@ export function seedDeployment(api: MockApi) {
   api.get("/internal/auth-events/timeseries", { json: makeTimeseries() });
   api.get("/internal/auth-events/summary", { json: makeEventSummary() });
   api.get("/internal/auth-events/login-stats", { json: makeLoginStats() });
+  api.get("/internal/metrics/funnel", { json: makeFunnelMetrics() });
   api.get("/internal/security/anomalies", {
     json: { suspiciousEvents: [makeAnomaly({ id: "anomaly_1" })], total: 1 },
   });
