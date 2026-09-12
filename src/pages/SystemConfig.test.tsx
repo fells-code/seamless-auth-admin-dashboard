@@ -775,7 +775,7 @@ describe("SystemConfigPage", () => {
       return renderPage();
     }
 
-    it("says plainly that the default blocks most consumer passkeys", () => {
+    it("warns that blocking refuses most consumer passkeys", () => {
       renderWithPolicy();
 
       expect(
@@ -812,7 +812,7 @@ describe("SystemConfigPage", () => {
       // has to fall back to the schema defaults rather than go uncontrolled.
       renderPage();
 
-      expect(screen.getByLabelText(/synced passkeys/i)).toHaveValue("block");
+      expect(screen.getByLabelText(/synced passkeys/i)).toHaveValue("allow");
       expect(screen.getByLabelText(/attestation/i)).toHaveValue("none");
       expect(screen.getByLabelText(/^attachment$/i)).toHaveValue("any");
       expect(screen.getByLabelText(/user verification/i)).toHaveValue(

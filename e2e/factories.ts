@@ -271,7 +271,7 @@ export function makeSystemConfig(
       userVerification: "required",
       attestation: "none",
       requireKnownAuthenticator: false,
-      syncedPasskeys: "block",
+      syncedPasskeys: "allow",
       aaguidAllowList: [],
       aaguidDenyList: [],
     },
