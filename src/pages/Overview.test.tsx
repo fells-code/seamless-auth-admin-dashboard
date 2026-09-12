@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   useDashboard: vi.fn(),
   useAuthTimeseries: vi.fn(),
   useGroupedEvents: vi.fn(),
+  useFunnelMetrics: vi.fn(),
   refetch: vi.fn(),
 }));
 
@@ -22,6 +23,9 @@ vi.mock("../hooks/useAuthTimeseries", () => ({
 }));
 vi.mock("../hooks/useGroupedEvents", () => ({
   useGroupedEvents: mocks.useGroupedEvents,
+}));
+vi.mock("../hooks/useFunnelMetrics", () => ({
+  useFunnelMetrics: mocks.useFunnelMetrics,
 }));
 
 // Recharts measures its container, which jsdom reports as zero, so the charts
@@ -43,6 +47,15 @@ const dashboard = {
   successRate24h: 0.9,
   passkeyUsage24h: 55,
 };
+
+const funnel = {
+  timeToRegistration: { count: 412, medianSeconds: 84.2, p90Seconds: 260.5 },
+  timeToLogin: { count: 3188, medianSeconds: 6.4, p90Seconds: 41 },
+  passkeyAdoption: { users: 512, withPasskey: 301, rate: 0.588 },
+  timeToFirstPasskey: { count: 301, medianSeconds: 118, p90Seconds: 86400 },
+};
+
+const emptyInterval = { count: 0, medianSeconds: null, p90Seconds: null };
 
 function renderPage(initialEntry = "/") {
   return render(
@@ -79,6 +92,12 @@ describe("Overview", () => {
       error: null,
       refetch: mocks.refetch,
     });
+    mocks.useFunnelMetrics.mockReturnValue({
+      data: funnel,
+      isError: false,
+      error: null,
+      refetch: mocks.refetch,
+    });
   });
 
   it("defaults the charts to a 24 hour window bucketed by hour", () => {
@@ -93,6 +112,10 @@ describe("Overview", () => {
       new Date(bounds.to).getTime() - new Date(bounds.from).getTime(),
     ).toBe(24 * 60 * 60 * 1000);
     expect(mocks.useGroupedEvents).toHaveBeenCalledWith({
+      from: bounds.from,
+      to: bounds.to,
+    });
+    expect(mocks.useFunnelMetrics).toHaveBeenCalledWith({
       from: bounds.from,
       to: bounds.to,
     });
@@ -146,6 +169,80 @@ describe("Overview", () => {
         "The highest-volume auth events across the last 7 days.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("renders each funnel median with the p90 and count behind it", () => {
+    renderPage("/?range=7d");
+
+    expect(screen.getByText("Time to registration")).toBeInTheDocument();
+    expect(screen.getByText("1m 24s")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "p90 4m 21s across 412 registrations in the last 7 days",
+      ),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText("Time to login")).toBeInTheDocument();
+    expect(screen.getByText("6.4s")).toBeInTheDocument();
+    expect(
+      screen.getByText("p90 41s across 3,188 sign-ins in the last 7 days"),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText("Passkey adoption")).toBeInTheDocument();
+    expect(screen.getByText("59%")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "301 of 512 accounts created in the last 7 days hold a passkey",
+      ),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText("Time to first passkey")).toBeInTheDocument();
+    expect(screen.getByText("1m 58s")).toBeInTheDocument();
+    expect(
+      screen.getByText("p90 1d across 301 enrollments in the last 7 days"),
+    ).toBeInTheDocument();
+  });
+
+  it("says when there was nothing to measure instead of showing zeros", () => {
+    // A fresh deployment has no completed registrations. Rendering the null
+    // median as "0.0s" would claim they finished instantly, and a 0% adoption
+    // rate over zero accounts would read as a real figure.
+    mocks.useFunnelMetrics.mockReturnValue({
+      data: {
+        timeToRegistration: emptyInterval,
+        timeToLogin: emptyInterval,
+        passkeyAdoption: { users: 0, withPasskey: 0, rate: 0 },
+        timeToFirstPasskey: emptyInterval,
+      },
+      isError: false,
+      error: null,
+      refetch: mocks.refetch,
+    });
+
+    renderPage();
+
+    expect(screen.getAllByText("n/a")).toHaveLength(4);
+    expect(
+      screen.getByText("No registrations completed in the last 24 hours"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("No accounts created in the last 24 hours"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("0%")).not.toBeInTheDocument();
+  });
+
+  it("surfaces a failed funnel query without taking down the page", () => {
+    mocks.useFunnelMetrics.mockReturnValue({
+      data: undefined,
+      isError: true,
+      error: new Error("funnel exploded"),
+      refetch: mocks.refetch,
+    });
+
+    renderPage();
+
+    expect(screen.getByText("Funnel metrics unavailable")).toBeInTheDocument();
+    expect(screen.getByTestId("line-chart")).toBeInTheDocument();
   });
 
   it("surfaces a failed chart query without taking down the page", () => {
