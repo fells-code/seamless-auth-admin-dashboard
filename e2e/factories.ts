@@ -250,6 +250,32 @@ export function makeFunnelMetrics() {
   };
 }
 
+export function makeSignInMetrics() {
+  return {
+    deploymentId: "gen-42",
+    attempts: { started: 412, delivered: 130, presented: 388, completed: 371 },
+    signIns: { success: 371, failed: 21, successRate: 371 / 392 },
+    breakdown: [
+      {
+        method: "passkey",
+        deviceClass: "ios",
+        mailProvider: "gmail",
+        owner: false,
+        success: 202,
+        failed: 4,
+      },
+      {
+        method: "magic_link",
+        deviceClass: "windows",
+        mailProvider: "other",
+        owner: true,
+        success: 169,
+        failed: 17,
+      },
+    ],
+  };
+}
+
 export function makeSystemConfig(
   overrides: Partial<SystemConfig> = {},
 ): SystemConfig {

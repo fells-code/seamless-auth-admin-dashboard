@@ -14,7 +14,9 @@ import { useAuthTimeseries } from "../hooks/useAuthTimeseries";
 import { useGroupedEvents } from "../hooks/useGroupedEvents";
 import { useFunnelMetrics } from "../hooks/useFunnelMetrics";
 import type { IntervalStats } from "../hooks/useFunnelMetrics";
+import { useSignInMetrics } from "../hooks/useSignInMetrics";
 import LineChart from "../components/LineChart";
+import OutcomeBreakdown from "../components/OutcomeBreakdown";
 import PieChart from "../components/PieChart";
 import Skeleton from "../components/Skeleton";
 import StatCard from "../components/StatCard";
@@ -24,6 +26,7 @@ import RangeFilter from "../components/RangeFilter";
 import { getErrorMessage } from "../lib/errorMessage";
 import { formatBytes } from "../lib/formatBytes";
 import { formatDuration } from "../lib/formatDuration";
+import { describeDropOff, pivotBreakdown } from "../lib/signInBreakdown";
 import {
   applyRangeToParams,
   describeRange,
@@ -103,6 +106,21 @@ export default function Overview() {
     error: funnelErrorValue,
     refetch: refetchFunnel,
   } = useFunnelMetrics(bounds);
+  const {
+    data: signIns,
+    isError: signInsError,
+    error: signInsErrorValue,
+    refetch: refetchSignIns,
+  } = useSignInMetrics(bounds);
+
+  const dropOff = signIns ? describeDropOff(signIns.attempts) : undefined;
+  const byMethod = signIns ? pivotBreakdown(signIns.breakdown, "method") : [];
+  const byDevice = signIns
+    ? pivotBreakdown(signIns.breakdown, "deviceClass")
+    : [];
+  const byProvider = signIns
+    ? pivotBreakdown(signIns.breakdown, "mailProvider")
+    : [];
 
   const totalAttempts =
     (data?.loginSuccess24h ?? 0) + (data?.loginFailed24h ?? 0);
@@ -172,6 +190,7 @@ export default function Overview() {
                   void refetchTimeseries();
                   void refetchGrouped();
                   void refetchFunnel();
+                  void refetchSignIns();
                 }}
                 isRefreshing={isFetching}
                 updatedAt={dataUpdatedAt}
@@ -340,6 +359,76 @@ export default function Overview() {
               )}
             />
           </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-32 rounded-2xl" />
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section
+        title="Sign-in Outcomes"
+        description={`How sign-in attempts in ${rangeLabel} ended, and where the ones that did not get in stopped. Counted per attempt, so a code mistyped and then entered correctly is one success.`}
+      >
+        {signInsError ? (
+          <StateMessage
+            tone="error"
+            title="Sign-in metrics unavailable"
+            description={getErrorMessage(signInsErrorValue)}
+          />
+        ) : signIns && dropOff ? (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <StatCard
+                label="Sign-in success"
+                value={
+                  signIns.signIns.success + signIns.signIns.failed > 0
+                    ? formatPercent(signIns.signIns.successRate)
+                    : "n/a"
+                }
+                hint={
+                  signIns.signIns.success + signIns.signIns.failed > 0
+                    ? `${signIns.signIns.success.toLocaleString()} got in, ${signIns.signIns.failed.toLocaleString()} did not, in ${rangeLabel}`
+                    : `No factors presented in ${rangeLabel}`
+                }
+              />
+              <StatCard
+                label="Attempts started"
+                value={signIns.attempts.started.toLocaleString()}
+                hint={`${signIns.attempts.presented.toLocaleString()} presented a factor and ${signIns.attempts.completed.toLocaleString()} completed in ${rangeLabel}`}
+              />
+              <StatCard
+                label="Gave up early"
+                value={dropOff.abandoned.toLocaleString()}
+                hint="Started and never presented a factor"
+              />
+              <StatCard
+                label="Failed and stopped"
+                value={dropOff.stopped.toLocaleString()}
+                hint="Presented a factor and never got in"
+              />
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-3">
+              <OutcomeBreakdown
+                title="By method"
+                entries={byMethod}
+                emptyDescription={`No factors presented in ${rangeLabel}`}
+              />
+              <OutcomeBreakdown
+                title="By device"
+                entries={byDevice}
+                emptyDescription={`No factors presented in ${rangeLabel}`}
+              />
+              <OutcomeBreakdown
+                title="By mail provider"
+                entries={byProvider}
+                emptyDescription={`No factors presented in ${rangeLabel}`}
+              />
+            </div>
+          </>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (

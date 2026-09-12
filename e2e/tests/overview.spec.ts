@@ -175,6 +175,50 @@ test.describe("Overview", () => {
     expect(second).toBe(7 * 24 * 60 * 60 * 1000);
   });
 
+  test("renders the sign-in outcomes with the drop-off and each breakdown", async ({
+    page,
+    signInAs,
+  }) => {
+    await signInAs("writeAdmin");
+
+    await expect(
+      page.getByRole("heading", { name: "Sign-in Outcomes" }),
+    ).toBeVisible();
+
+    await expect(statCard(page, "Sign-in success")).toContainText("95%");
+    await expect(statCard(page, "Sign-in success")).toContainText(
+      "371 got in, 21 did not",
+    );
+    await expect(statCard(page, "Gave up early")).toContainText("24");
+    await expect(statCard(page, "Failed and stopped")).toContainText("17");
+
+    const byDevice = page.getByRole("group", { name: "By device" });
+    await expect(byDevice).toContainText("iOS");
+    await expect(byDevice).toContainText("202 of 206");
+    await expect(
+      page.getByRole("group", { name: "By mail provider" }),
+    ).toContainText("Other domains");
+  });
+
+  test("keeps the page up when only the sign-in query fails", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    api.get("/internal/metrics/sign-ins", {
+      status: 500,
+      json: { error: "sign-ins unavailable" },
+    });
+
+    await signInAs("writeAdmin");
+    await drainRetries(page);
+
+    await expect(page.getByText("Sign-in metrics unavailable")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Passwordless Funnel" }),
+    ).toBeVisible();
+  });
+
   test("keeps the page up when only the funnel query fails", async ({
     page,
     api,
