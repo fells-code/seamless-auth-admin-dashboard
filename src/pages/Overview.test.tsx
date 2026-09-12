@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   useAuthTimeseries: vi.fn(),
   useGroupedEvents: vi.fn(),
   useFunnelMetrics: vi.fn(),
+  useSignInMetrics: vi.fn(),
   refetch: vi.fn(),
 }));
 
@@ -26,6 +27,9 @@ vi.mock("../hooks/useGroupedEvents", () => ({
 }));
 vi.mock("../hooks/useFunnelMetrics", () => ({
   useFunnelMetrics: mocks.useFunnelMetrics,
+}));
+vi.mock("../hooks/useSignInMetrics", () => ({
+  useSignInMetrics: mocks.useSignInMetrics,
 }));
 
 // Recharts measures its container, which jsdom reports as zero, so the charts
@@ -56,6 +60,37 @@ const funnel = {
 };
 
 const emptyInterval = { count: 0, medianSeconds: null, p90Seconds: null };
+
+const signIns = {
+  deploymentId: "gen-42",
+  attempts: { started: 412, delivered: 130, presented: 388, completed: 371 },
+  signIns: { success: 371, failed: 21, successRate: 371 / 392 },
+  breakdown: [
+    {
+      method: "passkey",
+      deviceClass: "ios",
+      mailProvider: "gmail",
+      owner: false,
+      success: 202,
+      failed: 4,
+    },
+    {
+      method: "magic_link",
+      deviceClass: "windows",
+      mailProvider: "other",
+      owner: true,
+      success: 169,
+      failed: 17,
+    },
+  ],
+};
+
+const emptySignIns = {
+  deploymentId: null,
+  attempts: { started: 0, delivered: 0, presented: 0, completed: 0 },
+  signIns: { success: 0, failed: 0, successRate: 0 },
+  breakdown: [],
+};
 
 function renderPage(initialEntry = "/") {
   return render(
@@ -98,6 +133,12 @@ describe("Overview", () => {
       error: null,
       refetch: mocks.refetch,
     });
+    mocks.useSignInMetrics.mockReturnValue({
+      data: signIns,
+      isError: false,
+      error: null,
+      refetch: mocks.refetch,
+    });
   });
 
   it("defaults the charts to a 24 hour window bucketed by hour", () => {
@@ -116,6 +157,10 @@ describe("Overview", () => {
       to: bounds.to,
     });
     expect(mocks.useFunnelMetrics).toHaveBeenCalledWith({
+      from: bounds.from,
+      to: bounds.to,
+    });
+    expect(mocks.useSignInMetrics).toHaveBeenCalledWith({
       from: bounds.from,
       to: bounds.to,
     });
@@ -229,6 +274,75 @@ describe("Overview", () => {
       screen.getByText("No accounts created in the last 24 hours"),
     ).toBeInTheDocument();
     expect(screen.queryByText("0%")).not.toBeInTheDocument();
+  });
+
+  it("renders the sign-in outcomes with the drop-off and each breakdown", () => {
+    renderPage("/?range=7d");
+
+    expect(screen.getByText("Sign-in success")).toBeInTheDocument();
+    expect(screen.getByText("95%")).toBeInTheDocument();
+    expect(
+      screen.getByText("371 got in, 21 did not, in the last 7 days"),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText("Attempts started")).toBeInTheDocument();
+    expect(screen.getByText("412")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "388 presented a factor and 371 completed in the last 7 days",
+      ),
+    ).toBeInTheDocument();
+
+    // started - presented, and presented - completed.
+    expect(screen.getByText("Gave up early")).toBeInTheDocument();
+    expect(screen.getByText("24")).toBeInTheDocument();
+    expect(screen.getByText("Failed and stopped")).toBeInTheDocument();
+    expect(screen.getByText("17")).toBeInTheDocument();
+
+    const byMethod = screen.getByRole("group", { name: "By method" });
+    expect(byMethod).toHaveTextContent("Passkey");
+    expect(byMethod).toHaveTextContent("98%");
+    expect(byMethod).toHaveTextContent("202 of 206");
+    expect(byMethod).toHaveTextContent("Magic link");
+
+    expect(screen.getByRole("group", { name: "By device" })).toHaveTextContent(
+      "iOS",
+    );
+    expect(
+      screen.getByRole("group", { name: "By mail provider" }),
+    ).toHaveTextContent("Other domains");
+  });
+
+  it("says when no factor was presented instead of showing a 0% success rate", () => {
+    mocks.useSignInMetrics.mockReturnValue({
+      data: emptySignIns,
+      isError: false,
+      error: null,
+      refetch: mocks.refetch,
+    });
+
+    renderPage();
+
+    // The stat card and the three breakdowns all say so.
+    expect(
+      screen.getAllByText("No factors presented in the last 24 hours"),
+    ).toHaveLength(4);
+    expect(screen.queryByText("0%")).not.toBeInTheDocument();
+  });
+
+  it("surfaces a failed sign-in query without taking down the page", () => {
+    mocks.useSignInMetrics.mockReturnValue({
+      data: undefined,
+      isError: true,
+      error: new Error("sign-ins exploded"),
+      refetch: mocks.refetch,
+    });
+
+    renderPage();
+
+    expect(screen.getByText("Sign-in metrics unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Passwordless Funnel")).toBeInTheDocument();
+    expect(screen.getByTestId("line-chart")).toBeInTheDocument();
   });
 
   it("surfaces a failed funnel query without taking down the page", () => {
