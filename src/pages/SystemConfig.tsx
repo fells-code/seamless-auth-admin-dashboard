@@ -77,14 +77,14 @@ const AUTHENTICATOR_POLICY_FALLBACK: AuthenticatorPolicy = {
   userVerification: "required",
   attestation: "none",
   requireKnownAuthenticator: false,
-  syncedPasskeys: "block",
+  syncedPasskeys: "allow",
   aaguidAllowList: [],
   aaguidDenyList: [],
 };
 
 const SYNCED_PASSKEY_OPTIONS: { value: "allow" | "block"; label: string }[] = [
-  { value: "block", label: "Block (default)" },
-  { value: "allow", label: "Allow" },
+  { value: "allow", label: "Allow (default)" },
+  { value: "block", label: "Block" },
 ];
 
 const ATTACHMENT_OPTIONS: {
@@ -788,7 +788,7 @@ export default function SystemConfigPage() {
             <StateMessage
               tone="warning"
               title="Synced passkeys are blocked"
-              description="Registration refuses any backup-eligible credential, which is most consumer passkeys: iCloud Keychain, Google Password Manager, and similar. This is the shipped default. Allow them if your users enrol from a platform password manager."
+              description="Registration refuses any backup-eligible credential, which is most consumer passkeys: iCloud Keychain, Google Password Manager, and similar. Allow them if your users enrol from a platform password manager."
             />
           )}
 
