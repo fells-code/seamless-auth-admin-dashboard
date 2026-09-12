@@ -1,5 +1,64 @@
 # seamless-auth-admin-dashboard
 
+## 0.7.0
+
+### Minor Changes
+
+- 7dd6be5: Show the passwordless funnel on the Overview screen.
+
+  A new section between the deployment tiles and the charts reads
+  `GET /internal/metrics/funnel` and renders four figures for the selected range: time to
+  registration, time to login, passkey adoption, and time to first passkey. Each is a
+  median, with the p90 and the number of readings it was computed over beneath it, so a
+  median of three registrations is not mistaken for one of three thousand. When there was
+  nothing to measure the tile says so rather than rendering a null as `0.0s` or an empty
+  cohort as `0%`.
+
+  The section follows the range selector and the refresh control like the charts do, and
+  a failed funnel query is reported in place without taking the rest of the screen down.
+  The Operator Focus card that counts passkey sign-ins in the last 24 hours is retitled
+  from "Passkey adoption" to "Passkey sign-ins", since adoption now has its own figure.
+
+  Needs a Seamless Auth API that serves the funnel endpoint and a server adapter that
+  passes it through.
+
+- 78f02f4: Show sign-in outcomes on the Overview screen.
+
+  A "Sign-in Outcomes" section sits under the passwordless funnel and reads
+  `GET /internal/metrics/sign-ins` (fells-code/seamless-auth-api#306) for the selected range: the
+  success rate with the counts behind it, how many attempts started, how many gave up before
+  presenting a factor, and how many presented one and never got in. Beneath those, three
+  breakdowns (by method, by device, by mail provider) each list the success rate and the count
+  per value, busiest first.
+
+  The API counts per attempt rather than per event, so a code mistyped and then entered
+  correctly is one success, and the section says so. A row whose device class or mail provider
+  is unknown (written before the columns existed, or with no known subject) is listed as
+  "Unknown" rather than dropped, since it still holds attempts. When no factor was presented in
+  the range the section says that instead of rendering a 0% rate.
+
+  The section follows the range selector and the refresh control, and answers "Sign-in metrics
+  unavailable" in place against a deployment that does not serve the route, with the rest of the
+  screen unaffected. Depends on the adapter passthrough in fells-code/seamless-auth-server#161.
+
+### Patch Changes
+
+- 984893f: Stop telling operators that blocking synced passkeys is the shipped default.
+
+  The Authenticator Policy section said so in the banner shown when the policy is
+  `block`, labelled that option as the default, and fell back to `block` for a
+  deployment that had not yet persisted the policy. All three were written against
+  `@seamless-auth/types` 0.18.0, which did default to `block`. The API reversed that
+  in 0.19.0 and seeds `syncedPasskeys: "allow"`, so a stock install accepts iCloud
+  Keychain and Google Password Manager credentials, and an operator who wanted them
+  refused could read the page as saying the work was already done.
+
+  The banner no longer claims a default, `Allow` is labelled as the default, and the
+  fallback policy matches the API seed. The `@seamless-auth/types` floor is raised to
+  0.20.0 so the schema default and the API agree, which removes the underlying cause.
+  The v0.6.0 entry below that describes the default as `block` was accurate for 0.18.0
+  and is superseded by this note.
+
 ## 0.6.0
 
 ### Minor Changes
