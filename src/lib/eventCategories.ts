@@ -105,7 +105,10 @@ export const eventCategories: EventCategory[] = [
     value: "user",
     match: exact([
       "admin_device_replacement_recovery",
+      "admin_enrollment_invite_sent",
       "admin_session_revoked",
+      "admin_user_import_completed",
+      "admin_user_imported",
       "credentials_deleted",
       "internal_user_updated_by_owner",
       "user_created",
@@ -117,7 +120,7 @@ export const eventCategories: EventCategory[] = [
   {
     label: "System Config",
     value: "system",
-    match: startsWithAny(["system_config_"]),
+    match: startsWithAny(["system_config_", "admin_oauth_provider_"]),
   },
   {
     label: "JWKS",

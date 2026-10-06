@@ -155,6 +155,23 @@ describe("SystemConfigPage", () => {
     expect(mocks.useStepUpGuard()).toHaveBeenCalled();
   });
 
+  it("saves the passkey enrollment prompt setting", async () => {
+    renderPage();
+
+    const toggle = screen.getByRole("checkbox", {
+      name: /prompt for passkey enrollment/i,
+    });
+    expect(toggle).not.toBeChecked();
+
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => expect(mocks.mutate).toHaveBeenCalled());
+    expect(mocks.mutate.mock.calls[0]![0]).toEqual({
+      prompt_passkey_enrollment: true,
+    });
+  });
+
   it("sends only changed keys, not the full config, on save", async () => {
     // The GET response carries read-only keys (such as frontend_url) that the
     // strict PATCH schema rejects. Saving must send only the edited fields.

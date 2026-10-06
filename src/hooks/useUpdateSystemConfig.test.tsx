@@ -45,6 +45,7 @@ const config: SystemConfig = {
   delay_after: 50,
   login_methods: ["passkey"],
   passkey_login_fallback_enabled: true,
+  prompt_passkey_enrollment: false,
   oauth_providers: [],
   lockout_policy: {
     enabled: true,
@@ -63,6 +64,12 @@ const config: SystemConfig = {
   },
   session_idle_ttl: "8h",
   magic_link_redirect_uris: [],
+  flow_rate_limits: {
+    windowSeconds: 900,
+    otp: { perIp: 10, perIdentity: 5 },
+    magicLink: { perIp: 20, perIdentity: 5 },
+    oauth: { perIp: 30, perProvider: 10 },
+  },
   rpid: "example.com",
   origins: ["https://example.com"],
 };
