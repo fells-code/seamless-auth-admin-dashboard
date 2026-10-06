@@ -35,6 +35,9 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
+      - name: Check @seamless-auth/types is current
+        run: npm run check:types-current
+
       - name: Run Tests with Coverage
         run: npm run coverage
 

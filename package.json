@@ -22,6 +22,7 @@
     "test:e2e:ui": "playwright test --ui",
     "coverage": "vitest run --coverage",
     "typecheck": "tsc -b",
+    "check:types-current": "node scripts/check-types-current.mjs",
     "docker:build": "docker build -t seamless-admin:local .",
     "docker:run": "docker run -p 8080:8080 -e API_URL=${API_URL:-http://localhost:3000} seamless-admin:local"
   },
