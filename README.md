@@ -499,4 +499,4 @@ requests, but it is only a nudge and never blocks a contribution.
 
 ## License
 
-AGPL-3.0
+Apache-2.0
