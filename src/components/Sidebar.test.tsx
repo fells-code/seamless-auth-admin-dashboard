@@ -24,6 +24,10 @@ describe("Sidebar", () => {
       screen.getByRole("link", { name: /Organizations/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /System/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Enrollment/i })).toHaveAttribute(
+      "href",
+      "/enrollment",
+    );
   });
 
   it("marks the current route as active", () => {

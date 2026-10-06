@@ -637,6 +637,16 @@ export default function SystemConfigPage() {
             }
             disabled={!canWrite}
           />
+
+          <CheckboxField
+            label="Prompt for passkey enrollment"
+            description="After an email or phone code or magic link sign-in, users without a passkey are sent to add one."
+            checked={form.prompt_passkey_enrollment ?? false}
+            onChange={(checked) =>
+              updateField("prompt_passkey_enrollment", checked)
+            }
+            disabled={!canWrite}
+          />
         </div>
       </Section>
 
@@ -1402,6 +1412,7 @@ const emptyOAuthProvider: OAuthProviderConfig = {
   allowSignup: true,
   accountLinking: "email",
   requireEmailVerified: false,
+  promptPasskeyEnrollment: false,
 };
 
 // Fills only what a controlled input needs, without inventing values the stored

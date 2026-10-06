@@ -15,6 +15,7 @@ import {
   KeyRound,
   Settings,
   Building2,
+  Fingerprint,
 } from "lucide-react";
 import packageJson from "../../package.json";
 import { trapTabKey } from "../lib/focusTrap";
@@ -23,6 +24,7 @@ const navItems = [
   { name: "Overview", path: "/", icon: LayoutDashboard },
   { name: "Users", path: "/users", icon: Users },
   { name: "Organizations", path: "/organizations", icon: Building2 },
+  { name: "Enrollment", path: "/enrollment", icon: Fingerprint },
   { name: "Sessions", path: "/sessions", icon: KeyRound },
   { name: "Events", path: "/events", icon: Activity },
   { name: "Security", path: "/security", icon: Shield },
