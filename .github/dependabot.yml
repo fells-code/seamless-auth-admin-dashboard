@@ -18,6 +18,10 @@ updates:
       - dependency-name: "node"
         update-types:
           - "version-update:semver-major"
+    groups:
+      docker-images:
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -27,6 +31,10 @@ updates:
       prefix: "ci"
     labels:
       - "dependencies"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: "npm"
     directory: "/"
@@ -40,6 +48,12 @@ updates:
     # Group routine bumps so review stays manageable. Major updates still open
     # individually because they are the ones that need a real look.
     groups:
+      # Vitest and its coverage provider must stay on the same version, so
+      # they move together, majors included.
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
       production-dependencies:
         dependency-type: "production"
         update-types:
