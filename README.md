@@ -300,8 +300,8 @@ target user. The dashboard shows only the resulting counts and never displays cr
 
 ## Development
 
-This repository targets Node 24, pinned in `.nvmrc` and enforced through the
-`engines` field.
+This repository supports Node 22 or newer (the `engines` field requires `>=22`).
+`.nvmrc` pins Node 24 for development, and the Docker images build on Node 24.
 
 ```bash
 nvm use
