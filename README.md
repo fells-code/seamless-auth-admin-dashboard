@@ -9,7 +9,26 @@ This app is intended to run alongside the Seamless Auth API as part of a self-ho
 
 ![The Overview page: a live snapshot of authentication health, growth, and security signals.](docs/screenshots/overview.png)
 
-## Quick Start
+## Start here
+
+New to Seamless Auth? The [self-hosted quickstart](https://docs.seamlessauth.com/start/quickstart/) runs the full stack locally with Docker. If Seamless hosts your auth instance, follow the [managed quickstart](https://docs.seamlessauth.com/start/managed-quickstart/) instead.
+
+This repo is the admin dashboard, an operator browser app that calls the `/auth` routes on your backend, either from its own container or served same-origin at `/console`.
+
+```mermaid
+flowchart LR
+  browser["Browser<br/>@seamless-auth/react"] -- "signed httpOnly cookies" --> backend
+  native["Native app<br/>@seamless-auth/react-native"] -- "bearer tokens" --> backend
+  dashboard["Admin dashboard<br/>seamless-auth-admin-dashboard"] -. "admin calls to /auth" .-> backend
+  backend["Your backend<br/>@seamless-auth/express, fastify, or nextjs<br/>mounted at /auth"] -- "bearer token + service token" --> api
+  api["seamless-auth-api<br/>owns the session"] --> db[("Postgres")]
+  backend -. "verifies tokens with JWKS" .-> api
+  style dashboard stroke-width:3px
+```
+
+[How the pieces connect](https://docs.seamlessauth.com/start/overview/#how-the-pieces-connect) explains each hop. [Compatibility matrix](https://docs.seamlessauth.com/build/ecosystem/#compatibility-matrix) lists which package versions work together.
+
+### Quick Start
 
 The dashboard is published as a public container image. Point `API_URL` at the
 origin serving your Seamless Auth server adapter and it is ready to use:
