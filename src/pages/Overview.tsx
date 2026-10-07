@@ -9,6 +9,7 @@ import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowRight, ShieldAlert, Users, Waves } from "lucide-react";
 import { useDashboard } from "../hooks/useDashboard";
+import { dashboardFigures } from "../lib/dashboardFigures";
 import RefreshControl from "../components/RefreshControl";
 import { useAuthTimeseries } from "../hooks/useAuthTimeseries";
 import { useGroupedEvents } from "../hooks/useGroupedEvents";
@@ -23,6 +24,7 @@ import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
 import { QueryErrorState, StateMessage } from "../components/StateMessage";
 import RangeFilter from "../components/RangeFilter";
+import ReviewAccountsNotice from "../components/ReviewAccountsNotice";
 import { getErrorMessage } from "../lib/errorMessage";
 import { formatBytes } from "../lib/formatBytes";
 import { formatDuration } from "../lib/formatDuration";
@@ -87,7 +89,7 @@ export default function Overview() {
     refetch,
     isFetching,
     dataUpdatedAt,
-  } = useDashboard();
+  } = useDashboard(bounds);
   const {
     data: timeseries,
     isError: timeseriesError,
@@ -122,13 +124,15 @@ export default function Overview() {
     ? pivotBreakdown(signIns.breakdown, "mailProvider")
     : [];
 
-  const totalAttempts =
-    (data?.loginSuccess24h ?? 0) + (data?.loginFailed24h ?? 0);
+  const figures = dashboardFigures(data);
+  // Said wherever a figure appears, so a tile never claims to follow the range
+  // selector while an API that predates ranges is still giving it 24 hours.
+  const figuresWindow = figures.ranged ? rangeLabel : "the last 24 hours";
+  const totalAttempts = figures.loginSuccess + figures.loginFailed;
   // With no attempts in the window there is no rate to report. Deriving one
   // anyway rendered "100%" next to "Elevated enough to merit review" on the
   // landing screen, which reads as a complete authentication outage.
-  const failureRate =
-    totalAttempts > 0 ? 1 - (data?.successRate24h ?? 0) : null;
+  const failureRate = totalAttempts > 0 ? 1 - figures.successRate : null;
 
   const busiestBucket = timeseries?.timeseries.length
     ? timeseries.timeseries.reduce((best, point) => {
@@ -160,6 +164,8 @@ export default function Overview() {
 
   return (
     <div className="space-y-8">
+      <ReviewAccountsNotice />
+
       <section className="overflow-hidden rounded-[28px] border border-subtle bg-surface shadow-[0_1px_0_rgba(255,255,255,0.35)_inset]">
         <div className="relative px-6 py-6 lg:px-8 lg:py-8">
           <div className="pointer-events-none absolute inset-0">
@@ -176,9 +182,10 @@ export default function Overview() {
                 <h1 className="heading-1">Overview</h1>
                 <p className="max-w-2xl text-sm text-muted">
                   A live snapshot of authentication health, growth, and operator
-                  attention areas across your Seamless Auth deployment. The
-                  range below drives the activity chart and the event
-                  distribution.
+                  attention areas across your Seamless Auth deployment.{" "}
+                  {figures.ranged
+                    ? "The range below drives every figure on this screen apart from the current totals."
+                    : "The range below drives the activity chart and the event distribution."}
                 </p>
               </div>
 
@@ -204,7 +211,11 @@ export default function Overview() {
 
               <div className="flex flex-wrap gap-2">
                 <StatusPill
-                  label="24h auth attempts (fixed window)"
+                  label={
+                    figures.ranged
+                      ? `Auth attempts in ${rangeLabel}`
+                      : "24h auth attempts (fixed window)"
+                  }
                   value={totalAttempts.toLocaleString()}
                 />
                 <StatusPill
@@ -235,8 +246,8 @@ export default function Overview() {
               <HighlightPanel
                 icon={Users}
                 title="User growth"
-                value={`${data?.newUsers24h ?? 0}`}
-                description="Accounts created in the last 24 hours."
+                value={`${figures.newUsers}`}
+                description={`Accounts created in ${figuresWindow}.`}
                 onClick={() => navigate("/users")}
                 actionLabel="Review Users"
               />
@@ -244,8 +255,8 @@ export default function Overview() {
               <HighlightPanel
                 icon={Waves}
                 title="Event traffic"
-                value={formatPercent(data?.successRate24h ?? 0)}
-                description="Authentication success rate across recent traffic."
+                value={formatPercent(figures.successRate)}
+                description={`Authentication success rate in ${figuresWindow}.`}
                 onClick={() => navigate("/events")}
                 actionLabel="Inspect Events"
               />
@@ -256,9 +267,9 @@ export default function Overview() {
 
       <div className="space-y-3">
         <p className="text-sm text-muted">
-          Deployment metrics cover a fixed 24-hour window. The metrics endpoint
-          takes no date range, so these figures do not follow the range
-          selector.
+          {figures.ranged
+            ? `Users, Database and Sessions are current totals. The login figures cover ${rangeLabel}.`
+            : "Deployment metrics cover a fixed 24-hour window. This API's metrics endpoint takes no date range, so these figures do not follow the range selector."}
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -271,7 +282,7 @@ export default function Overview() {
               <StatCard
                 label="Users"
                 value={data?.totalUsers ?? 0}
-                hint={`${data?.newUsers24h ?? 0} new in the last 24 hours`}
+                hint={`${figures.newUsers} new in ${figuresWindow}`}
               />
               <StatCard
                 label="Database"
@@ -281,11 +292,11 @@ export default function Overview() {
               <StatCard
                 label="Sessions"
                 value={data?.activeSessions ?? 0}
-                hint="Active sessions in the last 24 hours"
+                hint="Currently active sessions"
               />
               <StatCard
                 label="Successful Logins"
-                value={data?.loginSuccess24h ?? 0}
+                value={figures.loginSuccess}
                 hint={`${totalAttempts.toLocaleString()} total attempts in the same window`}
               />
               <StatCard
@@ -492,25 +503,25 @@ export default function Overview() {
 
       <Section
         title="Operator Focus"
-        description="Use this section to quickly decide where to spend attention next. These figures come from the fixed 24-hour metrics window."
+        description={`Use this section to quickly decide where to spend attention next. These figures cover ${figuresWindow}.`}
       >
         <div className="grid gap-4 lg:grid-cols-3">
           <ActionCard
-            tone={(data?.loginFailed24h ?? 0) > 0 ? "danger" : "neutral"}
+            tone={figures.loginFailed > 0 ? "danger" : "neutral"}
             title="Failed logins"
-            value={`${data?.loginFailed24h ?? 0}`}
+            value={`${figures.loginFailed}`}
             description="Recent login failures are the fastest signal of friction or abuse."
             actionLabel="Investigate security"
             onClick={() => navigate("/security")}
           />
 
-          {/* passkeyUsage24h counts passkey sign-ins. Adoption, the share of
+          {/* passkeyUsage counts passkey sign-ins. Adoption, the share of
               accounts holding one, is the funnel figure above, and the two
               used to share a title. */}
           <ActionCard
             tone="neutral"
             title="Passkey sign-ins"
-            value={`${data?.passkeyUsage24h ?? 0}`}
+            value={`${figures.passkeyUsage}`}
             description="Passkey usage helps show whether stronger authentication paths are gaining traction."
             actionLabel="Explore events"
             onClick={() => navigate("/events")}
@@ -519,7 +530,7 @@ export default function Overview() {
           <ActionCard
             tone="neutral"
             title="New user activity"
-            value={`${data?.newUsers24h ?? 0}`}
+            value={`${figures.newUsers}`}
             description="Freshly created accounts can point to product growth, onboarding spikes, or provisioning issues."
             actionLabel="Open users"
             onClick={() => navigate("/users")}

@@ -4,16 +4,25 @@
  * See LICENSE file in the project root for full license information
  */
 
-// src/hooks/useAnomalies.ts
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
 import type { SecurityAnomaliesResponse } from "@seamless-auth/types";
 
-export function useAnomalies() {
+export function useAnomalies(params: { from?: string; to?: string } = {}) {
+  const query = new URLSearchParams();
+
+  if (params.from) query.set("from", params.from);
+  if (params.to) query.set("to", params.to);
+
+  const search = query.toString();
+
   return useQuery({
-    queryKey: ["anomalies"],
+    queryKey: ["anomalies", params.from, params.to],
     queryFn: () =>
-      apiFetch<SecurityAnomaliesResponse>("/internal/security/anomalies"),
+      apiFetch<SecurityAnomaliesResponse>(
+        `/internal/security/anomalies${search ? `?${search}` : ""}`,
+      ),
+    placeholderData: keepPreviousData,
     // The monitoring screens describe themselves as live, so revalidate on an
     // interval and when the operator returns to the tab. Manual refresh stays
     // available for anything more immediate.

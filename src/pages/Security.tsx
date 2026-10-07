@@ -83,7 +83,7 @@ export default function Security() {
     error: anomaliesErrorValue,
     refetch: refetchAnomalies,
     isFetching: fetchingAnomalies,
-  } = useAnomalies();
+  } = useAnomalies(bounds);
   const {
     data: stats,
     isLoading: loadingStats,
@@ -104,6 +104,12 @@ export default function Security() {
   const returnedCount = suspiciousEvents.length;
   const reportedTotal = anomalies?.total ?? returnedCount;
   const isTruncated = reportedTotal > returnedCount;
+  // An API that predates ranges ignores the bounds and echoes no window, so the feed
+  // is labelled by what actually came back rather than by what was asked for.
+  const anomaliesRanged = anomalies?.window !== undefined;
+  const anomaliesWindow = anomaliesRanged
+    ? rangeLabel
+    : "the feed's own fixed window";
 
   const exportSignals = () =>
     exportCsv(
@@ -196,8 +202,10 @@ export default function Security() {
                 <h1 className="heading-1">Security</h1>
                 <p className="max-w-2xl text-sm text-muted">
                   Review failed logins, suspicious event types, and the spread
-                  of anomalous activity across IPs and recent auth traffic. The
-                  range below drives the login statistics.
+                  of anomalous activity across IPs and recent auth traffic.{" "}
+                  {anomaliesRanged
+                    ? "The range below drives every figure on this screen."
+                    : "The range below drives the login statistics."}
                 </p>
               </div>
 
@@ -209,7 +217,11 @@ export default function Security() {
 
               <div className="flex flex-wrap gap-2">
                 <SignalPill
-                  label="Suspicious signals (fixed window)"
+                  label={
+                    anomaliesRanged
+                      ? `Suspicious signals in ${rangeLabel}`
+                      : "Suspicious signals (fixed window)"
+                  }
                   value={
                     isTruncated
                       ? `${returnedCount} of ${reportedTotal}`
@@ -281,8 +293,8 @@ export default function Security() {
           value={returnedCount}
           hint={
             isTruncated
-              ? `Showing ${returnedCount} of ${reportedTotal} reported signals, on the feed's own fixed window`
-              : "Signals surfaced by the anomaly feed, on its own fixed window"
+              ? `Showing ${returnedCount} of ${reportedTotal} reported signals in ${anomaliesWindow}`
+              : `Signals surfaced by the anomaly feed in ${anomaliesWindow}`
           }
         />
       </div>
@@ -323,7 +335,11 @@ export default function Security() {
 
       <Section
         title="Suspicious Activity"
-        description="Security-related anomalies surfaced by the backend anomaly feed. The feed takes no date range, so this table and the counts drawn from it stay on a fixed window and do not follow the range selector."
+        description={
+          anomaliesRanged
+            ? `Failed and suspicious auth events in ${rangeLabel}, newest first.`
+            : "Security-related anomalies surfaced by the backend anomaly feed. This API's feed takes no date range, so this table and the counts drawn from it stay on a fixed window and do not follow the range selector."
+        }
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <RefreshControl

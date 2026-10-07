@@ -96,3 +96,39 @@ describe.each(fixedEndpointHooks)("$name", ({ use, path }) => {
     expect(result.current.error).toBeInstanceOf(Error);
   });
 });
+
+// Ranged since the API took from/to on both (fells-code/seamless-auth-api#132).
+describe.each([
+  {
+    name: "useDashboard",
+    use: useDashboard,
+    path: "/internal/metrics/dashboard",
+  },
+  {
+    name: "useAnomalies",
+    use: useAnomalies,
+    path: "/internal/security/anomalies",
+  },
+])("$name with a range", ({ use, path }) => {
+  beforeEach(() => {
+    apiFetch.mockReset();
+    apiFetch.mockResolvedValue({});
+  });
+
+  it("sends the window", async () => {
+    const { result } = renderHook(
+      () =>
+        use({
+          from: "2026-03-01T00:00:00.000Z",
+          to: "2026-03-08T00:00:00.000Z",
+        }),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      `${path}?from=2026-03-01T00%3A00%3A00.000Z&to=2026-03-08T00%3A00%3A00.000Z`,
+    );
+  });
+});

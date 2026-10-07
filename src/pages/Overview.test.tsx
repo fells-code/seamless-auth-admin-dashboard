@@ -18,6 +18,9 @@ const mocks = vi.hoisted(() => ({
   refetch: vi.fn(),
 }));
 
+// Covered by its own tests; it fetches from a route this suite does not mock.
+vi.mock("../components/ReviewAccountsNotice", () => ({ default: () => null }));
+
 vi.mock("../hooks/useDashboard", () => ({ useDashboard: mocks.useDashboard }));
 vi.mock("../hooks/useAuthTimeseries", () => ({
   useAuthTimeseries: mocks.useAuthTimeseries,
@@ -201,6 +204,43 @@ describe("Overview", () => {
     expect(
       screen.getByText("24h auth attempts (fixed window)"),
     ).toBeInTheDocument();
+  });
+
+  it("asks for the selected range and follows it when the API reports one", () => {
+    mocks.useDashboard.mockReturnValue({
+      data: {
+        ...dashboard,
+        window: {
+          from: "2026-03-01T00:00:00.000Z",
+          to: "2026-03-08T00:00:00.000Z",
+        },
+        newUsers: 21,
+        loginSuccess: 700,
+        loginFailed: 300,
+        successRate: 0.7,
+        otpUsage: 40,
+        passkeyUsage: 410,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: mocks.refetch,
+      isFetching: false,
+    });
+
+    renderPage("/?range=7d");
+
+    const { from, to } = mocks.useAuthTimeseries.mock.lastCall![0];
+    expect(mocks.useDashboard).toHaveBeenLastCalledWith({ from, to });
+    expect(
+      screen.queryByText("24h auth attempts (fixed window)"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Deployment metrics cover a fixed 24-hour window/),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("1,000")).toBeInTheDocument();
+    expect(screen.getByText("410")).toBeInTheDocument();
+    expect(screen.getByText(/21 new in/)).toBeInTheDocument();
   });
 
   it("scopes the chart copy to the selected window", () => {

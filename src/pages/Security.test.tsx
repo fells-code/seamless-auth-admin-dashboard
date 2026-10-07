@@ -100,16 +100,47 @@ describe("Security", () => {
     ).toBeInTheDocument();
   });
 
-  it("says the anomaly feed does not follow the range selector", () => {
-    // /internal/security/anomalies takes no parameters, so this table would
-    // otherwise look like it was responding to the picker.
+  it("labels the anomaly feed as fixed when the API reports no window", () => {
+    // An API that predates ranges ignores the bounds, so the table must not
+    // look like it was responding to the picker.
     renderPage();
 
-    expect(
-      screen.getByText(/The feed takes no date range/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/feed takes no date range/)).toBeInTheDocument();
     expect(
       screen.getByText("Suspicious signals (fixed window)"),
+    ).toBeInTheDocument();
+  });
+
+  it("asks for the selected range and follows it when the API reports one", () => {
+    mocks.useAnomalies.mockReturnValue({
+      data: {
+        suspiciousEvents,
+        total: 1,
+        window: {
+          from: "2026-03-01T00:00:00.000Z",
+          to: "2026-03-02T00:00:00.000Z",
+        },
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: mocks.refetch,
+      isFetching: false,
+    });
+
+    renderPage();
+
+    expect(mocks.useAnomalies).toHaveBeenCalledWith(
+      mocks.useLoginStats.mock.calls[0]![0],
+    );
+    expect(
+      screen.queryByText(/feed takes no date range/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Suspicious signals (fixed window)"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/The range below drives every figure on this screen/),
     ).toBeInTheDocument();
   });
 
