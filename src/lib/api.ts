@@ -22,6 +22,59 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+  const res = await apiRequest(path, options);
+
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
+  const text = await res.text();
+  if (!text) {
+    return undefined as T;
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(
+      `API error: ${res.status} response from ${path} was not valid JSON`,
+    );
+  }
+}
+
+export interface ApiDownload {
+  blob: Blob;
+  /** From the response's `Content-Disposition`, or `fallbackName` without one. */
+  filename: string;
+}
+
+/**
+ * Fetches a file the API answers with, such as a CSV report or an NDJSON export,
+ * with the same credentials and error handling as {@link apiFetch}.
+ */
+export async function apiDownload(
+  path: string,
+  fallbackName: string,
+): Promise<ApiDownload> {
+  const res = await apiRequest(path);
+
+  return {
+    blob: await res.blob(),
+    filename:
+      filenameFrom(res.headers.get("content-disposition")) ?? fallbackName,
+  };
+}
+
+function filenameFrom(disposition: string | null): string | undefined {
+  const match = disposition?.match(/filename="?([^";]+)"?/i);
+  // Only the last path segment, so a hostile header cannot name a directory.
+  return match?.[1]?.split(/[\\/]/).pop() || undefined;
+}
+
+async function apiRequest(
+  path: string,
+  options: RequestInit = {},
+): Promise<Response> {
   const headers = new Headers(options.headers || {});
 
   headers.set("Content-Type", "application/json");
@@ -49,22 +102,7 @@ export async function apiFetch<T>(
     throw new ApiError(formatApiError(res.status, text, path), res.status);
   }
 
-  if (res.status === 204) {
-    return undefined as T;
-  }
-
-  const text = await res.text();
-  if (!text) {
-    return undefined as T;
-  }
-
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    throw new Error(
-      `API error: ${res.status} response from ${path} was not valid JSON`,
-    );
-  }
+  return res;
 }
 
 function formatApiError(status: number, body: string, path: string) {

@@ -10,6 +10,7 @@ const NAV_DESTINATIONS = [
   { name: "Overview", path: "/", heading: "Overview" },
   { name: "Users", path: "/users", heading: "Users" },
   { name: "Organizations", path: "/organizations", heading: "Organizations" },
+  { name: "Coverage", path: "/coverage", heading: "Authentication coverage" },
   { name: "Sessions", path: "/sessions", heading: "Sessions" },
   { name: "Events", path: "/events", heading: "Events" },
   { name: "Security", path: "/security", heading: "Security" },

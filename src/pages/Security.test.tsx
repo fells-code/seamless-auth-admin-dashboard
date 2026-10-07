@@ -16,6 +16,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../hooks/useAnomalies", () => ({ useAnomalies: mocks.useAnomalies }));
+// Covered by its own tests; its hooks need the auth provider this suite does not render.
+vi.mock("../components/AuditTrailPanel", () => ({ default: () => null }));
 vi.mock("../hooks/useLoginStats", () => ({
   useLoginStats: mocks.useLoginStats,
 }));

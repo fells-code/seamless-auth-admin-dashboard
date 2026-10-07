@@ -310,3 +310,69 @@ export function makeSystemConfig(
     ...overrides,
   } as SystemConfig;
 }
+
+export function makeCoverageReport() {
+  return {
+    period: { from: "2026-07-01", to: "2026-09-28" },
+    generatedAt: "2026-09-28T12:00:00.000Z",
+    organizationId: null,
+    bucket: "month",
+    policy: {
+      phishingResistantOnly: false,
+      loginMethods: ["passkey", "magic_link"],
+      passkeyFallbackEnabled: true,
+      authenticator: {
+        attestation: "none",
+        userVerification: "required",
+        attachment: "any",
+        syncedPasskeys: "allow",
+        requireKnownAuthenticator: false,
+        aaguidAllowList: [],
+        aaguidDenyList: [],
+      },
+    },
+    coverage: { users: 40, passkeyUsers: 30, percent: 75 },
+    byOrganization: [
+      {
+        organizationId: "org_1",
+        name: "Clerk's Office",
+        users: 40,
+        passkeyUsers: 30,
+        percent: 75,
+      },
+    ],
+    trend: [
+      {
+        start: "2026-09-01",
+        end: "2026-09-28",
+        users: 40,
+        passkeyUsers: 28,
+        percent: 70,
+      },
+    ],
+    authenticatorMix: [
+      {
+        aaguid: "fbfc3007-154e-4ecc-8c0b-6e020557d7bd",
+        name: "iCloud Keychain",
+        credentials: 30,
+        users: 30,
+        backupEligible: 30,
+        backedUp: 30,
+      },
+    ],
+    signInMix: {
+      total: 100,
+      phishingResistant: 64,
+      percent: 64,
+      methods: [
+        { method: "passkey", phishingResistant: true, signIns: 64, users: 25 },
+        {
+          method: "magic_link",
+          phishingResistant: false,
+          signIns: 36,
+          users: 12,
+        },
+      ],
+    },
+  };
+}

@@ -21,6 +21,7 @@ import Table from "../components/Table";
 import { Section } from "../components/Section";
 import { QueryErrorState } from "../components/StateMessage";
 import RangeFilter from "../components/RangeFilter";
+import AuditTrailPanel from "../components/AuditTrailPanel";
 import {
   applyRangeToParams,
   describeRange,
@@ -424,6 +425,8 @@ export default function Security() {
           data={suspiciousEvents}
         />
       </Section>
+
+      <AuditTrailPanel />
     </div>
   );
 }

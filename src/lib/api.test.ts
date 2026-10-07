@@ -5,7 +5,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { apiFetch } from "./api";
+import { apiDownload, apiFetch } from "./api";
 import { onSessionExpired, resetSessionExpiryNotice } from "./sessionExpiry";
 
 vi.mock("./runtimeConfig", () => ({
@@ -269,5 +269,89 @@ describe("apiFetch", () => {
     expect(listener).not.toHaveBeenCalled();
 
     unsubscribe();
+  });
+});
+
+describe("apiDownload", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+    resetSessionExpiryNotice();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns the body as a file named by the API", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response("a,b\r\n1,2\r\n", {
+        status: 200,
+        headers: {
+          "content-type": "text/csv; charset=utf-8",
+          "content-disposition":
+            'attachment; filename="authentication-coverage-2026-01-01-to-2026-03-31.csv"',
+        },
+      }),
+    );
+
+    const { blob, filename } = await apiDownload(
+      "/admin/reports/authentication-coverage?format=csv",
+      "fallback.csv",
+    );
+
+    expect(filename).toBe(
+      "authentication-coverage-2026-01-01-to-2026-03-31.csv",
+    );
+    expect(await blob.text()).toBe("a,b\r\n1,2\r\n");
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      "https://api.example.com/auth/admin/reports/authentication-coverage?format=csv",
+      expect.objectContaining({ credentials: "include" }),
+    );
+  });
+
+  it("falls back to the given name without a disposition header", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response("{}", { status: 200 }));
+
+    await expect(
+      apiDownload("/admin/auth-events/export", "auth-events.ndjson"),
+    ).resolves.toEqual(
+      expect.objectContaining({ filename: "auth-events.ndjson" }),
+    );
+  });
+
+  it("keeps only the last path segment of a filename", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response("x", {
+        status: 200,
+        headers: {
+          "content-disposition": 'attachment; filename="../../evil.sh"',
+        },
+      }),
+    );
+
+    const { filename } = await apiDownload("/admin/auth-events/export", "f");
+
+    expect(filename).toBe("evil.sh");
+  });
+
+  it("raises the same errors apiFetch does", async () => {
+    const expired = vi.fn();
+    const unsubscribe = onSessionExpired(expired);
+    vi.mocked(fetch).mockResolvedValue(
+      new Response('{"error":"step_up_required"}', { status: 403 }),
+    );
+
+    await expect(
+      apiDownload("/admin/auth-events/export", "f"),
+    ).rejects.toMatchObject({ name: "ApiError", status: 403 });
+
+    vi.mocked(fetch).mockResolvedValue(new Response("", { status: 401 }));
+    await expect(
+      apiDownload("/admin/auth-events/export", "f"),
+    ).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(expired).toHaveBeenCalled();
+    unsubscribe?.();
   });
 });

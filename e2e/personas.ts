@@ -8,6 +8,7 @@ import type { MeUser } from "@seamless-auth/types";
 import type { MockApi } from "./mockApi";
 import {
   makeAnomaly,
+  makeCoverageReport,
   makeCredential,
   makeDashboardMetrics,
   makeEvent,
@@ -142,6 +143,9 @@ export function seedDeployment(api: MockApi) {
   api.get("/internal/auth-events/login-stats", { json: makeLoginStats() });
   api.get("/internal/metrics/funnel", { json: makeFunnelMetrics() });
   api.get("/internal/metrics/sign-ins", { json: makeSignInMetrics() });
+  api.get("/admin/reports/authentication-coverage", {
+    json: makeCoverageReport(),
+  });
   api.get("/internal/security/anomalies", {
     json: { suspiciousEvents: [makeAnomaly({ id: "anomaly_1" })], total: 1 },
   });

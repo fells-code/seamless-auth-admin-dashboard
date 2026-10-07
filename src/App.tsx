@@ -19,6 +19,7 @@ import Events from "./pages/Events";
 import Security from "./pages/Security";
 import Organizations from "./pages/Organizations";
 import Enrollment from "./pages/Enrollment";
+import Coverage from "./pages/Coverage";
 import UserDetail from "./pages/UserDetail";
 import SystemConfig from "./pages/SystemConfig";
 import { AuthProvider } from "@seamless-auth/react";
@@ -100,6 +101,7 @@ const router = createBrowserRouter(
             { path: "/users", element: <Users /> },
             { path: "/organizations", element: <Organizations /> },
             { path: "/enrollment", element: <Enrollment /> },
+            { path: "/coverage", element: <Coverage /> },
             { path: "/sessions", element: <Sessions /> },
             { path: "/events", element: <Events /> },
             { path: "/security", element: <Security /> },

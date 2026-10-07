@@ -24,7 +24,7 @@ test.describe("System Configuration", () => {
     await expect(page.getByLabel("Access Token TTL")).toHaveValue("15m");
     await expect(page.getByLabel("RP ID")).toHaveValue("localhost");
     await expect(
-      page.getByRole("checkbox", { name: /passkeys/i }),
+      page.getByRole("checkbox", { name: /^passkeys/i }),
     ).toBeChecked();
   });
 
@@ -82,7 +82,7 @@ test.describe("System Configuration", () => {
 
     // The last enabled method cannot be turned off: nobody could sign in.
     await expect(
-      page.getByRole("checkbox", { name: /passkeys/i }),
+      page.getByRole("checkbox", { name: /^passkeys/i }),
     ).toBeDisabled();
 
     await page.getByRole("checkbox", { name: /email otp/i }).check();

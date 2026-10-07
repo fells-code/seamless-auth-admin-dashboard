@@ -46,6 +46,7 @@ const config: SystemConfig = {
   login_methods: ["passkey"],
   passkey_login_fallback_enabled: true,
   prompt_passkey_enrollment: false,
+  phishing_resistant_only: false,
   oauth_providers: [],
   lockout_policy: {
     enabled: true,

@@ -38,9 +38,14 @@ export function toCsv<T>(rows: T[], columns: CsvColumn<T>[]) {
 export function downloadCsv(filename: string, contents: string) {
   // Leading BOM so Excel reads the file as UTF-8 rather than the local
   // codepage, which otherwise mangles non-ASCII user agents.
-  const blob = new Blob([`\uFEFF${contents}`], {
-    type: "text/csv;charset=utf-8",
-  });
+  saveBlob(
+    new Blob([`\uFEFF${contents}`], { type: "text/csv;charset=utf-8" }),
+    filename,
+  );
+}
+
+/** Hand the browser a file it already holds as a download. */
+export function saveBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
 
