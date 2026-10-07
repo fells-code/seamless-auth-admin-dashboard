@@ -143,6 +143,19 @@ export function seedDeployment(api: MockApi) {
   api.get("/internal/auth-events/login-stats", { json: makeLoginStats() });
   api.get("/internal/metrics/funnel", { json: makeFunnelMetrics() });
   api.get("/internal/metrics/sign-ins", { json: makeSignInMetrics() });
+  api.get("/admin/review-accounts", {
+    json: {
+      enabled: false,
+      emails: [],
+      codeConfigured: false,
+      recentSignIns: {
+        days: 30,
+        count: 0,
+        failedVerifications: 0,
+        lastSignInAt: null,
+      },
+    },
+  });
   api.get("/admin/reports/authentication-coverage", {
     json: makeCoverageReport(),
   });

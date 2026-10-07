@@ -288,3 +288,64 @@ test.describe("Overview", () => {
     await expect(page.getByText("999")).toBeVisible();
   });
 });
+
+test.describe("Overview with a ranged API", () => {
+  test("sends the range to the metrics endpoint and labels tiles by it", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    api.get("/internal/metrics/dashboard", ({ url }) => ({
+      ...makeDashboardMetrics(),
+      window: {
+        from: url.searchParams.get("from") ?? "",
+        to: url.searchParams.get("to") ?? "",
+      },
+      newUsers: 42,
+      loginSuccess: 900,
+      loginFailed: 100,
+      successRate: 0.9,
+      otpUsage: 50,
+      passkeyUsage: 600,
+    }));
+
+    await signInAs("writeAdmin", "/?range=7d");
+
+    await expect(statCard(page, "Users")).toContainText("42 new in");
+    await expect(
+      page.getByText("24h auth attempts (fixed window)"),
+    ).toHaveCount(0);
+
+    const call = api.lastCall("GET", "/internal/metrics/dashboard");
+    const params = new URL(call!.url).searchParams;
+    expect(params.get("from")).not.toBeNull();
+    expect(params.get("to")).not.toBeNull();
+  });
+
+  test("warns while store review accounts are enabled", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    api.get("/admin/review-accounts", {
+      json: {
+        enabled: true,
+        emails: ["review@example.com"],
+        codeConfigured: true,
+        recentSignIns: {
+          days: 30,
+          count: 4,
+          failedVerifications: 0,
+          lastSignInAt: null,
+        },
+      },
+    });
+
+    await signInAs("writeAdmin");
+
+    await expect(
+      page.getByText("Store review accounts are enabled"),
+    ).toBeVisible();
+    await expect(page.getByText(/used to sign in 4 times/)).toBeVisible();
+  });
+});

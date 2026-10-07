@@ -4,15 +4,25 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
 import type { DashboardMetricsResponse } from "@seamless-auth/types";
 
-export function useDashboard() {
+export function useDashboard(params: { from?: string; to?: string } = {}) {
+  const query = new URLSearchParams();
+
+  if (params.from) query.set("from", params.from);
+  if (params.to) query.set("to", params.to);
+
+  const search = query.toString();
+
   return useQuery({
-    queryKey: ["dashboard"],
+    queryKey: ["dashboard", params.from, params.to],
     queryFn: () =>
-      apiFetch<DashboardMetricsResponse>("/internal/metrics/dashboard"),
+      apiFetch<DashboardMetricsResponse>(
+        `/internal/metrics/dashboard${search ? `?${search}` : ""}`,
+      ),
+    placeholderData: keepPreviousData,
     // The monitoring screens describe themselves as live, so revalidate on an
     // interval and when the operator returns to the tab. Manual refresh stays
     // available for anything more immediate.
