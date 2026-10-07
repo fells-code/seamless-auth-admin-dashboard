@@ -17,7 +17,7 @@ origin serving your Seamless Auth server adapter and it is ready to use:
 ```bash
 docker run -p 8080:8080 \
   -e API_URL=https://app.example.com \
-  ghcr.io/fells-code/seamless-auth-admin-dashboard:v0.2.0
+  ghcr.io/fells-code/seamless-auth-admin-dashboard:v0.8.0
 ```
 
 Then open [http://localhost:8080](http://localhost:8080) and sign in with an

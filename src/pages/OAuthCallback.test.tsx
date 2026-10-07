@@ -137,6 +137,30 @@ describe("OAuthCallback", () => {
     expect(await screen.findByText(/as unverified/)).toBeInTheDocument();
   });
 
+  it("explains the failure when the provider's ID token could not be verified", async () => {
+    sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, "google");
+    mocks.finishOAuthLogin.mockResolvedValue({ data: null, error: {} });
+    mocks.getOAuthErrorCode.mockReturnValue("oauth_invalid_id_token");
+
+    renderCallback("?code=abc&state=xyz");
+
+    expect(
+      await screen.findByText(/could not be verified/),
+    ).toBeInTheDocument();
+  });
+
+  it("explains the failure when the organization retired the provider", async () => {
+    sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, "google");
+    mocks.finishOAuthLogin.mockResolvedValue({ data: null, error: {} });
+    mocks.getOAuthErrorCode.mockReturnValue("oauth_provider_retired");
+
+    renderCallback("?code=abc&state=xyz");
+
+    expect(
+      await screen.findByText(/no longer signs in with this provider/),
+    ).toBeInTheDocument();
+  });
+
   it("falls back to the generic message for an unrecognized code", async () => {
     sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, "google");
     mocks.finishOAuthLogin.mockResolvedValue({ data: null, error: {} });

@@ -23,6 +23,10 @@ const OAUTH_ERROR_MESSAGES: Record<OAuthErrorCode, string> = {
     "The provider reports this account's email address as unverified. Verify it with the provider, then try again.",
   oauth_missing_subject:
     "The provider did not return an account identifier, so the account could not be matched. Try signing in again.",
+  oauth_invalid_id_token:
+    "The provider sent a sign-in response that could not be verified. Try again, or sign in with another method.",
+  oauth_provider_retired:
+    "Your organization no longer signs in with this provider. Sign in with your passkey or another method instead.",
 };
 
 const GENERIC_OAUTH_ERROR =
