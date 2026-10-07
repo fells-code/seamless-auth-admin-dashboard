@@ -357,6 +357,15 @@ export default function SystemConfigPage() {
       );
     }
 
+    if (
+      changes.phishing_resistant_only === true &&
+      !data?.phishing_resistant_only
+    ) {
+      warnings.push(
+        "Phishing-resistant only refuses every sign-in that is not a passkey. Users who have not enrolled one, including any administrator, cannot sign in until an administrator recovers their account.",
+      );
+    }
+
     const policyChange = changes.authenticator_policy;
     if (policyChange && data) {
       const previous = {
@@ -382,7 +391,7 @@ export default function SystemConfigPage() {
     if (warnings.length > 0) {
       if (
         !(await confirm({
-          title: "Confirm WebAuthn changes",
+          title: "Confirm sign-in changes",
           description: warnings.join(" "),
           confirmLabel: "Save anyway",
           tone: "danger",
@@ -416,6 +425,8 @@ export default function SystemConfigPage() {
   };
 
   const isSaving = update.isPending || stepUpPending;
+  // Absent on an API that predates the key, which behaves as off.
+  const phishingResistantOnly = form.phishing_resistant_only ?? false;
 
   return (
     <div className="space-y-8">
@@ -529,11 +540,13 @@ export default function SystemConfigPage() {
         />
         <StatCard
           label="Login Methods"
-          value={form.login_methods.length}
+          value={phishingResistantOnly ? 1 : form.login_methods.length}
           hint={
-            form.passkey_login_fallback_enabled
-              ? "Passkey fallback enabled"
-              : "Passkey fallback disabled"
+            phishingResistantOnly
+              ? "Phishing-resistant only"
+              : form.passkey_login_fallback_enabled
+                ? "Passkey fallback enabled"
+                : "Passkey fallback disabled"
           }
         />
         <StatCard
@@ -622,10 +635,27 @@ export default function SystemConfigPage() {
         description="Control which passwordless login methods users can choose after login initiation."
       >
         <div className="space-y-5">
+          <CheckboxField
+            label="Phishing-resistant only"
+            description="Accept passkeys only, for every account. Email and phone codes, magic links, TOTP and OAuth are refused whatever is selected below. A new account's email code still starts one session so its first passkey can be enrolled."
+            checked={phishingResistantOnly}
+            onChange={(checked) =>
+              updateField("phishing_resistant_only", checked)
+            }
+            disabled={!canWrite}
+          />
+
+          {phishingResistantOnly && (
+            <p className="text-xs text-muted">
+              The login methods and passkey fallback below are kept for when
+              this mode is turned off, but have no effect while it is on.
+            </p>
+          )}
+
           <LoginMethodSelector
             value={form.login_methods}
             onChange={(value) => updateField("login_methods", value)}
-            canWrite={canWrite}
+            canWrite={canWrite && !phishingResistantOnly}
           />
 
           <CheckboxField
@@ -635,7 +665,7 @@ export default function SystemConfigPage() {
             onChange={(checked) =>
               updateField("passkey_login_fallback_enabled", checked)
             }
-            disabled={!canWrite}
+            disabled={!canWrite || phishingResistantOnly}
           />
 
           <CheckboxField

@@ -113,6 +113,8 @@ Current route model:
 - `/users`
 - `/users/:id`
 - `/organizations`
+- `/enrollment`
+- `/coverage`
 - `/sessions`
 - `/events`
 - `/security`
@@ -190,6 +192,12 @@ Important current API contract:
 
 Prefer adding a new dedicated hook over inlining `fetch` inside a page.
 
+For a route that answers with a file rather than JSON (the coverage CSV, the audit
+export), use `apiDownload(path, fallbackName)` and `saveBlob` from `src/lib/csvExport.ts`.
+`apiDownload` shares `apiFetch`'s credentials and error handling and takes the filename
+from `Content-Disposition`. These downloads only work through an adapter that passes the
+body through unparsed.
+
 ## Page Responsibilities
 
 Current page intent:
@@ -200,9 +208,11 @@ Current page intent:
 - `Users.tsx`: searchable user directory with create, edit, and delete actions
 - `UserDetail.tsx`: single-user overview, sessions, credentials, events, and anomalies
 - `Organizations.tsx`: organization directory, details, and membership management
+- `Enrollment.tsx`: passkey enrollment status by user, and enrollment invites
+- `Coverage.tsx`: authentication coverage report for assessments, with the API's CSV download
 - `Sessions.tsx`: global session inventory and revoke actions
 - `Events.tsx`: auth event browsing and filtering, including grouped quick filters
-- `Security.tsx`: anomaly and login-stat visibility with drill-down links
+- `Security.tsx`: anomaly and login-stat visibility with drill-down links, plus the audit trail panel (integrity check and NDJSON export)
 - `SystemConfig.tsx`: editable system settings and roles
 - `Profile.tsx`: current user profile, sessions, and credentials
 - `Unauthenticated.tsx`: access-required state and redirect handling

@@ -182,3 +182,91 @@ test.describe("Security", () => {
     await expectErrorState(page, "Could not load security signals");
   });
 });
+
+test.describe("Audit trail", () => {
+  const HEAD = "ab".repeat(32);
+
+  test("verifies the trail on request and shows the head", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    api.get("/admin/auth-events/integrity", {
+      json: {
+        verified: true,
+        checkedAt: "2026-09-28T12:00:00.000Z",
+        rowsChecked: 1200,
+        firstSeq: 1,
+        lastSeq: 1200,
+        anchorHash: null,
+        head: { seq: 1200, hash: HEAD },
+        firstFailure: null,
+      },
+    });
+
+    await signInAs("writeAdmin", "/security");
+
+    expect(
+      api.recordedCalls("GET", "/admin/auth-events/integrity"),
+    ).toHaveLength(0);
+    await page.getByRole("button", { name: "Verify integrity" }).click();
+
+    await expect(
+      page.getByText(/Audit trail verified: 1200 events/),
+    ).toBeVisible();
+    await expect(page.getByText(`event 1200, ${HEAD}`)).toBeVisible();
+  });
+
+  test("reports a broken trail", async ({ page, api, signInAs }) => {
+    api.get("/admin/auth-events/integrity", {
+      json: {
+        verified: false,
+        checkedAt: "2026-09-28T12:00:00.000Z",
+        rowsChecked: 1200,
+        firstSeq: 1,
+        lastSeq: 1200,
+        anchorHash: null,
+        head: { seq: 1200, hash: HEAD },
+        firstFailure: { seq: 42, id: "event_42", reason: "sequence_gap" },
+      },
+    });
+
+    await signInAs("writeAdmin", "/security");
+    await page.getByRole("button", { name: "Verify integrity" }).click();
+
+    await expect(
+      page.getByText("Audit trail failed verification at event 42"),
+    ).toBeVisible();
+  });
+
+  test("exports a period as the API's NDJSON file", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    api.get("/admin/auth-events/export", {
+      body: '{"seq":1}\n{"type":"manifest","count":1}\n',
+      headers: {
+        "content-type": "application/x-ndjson; charset=utf-8",
+        "content-disposition":
+          'attachment; filename="auth-events-2026-09-28.ndjson"',
+      },
+    });
+
+    await signInAs("writeAdmin", "/security");
+
+    await page.getByLabel("From (UTC)").fill("2026-09-01");
+    await page.getByLabel("To (UTC, included)").fill("2026-09-30");
+
+    const download = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Export events" }).click();
+
+    expect((await download).suggestedFilename()).toBe(
+      "auth-events-2026-09-28.ndjson",
+    );
+    const call = api.lastCall("GET", "/admin/auth-events/export");
+    const params = new URL(call!.url).searchParams;
+    expect(params.get("from")).toBe("2026-09-01T00:00:00.000Z");
+    expect(params.get("to")).toBe("2026-10-01T00:00:00.000Z");
+  });
+});

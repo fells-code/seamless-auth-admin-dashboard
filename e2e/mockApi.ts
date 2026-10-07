@@ -232,10 +232,16 @@ export class MockApi {
       return route.fulfill({ status, headers: response.headers, body: "" });
     }
 
+    // A registration that names its own content type is serving a file, such as
+    // a CSV report, and keeps it.
+    const ownsContentType = Object.keys(response.headers ?? {}).some(
+      (name) => name.toLowerCase() === "content-type",
+    );
+
     return route.fulfill({
       status,
       headers: response.headers,
-      contentType: "application/json",
+      ...(ownsContentType ? {} : { contentType: "application/json" }),
       body: response.body ?? JSON.stringify(response.json),
     });
   }

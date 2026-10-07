@@ -172,6 +172,79 @@ describe("SystemConfigPage", () => {
     });
   });
 
+  it("saves phishing-resistant-only mode after a warning", async () => {
+    renderPage();
+
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /phishing-resistant only/i }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => expect(mocks.mutate).toHaveBeenCalled());
+    expect(mocks.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: expect.stringContaining(
+          "refuses every sign-in that is not a passkey",
+        ),
+      }),
+    );
+    expect(mocks.mutate.mock.calls[0]![0]).toEqual({
+      phishing_resistant_only: true,
+    });
+  });
+
+  it("does not save phishing-resistant-only mode when the warning is declined", async () => {
+    mocks.confirm.mockResolvedValue(false);
+    renderPage();
+
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /phishing-resistant only/i }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalled());
+    expect(mocks.mutate).not.toHaveBeenCalled();
+  });
+
+  it("shows the method list and fallback as overridden while the mode is on", () => {
+    mocks.useSystemConfig.mockReturnValue({
+      data: { ...baseConfig, phishing_resistant_only: true },
+      isLoading: false,
+    });
+
+    renderPage();
+
+    expect(
+      screen.getByRole("checkbox", { name: /phishing-resistant only/i }),
+    ).toBeChecked();
+    expect(
+      screen.getByRole("checkbox", { name: /passkey login fallback/i }),
+    ).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: /email otp/i })).toBeDisabled();
+    expect(
+      screen.getByText(/have no effect while it is on/i),
+    ).toBeInTheDocument();
+  });
+
+  it("turns phishing-resistant-only mode off without a warning", async () => {
+    mocks.useSystemConfig.mockReturnValue({
+      data: { ...baseConfig, phishing_resistant_only: true },
+      isLoading: false,
+    });
+    renderPage();
+
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /phishing-resistant only/i }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => expect(mocks.mutate).toHaveBeenCalled());
+    expect(mocks.confirm).not.toHaveBeenCalled();
+    expect(mocks.mutate.mock.calls[0]![0]).toEqual({
+      phishing_resistant_only: false,
+    });
+  });
+
   it("sends only changed keys, not the full config, on save", async () => {
     // The GET response carries read-only keys (such as frontend_url) that the
     // strict PATCH schema rejects. Saving must send only the edited fields.
@@ -747,7 +820,7 @@ describe("SystemConfigPage", () => {
     await waitFor(() =>
       expect(mocks.confirm).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: "Confirm WebAuthn changes",
+          title: "Confirm sign-in changes",
           description: expect.stringContaining("invalidates every passkey"),
         }),
       ),
