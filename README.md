@@ -36,7 +36,7 @@ origin serving your Seamless Auth server adapter and it is ready to use:
 ```bash
 docker run -p 8080:8080 \
   -e API_URL=https://app.example.com \
-  ghcr.io/fells-code/seamless-auth-admin-dashboard:v0.8.0
+  ghcr.io/fells-code/seamless-auth-admin-dashboard:v0.9.1
 ```
 
 Then open [http://localhost:8080](http://localhost:8080) and sign in with an
@@ -96,19 +96,19 @@ want that instead of running a separate container.
 
 ## Screenshots
 
-**Users** — search the directory, review verification and admin coverage, and drill into an account.
+**Users**: search the directory, review verification and admin coverage, and drill into an account.
 
 ![The Users page: the access directory with per-user roles, verification state, and recent activity.](docs/screenshots/users.png)
 
-**Events** — filter authentication activity by category and time range and investigate individual events.
+**Events**: filter authentication activity by category and time range and investigate individual events.
 
 ![The Events page: the investigation feed with category and time-range filters over the event stream.](docs/screenshots/events.png)
 
-**Security** — review suspicious activity and anomaly signals worth operator attention.
+**Security**: review suspicious activity and anomaly signals worth operator attention.
 
 ![The Security page: suspicious activity and anomaly signals surfaced for review.](docs/screenshots/security.png)
 
-**System Configuration** — shape roles, login methods, token lifetimes, lockout policy, and WebAuthn origins.
+**System Configuration**: shape roles, login methods, token lifetimes, lockout policy, and WebAuthn origins.
 
 ![The System Configuration page: role model, token policy, allowed origins, and login method settings.](docs/screenshots/system-config.png)
 
@@ -364,12 +364,14 @@ npm run build:console
 
 ## Release Preparation
 
-Commits to `main` run the release-preparation workflow. That workflow validates the dashboard, runs
-Changesets versioning, updates `CHANGELOG.md` and `package.json`, and opens or updates a version PR
-for review.
+Commits to `main` run the release-preparation workflow (`.github/workflows/release.yml`). That
+workflow validates the dashboard, runs Changesets versioning, updates `CHANGELOG.md` and
+`package.json`, and opens or updates a version PR for review.
 
-The workflow does not publish packages, create GitHub releases, or push release tags. Releases are
-generated manually after the version PR has been reviewed and merged.
+Once the version PR is merged and no changesets remain, the same workflow tags `v<version>`,
+creates the GitHub Release from the matching `CHANGELOG.md` section, and publishes the versioned
+container image by calling `docker-publish.yml`. If the tag already exists, the release steps are
+skipped. The package is private and is never published to npm.
 
 ## Local Configuration
 
@@ -499,7 +501,7 @@ The app is functional and meant for real use. The current focus is on consistenc
 
 Known areas still worth attention:
 
-- The dashboard assumes the SeamlessAuth server adapter is mounted at `/auth`
+- The dashboard assumes the Seamless Auth server adapter is mounted at `/auth`
 - the Seamless Auth server adapter and upstream API docs should stay aligned with dashboard route contracts, especially destructive admin mutations
 - a few query invalidation paths remain narrower than ideal
 - chart components have lighter test coverage than the shared shell and utility layers
