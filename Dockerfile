@@ -1,7 +1,7 @@
 # Base images are pinned by multi-arch digest for reproducible builds. To
 # refresh, run: docker buildx imagetools inspect <image:tag> and copy the
 # top-level Digest.
-FROM node:24-slim@sha256:2fe369e969550cde8e867afc3fe370b260140cab4a23d467074295b42163d553 AS builder
+FROM node:24-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20 AS builder
 
 WORKDIR /app
 
@@ -15,7 +15,7 @@ RUN npm run build
 
 # Unprivileged nginx: runs as user nginx (uid 101) and listens on 8080 so the
 # container never needs root or a privileged port.
-FROM nginxinc/nginx-unprivileged:alpine@sha256:2ddec616f1cb58bcac057aa388f28cb81e35137641ef4226d321714499329bd1
+FROM nginxinc/nginx-unprivileged:alpine@sha256:b9241c6e7b8e9a862f129d8d4199ab64b10390949a78bdd5603379b32c844083
 
 USER root
 
