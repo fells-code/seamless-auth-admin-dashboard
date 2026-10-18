@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   },
   client: {
     verifyMagicLink: vi.fn(),
+    confirmMagicLink: vi.fn(),
   },
 }));
 
@@ -35,6 +36,7 @@ describe("MagicLinkVerification", () => {
     mocks.auth.refreshSession.mockReset();
     mocks.auth.refreshSession.mockResolvedValue(undefined);
     mocks.client.verifyMagicLink.mockReset();
+    mocks.client.confirmMagicLink.mockReset();
 
     vi.stubGlobal("BroadcastChannel", MockBroadcastChannel);
     sessionStorage.clear();
@@ -91,5 +93,97 @@ describe("MagicLinkVerification", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Back to sign in" }));
     expect(await screen.findByText("Login page")).toBeInTheDocument();
+  });
+
+  const confirmationRequired = {
+    data: null,
+    error: Object.assign(new Error("confirmation_required"), {
+      status: 409,
+      body: {
+        error: "confirmation_required",
+        message: "Confirm",
+        requestedFrom: {
+          deviceClass: "windows",
+          requestedAt: "2026-10-18T12:00:00.000Z",
+        },
+      },
+    }),
+  };
+
+  function renderAt(token: string) {
+    render(
+      <MemoryRouter initialEntries={[`/verify-magiclink?token=${token}`]}>
+        <Routes>
+          <Route path="/verify-magiclink" element={<MagicLinkVerification />} />
+          <Route path="/" element={<div>Dashboard destination</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+  }
+
+  it("asks before signing in a device that requested the link elsewhere", async () => {
+    mocks.client.verifyMagicLink.mockResolvedValue(confirmationRequired);
+
+    renderAt("abc123");
+
+    expect(
+      await screen.findByRole("heading", { name: "Confirm this sign-in" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/requested from a Windows PC/)).toBeInTheDocument();
+    expect(mocks.auth.markSignedIn).not.toHaveBeenCalled();
+    expect(mocks.auth.refreshSession).not.toHaveBeenCalled();
+  });
+
+  it("confirms the link and sends the reader back to the other device", async () => {
+    mocks.client.verifyMagicLink.mockResolvedValue(confirmationRequired);
+    mocks.client.confirmMagicLink.mockResolvedValue({
+      data: { message: "Success" },
+      error: null,
+    });
+
+    renderAt("abc123");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Yes, sign in that device" }),
+    );
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Return to your other device",
+    );
+    expect(mocks.client.confirmMagicLink).toHaveBeenCalledWith("abc123");
+    expect(mocks.auth.markSignedIn).not.toHaveBeenCalled();
+  });
+
+  it("keeps the choice open when the confirmation is refused", async () => {
+    mocks.client.verifyMagicLink.mockResolvedValue(confirmationRequired);
+    mocks.client.confirmMagicLink.mockResolvedValue({
+      data: null,
+      error: new Error("used"),
+    });
+
+    renderAt("abc123");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Yes, sign in that device" }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "could not be approved",
+    );
+    expect(
+      screen.getByRole("button", { name: "Yes, sign in that device" }),
+    ).toBeEnabled();
+  });
+
+  it("signs nothing in when the reader declines", async () => {
+    mocks.client.verifyMagicLink.mockResolvedValue(confirmationRequired);
+
+    renderAt("abc123");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "No, this wasn't me" }),
+    );
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "No one was signed in",
+    );
+    expect(mocks.client.confirmMagicLink).not.toHaveBeenCalled();
   });
 });
