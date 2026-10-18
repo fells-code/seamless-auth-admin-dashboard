@@ -3,6 +3,8 @@ import { loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
+import { runtimeConfigScript } from "./src/lib/runtimeConfigScript";
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   // Load VITE_* vars from .env files and the shell so the Vite base path can be
@@ -13,7 +15,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: basePath,
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      runtimeConfigScript(env.VITE_SAME_ORIGIN === "true"),
+    ],
     test: {
       // Scoped to the unit suite. Playwright specs live in e2e/ and would
       // otherwise be picked up by the default glob and fail on import.
