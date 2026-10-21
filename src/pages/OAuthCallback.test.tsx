@@ -9,6 +9,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import OAuthCallback from "./OAuthCallback";
 import { OAUTH_PROVIDER_STORAGE_KEY } from "../components/OAuthProviderButtons";
+import { readOAuthBinding, storeOAuthBinding } from "../lib/oauthBinding";
 
 const mocks = vi.hoisted(() => ({
   finishOAuthLogin: vi.fn(),
@@ -70,6 +71,40 @@ describe("OAuthCallback", () => {
     expect(await screen.findByText("Dashboard home")).toBeInTheDocument();
     // The stored provider is cleared once consumed.
     expect(sessionStorage.getItem(OAUTH_PROVIDER_STORAGE_KEY)).toBeNull();
+  });
+
+  it("sends the binding stored for this state, then clears it", async () => {
+    sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, "google");
+    storeOAuthBinding("xyz", "binding-token");
+    mocks.finishOAuthLogin.mockResolvedValue({ data: null, error: {} });
+
+    renderCallback("?code=abc&state=xyz");
+
+    await waitFor(() =>
+      expect(mocks.finishOAuthLogin).toHaveBeenCalledWith({
+        providerId: "google",
+        code: "abc",
+        state: "xyz",
+        binding: "binding-token",
+      }),
+    );
+    expect(readOAuthBinding("xyz")).toBeUndefined();
+  });
+
+  it("does not send a binding stored for another state", async () => {
+    sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, "google");
+    storeOAuthBinding("other-state", "binding-token");
+    mocks.finishOAuthLogin.mockResolvedValue({ data: null, error: {} });
+
+    renderCallback("?code=abc&state=xyz");
+
+    await waitFor(() =>
+      expect(mocks.finishOAuthLogin).toHaveBeenCalledWith({
+        providerId: "google",
+        code: "abc",
+        state: "xyz",
+      }),
+    );
   });
 
   it("errors without finishing when the provider id was never stored", async () => {

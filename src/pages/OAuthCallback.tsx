@@ -15,6 +15,7 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getLastProtectedRoute } from "../lib/lastRoute";
 import { OAUTH_PROVIDER_STORAGE_KEY } from "../components/OAuthProviderButtons";
+import { clearOAuthBinding, readOAuthBinding } from "../lib/oauthBinding";
 
 const OAUTH_ERROR_MESSAGES: Record<OAuthErrorCode, string> = {
   oauth_missing_email:
@@ -58,11 +59,14 @@ export default function OAuthCallback() {
         return;
       }
 
+      const binding = readOAuthBinding(state);
       const { error: finishError } = await authClient.finishOAuthLogin({
         providerId,
         code,
         state,
+        ...(binding ? { binding } : {}),
       });
+      clearOAuthBinding();
 
       if (finishError) {
         const code = getOAuthErrorCode(finishError);

@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { useHref } from "react-router-dom";
 import { useAuthClient, type OAuthProvider } from "@seamless-auth/react";
 import { getErrorMessage } from "../lib/errorMessage";
+import { storeOAuthBinding } from "../lib/oauthBinding";
 
 /**
  * The chosen provider id is stashed here before the browser leaves for the
@@ -83,6 +84,7 @@ export default function OAuthProviderButtons() {
         return;
       }
 
+      storeOAuthBinding(data.state, data.binding);
       window.location.assign(data.authorizationUrl);
     } catch (caught) {
       fail(
