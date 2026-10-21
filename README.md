@@ -521,3 +521,7 @@ requests, but it is only a nudge and never blocks a contribution.
 ## License
 
 Apache-2.0
+
+Project governance, including the
+[Seamless Auth License Pledge](https://github.com/fells-code/.github/blob/main/GOVERNANCE.md#the-seamless-auth-license-pledge),
+is in the fells-code [GOVERNANCE.md](https://github.com/fells-code/.github/blob/main/GOVERNANCE.md).
