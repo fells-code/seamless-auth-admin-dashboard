@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OAuthProviderButtons, {
   OAUTH_PROVIDER_STORAGE_KEY,
 } from "./OAuthProviderButtons";
+import { readOAuthBinding } from "../lib/oauthBinding";
 
 const mocks = vi.hoisted(() => ({
   listOAuthProviders: vi.fn(),
@@ -103,6 +104,7 @@ describe("OAuthProviderButtons", () => {
       data: {
         authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth?x=1",
         state: "state-token",
+        binding: "binding-token",
       },
       error: null,
     });
@@ -115,6 +117,7 @@ describe("OAuthProviderButtons", () => {
     // The provider id is not in the callback URL, so it must be stored for the
     // callback to read back.
     expect(sessionStorage.getItem(OAUTH_PROVIDER_STORAGE_KEY)).toBe("google");
+    expect(readOAuthBinding("state-token")).toBe("binding-token");
     expect(mocks.startOAuthLogin).toHaveBeenCalledWith({
       providerId: "google",
       redirectUri: "https://admin.example.com/oauth/callback",

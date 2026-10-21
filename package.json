@@ -27,8 +27,8 @@
     "docker:run": "docker run -p 8080:8080 -e API_URL=${API_URL:-http://localhost:3000} seamless-admin:local"
   },
   "dependencies": {
-    "@seamless-auth/react": "^0.17.0",
-    "@seamless-auth/types": "^0.28.0",
+    "@seamless-auth/react": "^0.18.1",
+    "@seamless-auth/types": "^0.29.0",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.104.1",
     "clsx": "^2.1.1",
