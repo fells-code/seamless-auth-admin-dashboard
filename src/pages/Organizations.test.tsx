@@ -164,7 +164,7 @@ describe("Organizations", () => {
     expect(screen.getByText("owner@example.com")).toBeVisible();
   });
 
-  it("creates organizations from the directory form", () => {
+  it("creates organizations from the directory form after step-up", async () => {
     render(<Organizations />);
 
     fireEvent.change(screen.getByPlaceholderText("Organization name"), {
@@ -175,10 +175,53 @@ describe("Organizations", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /^create$/i }));
 
-    expect(mocks.createOrganization).toHaveBeenCalledWith(
-      { name: "Beta", slug: "beta" },
-      expect.any(Object),
+    await waitFor(() =>
+      expect(mocks.createOrganization).toHaveBeenCalledWith(
+        { name: "Beta", slug: "beta" },
+        expect.any(Object),
+      ),
     );
+    expect(mocks.ensureStepUp).toHaveBeenCalled();
+  });
+
+  it("does not create an organization when step-up fails", async () => {
+    mocks.ensureStepUp.mockResolvedValue(false);
+    render(<Organizations />);
+
+    fireEvent.change(screen.getByPlaceholderText("Organization name"), {
+      target: { value: "Beta" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^create$/i }));
+
+    await waitFor(() => expect(mocks.ensureStepUp).toHaveBeenCalled());
+    expect(mocks.createOrganization).not.toHaveBeenCalled();
+  });
+
+  it("steps up before saving organization details", async () => {
+    render(<Organizations />);
+
+    fireEvent.change(screen.getByDisplayValue(organization.name), {
+      target: { value: "Acme Renamed" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+    await waitFor(() =>
+      expect(mocks.updateOrganization).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "Acme Renamed" }),
+        expect.any(Object),
+      ),
+    );
+    expect(mocks.ensureStepUp).toHaveBeenCalled();
+  });
+
+  it("does not save organization details when step-up fails", async () => {
+    mocks.ensureStepUp.mockResolvedValue(false);
+    render(<Organizations />);
+
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+    await waitFor(() => expect(mocks.ensureStepUp).toHaveBeenCalled());
+    expect(mocks.updateOrganization).not.toHaveBeenCalled();
   });
 
   it("adds organization members after step-up", async () => {

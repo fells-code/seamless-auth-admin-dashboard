@@ -34,6 +34,7 @@ import OAuthCallback from "./pages/OAuthCallback";
 import NotFound from "./pages/NotFound";
 import ErrorBoundary from "./components/ErrorBoundary";
 import SessionExpiryHandler from "./components/SessionExpiryHandler";
+import StepUpRequiredHandler from "./components/StepUpRequiredHandler";
 
 /**
  * Everything that has to sit inside the router but outside the routes.
@@ -48,6 +49,7 @@ function Root() {
   return (
     <AuthProvider apiHost={getApiUrl()}>
       <SessionExpiryHandler />
+      <StepUpRequiredHandler />
 
       {/* Keyed on the path so navigating away from a screen that threw clears
           the error instead of pinning the console to it. */}

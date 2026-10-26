@@ -100,6 +100,24 @@ describe("useStepUpGuard", () => {
     expect(authState.value.verifyStepUpWithPasskey).toHaveBeenCalled();
   });
 
+  it("re-checks a cached fresh status when forced", async () => {
+    authState.value.stepUpStatus = { fresh: true };
+    authState.value.refreshStepUpStatus.mockResolvedValue({
+      data: { fresh: false },
+      error: null,
+    });
+    authState.value.verifyStepUpWithPasskey.mockResolvedValue({
+      data: { fresh: true },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useStepUpGuard());
+
+    await expect(result.current({ force: true })).resolves.toBe(true);
+    expect(authState.value.refreshStepUpStatus).toHaveBeenCalled();
+    expect(authState.value.verifyStepUpWithPasskey).toHaveBeenCalled();
+  });
+
   it("blocks the action when step-up fails or errors", async () => {
     authState.value.refreshStepUpStatus.mockRejectedValue(new Error("network"));
 
