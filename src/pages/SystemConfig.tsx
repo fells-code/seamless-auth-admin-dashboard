@@ -6,7 +6,10 @@
 
 import { useId, useMemo, useState } from "react";
 import { KeyRound, ShieldCheck, TimerReset, Waypoints } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useSystemConfig } from "../hooks/useSystemConfig";
+import { usePolicyState } from "../hooks/usePolicy";
+import { touchesPolicy } from "../lib/policyDiff";
 import type {
   AuthenticatorPolicy,
   OAuthProviderConfig,
@@ -128,6 +131,10 @@ function describeRedirects(provider: OAuthProviderConfig) {
 export default function SystemConfigPage() {
   const { data, isLoading, isError, error, refetch } = useSystemConfig();
   const update = useUpdateSystemConfig();
+  // Optional: an API without staged policy answers 404, and this screen must
+  // keep working against it.
+  const { data: policyState } = usePolicyState();
+  const policyDraft = policyState?.draft ?? null;
   const { canWrite } = useAdminPermissions();
   const ensureStepUp = useStepUpGuard();
   const toast = useToast();
@@ -313,6 +320,12 @@ export default function SystemConfigPage() {
           "The attestation setting is read when the FIDO metadata service is prepared at startup, so this change does not take effect until the API is restarted.",
         );
       }
+    }
+
+    if (policyDraft && touchesPolicy(changes)) {
+      warnings.push(
+        `A sign-in policy draft started from version ${policyDraft.basedOnVersion} is staged. This save publishes a new policy version, so the draft will be behind it, and publishing the draft later would replace these settings.`,
+      );
     }
 
     if (warnings.length > 0) {
@@ -562,6 +575,32 @@ export default function SystemConfigPage() {
         description="Control which passwordless login methods users can choose after login initiation."
       >
         <div className="space-y-5">
+          <StateMessage
+            title="Sign-in policy changes apply when you save"
+            description={
+              <>
+                Login methods, lockout and authenticator policy saved here apply
+                at once and are recorded as a new policy version. To stage a
+                change, dry run it and review it first, use{" "}
+                <Link
+                  to="/policy"
+                  className="text-[var(--primary)] underline-offset-2 hover:underline"
+                >
+                  Sign-in Policy
+                </Link>
+                .
+              </>
+            }
+          />
+
+          {policyDraft && (
+            <StateMessage
+              tone="warning"
+              title="A policy draft is staged"
+              description={`A draft started from version ${policyDraft.basedOnVersion} is waiting on the Sign-in Policy page. Saving a policy setting here publishes a new version, and the draft will then be behind it.`}
+            />
+          )}
+
           <CheckboxField
             label="Phishing-resistant only"
             description="Accept passkeys only, for every account. Email and phone codes, magic links, TOTP and OAuth are refused whatever is selected below. A new account's email code still starts one session so its first passkey can be enrolled."
@@ -857,7 +896,9 @@ export default function SystemConfigPage() {
             </div>
             <div className="text-sm text-muted">
               {isDirty
-                ? "Review and save when you are ready, or discard to return to the last fetched state."
+                ? touchesPolicy(draft)
+                  ? "Includes sign-in policy settings, which are recorded as a new policy version when saved."
+                  : "Review and save when you are ready, or discard to return to the last fetched state."
                 : "Changes will appear here once you edit a field."}
             </div>
           </div>

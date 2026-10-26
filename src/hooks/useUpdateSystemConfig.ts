@@ -27,6 +27,8 @@ export function useUpdateSystemConfig() {
 
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["system-config"] });
+      // A patch that touches a policy key is recorded as a new policy version.
+      qc.invalidateQueries({ queryKey: ["policy"] });
     },
   });
 }

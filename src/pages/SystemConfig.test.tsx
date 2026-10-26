@@ -27,6 +27,11 @@ const mocks = vi.hoisted(() => ({
   useStepUpGuard: vi.fn(),
   useConfirm: vi.fn(),
   confirm: vi.fn(),
+  usePolicyState: vi.fn(),
+}));
+
+vi.mock("../hooks/usePolicy", () => ({
+  usePolicyState: mocks.usePolicyState,
 }));
 
 vi.mock("../hooks/useSystemConfig", () => ({
@@ -105,6 +110,7 @@ function renderPage() {
 
 describe("SystemConfigPage", () => {
   beforeEach(() => {
+    mocks.usePolicyState.mockReturnValue({ data: undefined });
     mocks.mutate.mockReset();
     mocks.useSystemConfig.mockReturnValue({
       data: baseConfig,
@@ -153,6 +159,59 @@ describe("SystemConfigPage", () => {
       ),
     );
     expect(mocks.useStepUpGuard()).toHaveBeenCalled();
+  });
+
+  it("links to the staged policy page and says saves are versioned", () => {
+    renderPage();
+
+    expect(
+      screen.getByRole("link", { name: "Sign-in Policy" }),
+    ).toHaveAttribute("href", "/policy");
+    expect(
+      screen.getByText("Sign-in policy changes apply when you save"),
+    ).toBeInTheDocument();
+  });
+
+  it("warns that saving a policy setting leaves a staged draft behind", async () => {
+    mocks.usePolicyState.mockReturnValue({
+      data: {
+        published: { version: 4 },
+        draft: { basedOnVersion: 4 },
+      },
+    });
+    mocks.confirm.mockResolvedValue(false);
+    renderPage();
+
+    expect(screen.getByText("A policy draft is staged")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /email otp/i }));
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() =>
+      expect(mocks.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          description: expect.stringContaining(
+            "publishing the draft later would replace these settings",
+          ),
+        }),
+      ),
+    );
+    expect(mocks.mutate).not.toHaveBeenCalled();
+  });
+
+  it("does not mention a staged draft when saving a non-policy setting", async () => {
+    mocks.usePolicyState.mockReturnValue({
+      data: { published: { version: 4 }, draft: { basedOnVersion: 4 } },
+    });
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText("App Name"), {
+      target: { value: "Renamed App" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => expect(mocks.mutate).toHaveBeenCalled());
+    expect(mocks.confirm).not.toHaveBeenCalled();
   });
 
   it("saves the passkey enrollment prompt setting", async () => {
