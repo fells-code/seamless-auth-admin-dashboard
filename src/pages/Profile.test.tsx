@@ -4,7 +4,13 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { render, screen, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Profile from "./Profile";
@@ -175,6 +181,48 @@ describe("Profile", () => {
       screen.queryByText("Could not load profile"),
     ).not.toBeInTheDocument();
     expect(screen.getByDisplayValue("ada@example.com")).toBeInTheDocument();
+  });
+
+  it("steps up before saving profile changes", async () => {
+    const ensureStepUp = vi.fn().mockResolvedValue(true);
+    const mutate = vi.fn();
+    mocks.useStepUpGuard.mockReturnValue(ensureStepUp);
+    mocks.useUpdateUser.mockReturnValue({
+      mutate,
+      isError: false,
+      error: null,
+    });
+    mocks.useUserDetail.mockReturnValue({
+      ...queryStates.loaded,
+      refetch: mocks.refetch,
+    });
+
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    expect(ensureStepUp).toHaveBeenCalled();
+  });
+
+  it("does not save profile changes when step-up fails", async () => {
+    const ensureStepUp = vi.fn().mockResolvedValue(false);
+    const mutate = vi.fn();
+    mocks.useStepUpGuard.mockReturnValue(ensureStepUp);
+    mocks.useUpdateUser.mockReturnValue({
+      mutate,
+      isError: false,
+      error: null,
+    });
+    mocks.useUserDetail.mockReturnValue({
+      ...queryStates.loaded,
+      refetch: mocks.refetch,
+    });
+
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+
+    await waitFor(() => expect(ensureStepUp).toHaveBeenCalled());
+    expect(mutate).not.toHaveBeenCalled();
   });
 
   describe("credentials", () => {

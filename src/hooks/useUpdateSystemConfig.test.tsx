@@ -63,6 +63,8 @@ const config: SystemConfig = {
     aaguidAllowList: [],
     aaguidDenyList: [],
   },
+  recovery_codes: { enabled: true, requireAtEnrollment: false },
+  account_recovery: { enabled: false, delay: "24h" },
   session_idle_ttl: "8h",
   magic_link_redirect_uris: [],
   flow_rate_limits: {
@@ -100,6 +102,8 @@ describe("useUpdateSystemConfig", () => {
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: ["system-config"],
     });
+    // A patch that touches a policy key is recorded as a new policy version.
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["policy"] });
   });
 
   it("does not refresh the config when the save fails", async () => {

@@ -22,6 +22,7 @@ import Enrollment from "./pages/Enrollment";
 import Coverage from "./pages/Coverage";
 import UserDetail from "./pages/UserDetail";
 import SystemConfig from "./pages/SystemConfig";
+import Policy from "./pages/Policy";
 import { AuthProvider } from "@seamless-auth/react";
 import { getApiUrl, getBasePath } from "./lib/runtimeConfig";
 import RequireAuth from "./components/RequireAuth";
@@ -34,6 +35,7 @@ import OAuthCallback from "./pages/OAuthCallback";
 import NotFound from "./pages/NotFound";
 import ErrorBoundary from "./components/ErrorBoundary";
 import SessionExpiryHandler from "./components/SessionExpiryHandler";
+import StepUpRequiredHandler from "./components/StepUpRequiredHandler";
 
 /**
  * Everything that has to sit inside the router but outside the routes.
@@ -48,6 +50,7 @@ function Root() {
   return (
     <AuthProvider apiHost={getApiUrl()}>
       <SessionExpiryHandler />
+      <StepUpRequiredHandler />
 
       {/* Keyed on the path so navigating away from a screen that threw clears
           the error instead of pinning the console to it. */}
@@ -107,6 +110,7 @@ const router = createBrowserRouter(
             { path: "/security", element: <Security /> },
             { path: "/users/:id", element: <UserDetail /> },
             { path: "/system", element: <SystemConfig /> },
+            { path: "/policy", element: <Policy /> },
             { path: "/profile", element: <Profile /> },
 
             // Inside the shell, so an unrecognised address keeps the navigation

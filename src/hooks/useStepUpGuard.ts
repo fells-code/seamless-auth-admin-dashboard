@@ -27,8 +27,10 @@ export function useStepUpGuard() {
   const toast = useToast();
 
   return useCallback(
-    async function ensureStepUp() {
-      if (stepUpStatus?.fresh) {
+    async function ensureStepUp(options: { force?: boolean } = {}) {
+      // `force` skips the cached status, for when the API has just refused a
+      // write with step_up_required and so the cache is known to be stale.
+      if (stepUpStatus?.fresh && !options.force) {
         return true;
       }
 

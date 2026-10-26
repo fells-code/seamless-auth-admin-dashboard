@@ -7,6 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { apiDownload, apiFetch } from "./api";
 import { onSessionExpired, resetSessionExpiryNotice } from "./sessionExpiry";
+import { onStepUpRequired } from "./stepUpRequired";
 
 vi.mock("./runtimeConfig", () => ({
   getApiUrl: () => "https://api.example.com/",
@@ -269,6 +270,154 @@ describe("apiFetch", () => {
     expect(listener).not.toHaveBeenCalled();
 
     unsubscribe();
+  });
+});
+
+describe("apiFetch step-up handling", () => {
+  const stepUpRequired = () =>
+    new Response(
+      JSON.stringify({
+        error: "step_up_required",
+        message: "Recent step-up authentication is required",
+        fresh: false,
+        maxAgeSeconds: 300,
+      }),
+      { status: 403 },
+    );
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("prompts for step-up and retries the write once", async () => {
+    const handler = vi.fn().mockResolvedValue(true);
+    const unsubscribe = onStepUpRequired(handler);
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(stepUpRequired())
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      );
+
+    await expect(
+      apiFetch("/admin/organizations", {
+        method: "POST",
+        body: JSON.stringify({ name: "Acme" }),
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const retry = fetchMock.mock.calls[1]?.[1] as RequestInit;
+    expect(retry.method).toBe("POST");
+    expect(retry.body).toBe(JSON.stringify({ name: "Acme" }));
+
+    unsubscribe();
+  });
+
+  it("does not retry a second time when the retry is refused too", async () => {
+    const handler = vi.fn().mockResolvedValue(true);
+    const unsubscribe = onStepUpRequired(handler);
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockImplementation(async () => stepUpRequired());
+
+    await expect(
+      apiFetch("/admin/users", { method: "DELETE" }),
+    ).rejects.toMatchObject({ status: 403, code: "step_up_required" });
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    unsubscribe();
+  });
+
+  it("explains a declined step-up instead of reporting a permission problem", async () => {
+    const unsubscribe = onStepUpRequired(vi.fn().mockResolvedValue(false));
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(stepUpRequired());
+
+    const error = await apiFetch("/admin/users", { method: "DELETE" }).catch(
+      (caught: unknown) => caught,
+    );
+
+    expect(error).toMatchObject({ status: 403, code: "step_up_required" });
+    expect((error as Error).message).toBe(
+      "This action needs a recent step-up verification. Try again and complete the verification prompt.",
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    unsubscribe();
+  });
+
+  it("shares one step-up between writes refused at the same time", async () => {
+    let finish: (value: boolean) => void = () => {};
+    const handler = vi.fn(
+      () => new Promise<boolean>((resolve) => (finish = resolve)),
+    );
+    const unsubscribe = onStepUpRequired(handler);
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(stepUpRequired())
+      .mockResolvedValueOnce(stepUpRequired())
+      .mockImplementation(
+        async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      );
+
+    const first = apiFetch("/admin/sessions/by-id/a", { method: "DELETE" });
+    const second = apiFetch("/admin/sessions/by-id/b", { method: "DELETE" });
+
+    await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(1));
+    finish(true);
+
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      { ok: true },
+      { ok: true },
+    ]);
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    unsubscribe();
+  });
+
+  it("leaves other 403 answers as permission errors without prompting", async () => {
+    const handler = vi.fn().mockResolvedValue(true);
+    const unsubscribe = onStepUpRequired(handler);
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
+    );
+
+    await expect(apiFetch("/admin/users", { method: "POST" })).rejects.toThrow(
+      "You do not have permission to perform this action.",
+    );
+    expect(handler).not.toHaveBeenCalled();
+
+    unsubscribe();
+  });
+
+  it("carries the API's error code on the error", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: "policy_version_conflict",
+          message:
+            "Version 4 is the published policy now. Review it and retry.",
+        }),
+        { status: 409 },
+      ),
+    );
+
+    await expect(
+      apiFetch("/system-config/policy/publish", { method: "POST" }),
+    ).rejects.toMatchObject({
+      status: 409,
+      code: "policy_version_conflict",
+      message: "Version 4 is the published policy now. Review it and retry.",
+    });
   });
 });
 

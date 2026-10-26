@@ -17,6 +17,7 @@ import {
   Building2,
   Fingerprint,
   ClipboardCheck,
+  ScrollText,
 } from "lucide-react";
 import packageJson from "../../package.json";
 import { trapTabKey } from "../lib/focusTrap";
@@ -30,6 +31,7 @@ const navItems = [
   { name: "Sessions", path: "/sessions", icon: KeyRound },
   { name: "Events", path: "/events", icon: Activity },
   { name: "Security", path: "/security", icon: Shield },
+  { name: "Policy", path: "/policy", icon: ScrollText },
   { name: "System", path: "/system", icon: Settings },
 ];
 

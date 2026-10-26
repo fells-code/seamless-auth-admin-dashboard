@@ -14,7 +14,9 @@ import EventFilters from "../components/EventFilters";
 import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
 import { QueryErrorState } from "../components/StateMessage";
+import EventTypeLabel from "../components/EventTypeLabel";
 import { eventGroups } from "../lib/eventGroups";
+import { isHighSeverityEvent } from "../lib/eventLabels";
 import {
   applyRangeToParams,
   DEFAULT_TIME_RANGE,
@@ -122,8 +124,10 @@ export default function Events() {
   const uniqueIps = new Set(
     events.map((event) => event.ip_address).filter(Boolean),
   ).size;
-  const securitySignalCount = events.filter((event) =>
-    event.type.includes("suspicious"),
+  const securitySignalCount = events.filter(
+    (event) =>
+      event.type.includes("suspicious") ||
+      isHighSeverityEvent(event.type, event.metadata),
   ).length;
   const latestEvent = events[0]?.created_at;
 
@@ -322,10 +326,11 @@ export default function Events() {
                 width: "large",
                 wrap: true,
                 render: (value, row) => (
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-primary">
-                      {value as string}
-                    </span>
+                  <div className="flex flex-col gap-0.5">
+                    <EventTypeLabel
+                      type={value as string}
+                      metadata={row.metadata}
+                    />
                     <span className="text-xs text-muted">
                       {row.actor_user_id
                         ? "Administrative action"
@@ -384,7 +389,8 @@ export default function Events() {
                       {(value as string) ?? "Unknown IP"}
                     </span>
                     <span className="text-xs text-muted">
-                      {row.type.includes("suspicious")
+                      {row.type.includes("suspicious") ||
+                      isHighSeverityEvent(row.type, row.metadata)
                         ? "Security-relevant source"
                         : "Observed request origin"}
                     </span>

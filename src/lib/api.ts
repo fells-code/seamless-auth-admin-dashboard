@@ -6,15 +6,23 @@
 
 import { getApiUrl } from "./runtimeConfig";
 import { notifySessionExpired } from "./sessionExpiry";
+import { requestStepUp } from "./stepUpRequired";
 
-/** Carries the HTTP status so callers can branch on it instead of the message. */
+export const STEP_UP_REQUIRED = "step_up_required";
+
+/**
+ * Carries the HTTP status, and the API's machine-readable `error` code when
+ * there is one, so callers can branch on them instead of the message.
+ */
 export class ApiError extends Error {
   readonly status: number;
+  readonly code?: string;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code?: string) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -74,6 +82,7 @@ function filenameFrom(disposition: string | null): string | undefined {
 async function apiRequest(
   path: string,
   options: RequestInit = {},
+  retried = false,
 ): Promise<Response> {
   const headers = new Headers(options.headers || {});
 
@@ -99,13 +108,52 @@ async function apiRequest(
       notifySessionExpired();
     }
 
-    throw new ApiError(formatApiError(res.status, text, path), res.status);
+    const code = errorCode(text);
+
+    // The step-up window can lapse between the page's own check and the write
+    // landing, so the API's answer is the authority. Retried once only: a
+    // second refusal means the ceremony did not satisfy this route.
+    if (
+      res.status === 403 &&
+      code === STEP_UP_REQUIRED &&
+      !retried &&
+      (await requestStepUp())
+    ) {
+      return apiRequest(path, options, true);
+    }
+
+    throw new ApiError(
+      formatApiError(res.status, text, path, code),
+      res.status,
+      code,
+    );
   }
 
   return res;
 }
 
-function formatApiError(status: number, body: string, path: string) {
+function errorCode(body: string): string | undefined {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return undefined;
+  }
+
+  if (typeof parsed !== "object" || parsed === null) {
+    return undefined;
+  }
+
+  const { error } = parsed as Record<string, unknown>;
+  return typeof error === "string" ? error : undefined;
+}
+
+function formatApiError(
+  status: number,
+  body: string,
+  path: string,
+  code?: string,
+) {
   // Keep the raw upstream detail for debugging, but only in development. The
   // body can carry emails, user ids, or backend stack traces, and production
   // console output is captured by session replay tools and extensions.
@@ -119,6 +167,10 @@ function formatApiError(status: number, body: string, path: string) {
       "This dashboard should call the Seamless Auth server adapter, which reads the dashboard session cookie and forwards the bearer token upstream.",
       `Check that API_URL points at the server-adapter origin and that the adapter forwards ${path}.`,
     ].join(" ");
+  }
+
+  if (status === 403 && code === STEP_UP_REQUIRED) {
+    return "This action needs a recent step-up verification. Try again and complete the verification prompt.";
   }
 
   return safeApiMessage(status, body) ?? friendlyStatusMessage(status);

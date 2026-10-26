@@ -80,8 +80,12 @@ export default function Profile() {
 
   const { sessions, credentials } = data as AdminUserDetailResponse;
 
-  const save = () => {
+  const save = async () => {
     if (!canWrite) return;
+
+    if (!(await ensureStepUp())) {
+      return;
+    }
 
     updateUser.mutate(
       { email, phone },

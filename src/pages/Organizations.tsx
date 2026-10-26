@@ -139,7 +139,9 @@ export default function Organizations() {
   } = useOrganizationMembers(selectedOrganization?.id);
   const members = memberData?.members ?? [];
 
-  const handleCreateOrganization = (event: FormEvent<HTMLFormElement>) => {
+  const handleCreateOrganization = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
     event.preventDefault();
     if (!canWrite) return;
 
@@ -147,6 +149,10 @@ export default function Organizations() {
     const slug = createSlug.trim();
 
     if (!name) return;
+
+    if (!(await ensureStepUp())) {
+      return;
+    }
 
     createOrganization.mutate(
       { name, ...(slug ? { slug } : {}) },
@@ -167,11 +173,17 @@ export default function Organizations() {
     );
   };
 
-  const handleUpdateOrganization = (input: {
+  const handleUpdateOrganization = async (input: {
     organizationId: string;
     name: string;
     slug: string;
   }) => {
+    if (!canWrite) return;
+
+    if (!(await ensureStepUp())) {
+      return;
+    }
+
     updateOrganization.mutate(input, {
       onSuccess: ({ organization }) => {
         toast.success(
@@ -845,7 +857,7 @@ function SelectedOrganizationForm({
     organizationId: string;
     name: string;
     slug: string;
-  }) => void;
+  }) => void | Promise<void>;
 }) {
   const [editName, setEditName] = useState(organization.name);
   const [editSlug, setEditSlug] = useState(organization.slug);
@@ -860,7 +872,7 @@ function SelectedOrganizationForm({
     // unidentifiable in every list. The create form already guards this.
     if (!trimmedName) return;
 
-    onSave({
+    void onSave({
       organizationId: organization.id,
       name: trimmedName,
       slug: editSlug.trim(),
