@@ -16,6 +16,7 @@ import { useDeleteUser } from "../hooks/useDeleteUser";
 import { useDeviceReplacementRecovery } from "../hooks/useDeviceReplacementRecovery";
 import { useAdminPermissions } from "../hooks/useAdminPermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
+import EventTypeLabel from "../components/EventTypeLabel";
 import { useToast } from "../hooks/useToast";
 import { useConfirm } from "../hooks/useConfirm";
 import Tabs from "../components/Tabs";
@@ -690,10 +691,11 @@ export default function UserDetail() {
                   label: "Event",
                   width: "large",
                   wrap: true,
-                  render: (value) => (
-                    <span className="text-sm font-medium text-primary">
-                      {value as string}
-                    </span>
+                  render: (value, row) => (
+                    <EventTypeLabel
+                      type={value as string}
+                      metadata={row.metadata}
+                    />
                   ),
                 },
                 {
@@ -783,10 +785,12 @@ export default function UserDetail() {
                     label: "Signal",
                     width: "large",
                     wrap: true,
-                    render: (value) => (
-                      <span className="text-sm font-medium text-[var(--highlight)]">
-                        {value as string}
-                      </span>
+                    render: (value, row) => (
+                      <EventTypeLabel
+                        type={value as string}
+                        metadata={row.metadata}
+                        tone="highlight"
+                      />
                     ),
                   },
                   {

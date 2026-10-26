@@ -46,6 +46,11 @@ export const eventCategories: EventCategory[] = [
     match: (type) => isSuspicious(type) || type === "request_suspicious",
   },
   {
+    label: "Break-Glass",
+    value: "breakGlass",
+    match: startsWithAny(["break_glass_"]),
+  },
+  {
     label: "Login",
     value: "login",
     match: exact(["login_challenge", "login_failed", "login_success"]),
@@ -76,6 +81,15 @@ export const eventCategories: EventCategory[] = [
     match: startsWithAny(["mfa_otp_", "totp_"]),
   },
   {
+    label: "Account Recovery",
+    value: "recovery",
+    match: startsWithAny([
+      "account_recovery_",
+      "recovery_code_",
+      "recovery_codes_",
+    ]),
+  },
+  {
     label: "Step-Up",
     value: "stepUp",
     match: startsWithAny(["step_up_"]),
@@ -88,7 +102,9 @@ export const eventCategories: EventCategory[] = [
   {
     label: "Session Tokens",
     value: "token",
-    match: startsWithAny(["bearer_token_", "refresh_token_"]),
+    match: (type) =>
+      startsWithAny(["bearer_token_", "refresh_token_"])(type) ||
+      type === "session_evicted",
   },
   {
     label: "Service Tokens",
@@ -106,6 +122,7 @@ export const eventCategories: EventCategory[] = [
     match: exact([
       "admin_device_replacement_recovery",
       "admin_enrollment_invite_sent",
+      "admin_last_admin_change_refused",
       "admin_session_revoked",
       "admin_user_import_completed",
       "admin_user_imported",
@@ -121,6 +138,11 @@ export const eventCategories: EventCategory[] = [
     label: "System Config",
     value: "system",
     match: startsWithAny(["system_config_", "admin_oauth_provider_"]),
+  },
+  {
+    label: "Policy",
+    value: "policy",
+    match: startsWithAny(["policy_"]),
   },
   {
     label: "JWKS",

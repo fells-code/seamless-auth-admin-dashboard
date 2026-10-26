@@ -63,6 +63,8 @@ const config: SystemConfig = {
     aaguidAllowList: [],
     aaguidDenyList: [],
   },
+  recovery_codes: { enabled: true, requireAtEnrollment: false },
+  account_recovery: { enabled: false, delay: "24h" },
   session_idle_ttl: "8h",
   magic_link_redirect_uris: [],
   flow_rate_limits: {

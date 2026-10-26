@@ -301,6 +301,8 @@ export function makeSystemConfig(
       aaguidAllowList: [],
       aaguidDenyList: [],
     },
+    recovery_codes: { enabled: true, requireAtEnrollment: false },
+    account_recovery: { enabled: false, delay: "24h" },
     access_token_ttl: "15m",
     refresh_token_ttl: "30d",
     rate_limit: 100,

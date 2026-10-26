@@ -14,6 +14,8 @@ import { useNow } from "../hooks/useNow";
 import { ArrowRight, ShieldAlert, Siren, Waypoints } from "lucide-react";
 import { useAnomalies } from "../hooks/useAnomalies";
 import type { PartialAuthEvent } from "@seamless-auth/types";
+import EventTypeLabel from "../components/EventTypeLabel";
+import { getEventLabel } from "../lib/eventLabels";
 import { useLoginStats } from "../hooks/useLoginStats";
 import Skeleton from "../components/Skeleton";
 import StatCard from "../components/StatCard";
@@ -231,7 +233,9 @@ export default function Security() {
                 <SignalPill label="Unique flagged IPs" value={`${uniqueIps}`} />
                 <SignalPill
                   label="Most common threat"
-                  value={topEventType?.type ?? "n/a"}
+                  value={
+                    topEventType ? getEventLabel(topEventType.type) : "n/a"
+                  }
                 />
               </div>
             </div>
@@ -325,7 +329,9 @@ export default function Security() {
           <ActionCard
             tone="neutral"
             title="Most common signal"
-            value={topEventType?.type ?? "No anomalies"}
+            value={
+              topEventType ? getEventLabel(topEventType.type) : "No anomalies"
+            }
             description="The dominant suspicious event type is usually the best first clue about what is happening."
             actionLabel="Filter event type"
             onClick={() => navigate(buildEventFilterUrl(topEventType?.type))}
@@ -380,10 +386,18 @@ export default function Security() {
               width: "large",
               wrap: true,
               render: (value, row) => (
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-[var(--highlight)]">
-                    {(value as string) ?? "Unknown type"}
-                  </span>
+                <div className="flex flex-col gap-0.5">
+                  {value ? (
+                    <EventTypeLabel
+                      type={value as string}
+                      metadata={row.metadata}
+                      tone="highlight"
+                    />
+                  ) : (
+                    <span className="text-sm font-medium text-[var(--highlight)]">
+                      Unknown type
+                    </span>
+                  )}
                   <span className="text-xs text-muted">
                     {row.user_id ? (
                       // The events table already links this through; from a

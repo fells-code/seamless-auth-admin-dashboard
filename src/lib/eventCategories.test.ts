@@ -61,3 +61,27 @@ describe("eventCategories", () => {
     ]);
   });
 });
+
+describe("v0.20 event categories", () => {
+  it("files break-glass, recovery, policy and step-up events under their own categories", () => {
+    expect(getEventCategory("break_glass_sign_in").value).toBe("breakGlass");
+    expect(getEventCategory("break_glass_enrollment").value).toBe("breakGlass");
+    expect(getEventCategory("account_recovery_started").value).toBe("recovery");
+    expect(getEventCategory("recovery_code_used").value).toBe("recovery");
+    expect(getEventCategory("recovery_codes_generated").value).toBe("recovery");
+    expect(getEventCategory("policy_published").value).toBe("policy");
+    expect(getEventCategory("policy_dry_run").value).toBe("policy");
+    expect(getEventCategory("step_up_success").value).toBe("stepUp");
+  });
+
+  it("keeps recovery OTP codes with the other one-time codes", () => {
+    expect(getEventCategory("recovery_otp_success").value).toBe("otp");
+  });
+
+  it("files session eviction and last-admin refusals with their neighbours", () => {
+    expect(getEventCategory("session_evicted").value).toBe("token");
+    expect(getEventCategory("admin_last_admin_change_refused").value).toBe(
+      "user",
+    );
+  });
+});
