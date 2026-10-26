@@ -409,9 +409,10 @@ export default function Policy() {
   };
 
   const report = dryRun.data;
+  // Older APIs omit `capped`, so fall back to inferring the cap from the counts.
   const capped =
     report !== undefined &&
-    (report.capped === true ||
+    (report.capped ??
       report.usersEvaluated + report.breakGlassAccounts >= DRY_RUN_USER_CAP);
 
   return (
