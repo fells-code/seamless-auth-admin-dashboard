@@ -25,12 +25,6 @@ const BASE_PATH = "/system-config/policy";
 
 export const policyQueryKey = ["policy"] as const;
 
-/**
- * The API does not return a cap flag on the dry run response, only in its
- * `policy_dry_run` audit event, so the page reads one if a later API adds it.
- */
-export type PolicyDryRunReport = PolicyDryRunResponse & { capped?: boolean };
-
 export function usePolicyState() {
   return useQuery({
     queryKey: [...policyQueryKey, "state"],
@@ -110,12 +104,12 @@ export function useRollbackPolicy() {
 
 export function usePolicyDryRun() {
   return useMutation<
-    PolicyDryRunReport,
+    PolicyDryRunResponse,
     Error,
     { days: number; policy?: PolicyDocument }
   >({
     mutationFn: ({ days, policy }) =>
-      apiFetch<PolicyDryRunReport>(`${BASE_PATH}/dry-run`, {
+      apiFetch<PolicyDryRunResponse>(`${BASE_PATH}/dry-run`, {
         method: "POST",
         body: JSON.stringify(policy ? { days, policy } : { days }),
       }),

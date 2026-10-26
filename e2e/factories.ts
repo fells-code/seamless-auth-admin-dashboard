@@ -357,6 +357,7 @@ export function makePolicyDryRun(
     wouldFail: [],
     usersLockedOut: 0,
     breakGlassAccounts: 0,
+    capped: false,
     ...overrides,
   };
 }

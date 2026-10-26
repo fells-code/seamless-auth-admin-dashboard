@@ -387,7 +387,32 @@ describe("Policy", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("says so when the dry run reached the account limit", () => {
+  it("says so when the API reports the dry run was capped", () => {
+    withState({ draft: { basedOnVersion: 2 } });
+    mocks.dryRunState.data = { ...report, capped: true };
+    renderPage();
+
+    expect(
+      screen.getByText("The dry run may have reached its account limit"),
+    ).toBeInTheDocument();
+  });
+
+  it("trusts capped false over counts that reach the limit", () => {
+    withState({ draft: { basedOnVersion: 2 } });
+    mocks.dryRunState.data = {
+      ...report,
+      usersEvaluated: 9_998,
+      breakGlassAccounts: 2,
+      capped: false,
+    };
+    renderPage();
+
+    expect(
+      screen.queryByText("The dry run may have reached its account limit"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("infers the cap from the counts when an older API omits capped", () => {
     withState({ draft: { basedOnVersion: 2 } });
     mocks.dryRunState.data = {
       ...report,
@@ -401,14 +426,18 @@ describe("Policy", () => {
     ).toBeInTheDocument();
   });
 
-  it("honours a cap flag if the API sends one", () => {
+  it("does not infer the cap from counts below the limit", () => {
     withState({ draft: { basedOnVersion: 2 } });
-    mocks.dryRunState.data = { ...report, capped: true };
+    mocks.dryRunState.data = {
+      ...report,
+      usersEvaluated: 9_997,
+      breakGlassAccounts: 2,
+    };
     renderPage();
 
     expect(
-      screen.getByText("The dry run may have reached its account limit"),
-    ).toBeInTheDocument();
+      screen.queryByText("The dry run may have reached its account limit"),
+    ).not.toBeInTheDocument();
   });
 
   it("lists versions with source, time and author", () => {
