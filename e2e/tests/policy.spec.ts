@@ -179,7 +179,10 @@ test.describe("Sign-in Policy", () => {
     await page.getByRole("button", { name: "Publish" }).click();
     await confirmDialog(page, "Publish");
 
-    await expect(page.getByText("Another version was published")).toBeVisible();
+    await expect(
+      page.getByText("Another version was published", { exact: true }),
+    ).toBeVisible();
+    await expectToast(page, "The policy changed while you were reviewing it");
     await expect(
       page.getByText(/Version 2 is the published policy now/).first(),
     ).toBeVisible();
