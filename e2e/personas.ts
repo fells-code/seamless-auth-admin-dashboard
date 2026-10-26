@@ -19,6 +19,8 @@ import {
   makeMembership,
   makeMeUser,
   makeOrganization,
+  makePolicyDryRun,
+  makePolicyVersion,
   makeSession,
   makeStepUpStatus,
   makeSystemConfig,
@@ -180,6 +182,23 @@ export function seedDeployment(api: MockApi) {
   api.delete("/system-config/oauth-providers/:id", ({ params }) => ({
     id: params.id,
   }));
+  const policyVersion = makePolicyVersion();
+  api.get("/system-config/policy", {
+    json: { published: policyVersion, draft: null },
+  });
+  api.get("/system-config/policy/versions", {
+    json: { versions: [policyVersion] },
+  });
+  api.put("/system-config/policy/draft", ({ payload }) => ({
+    policy: (payload as { policy: unknown }).policy,
+    basedOnVersion: policyVersion.version,
+    updatedAt: policyVersion.publishedAt,
+    updatedBy: "user_admin",
+  }));
+  api.delete("/system-config/policy/draft", {
+    json: { message: "Policy draft discarded" },
+  });
+  api.post("/system-config/policy/dry-run", { json: makePolicyDryRun() });
   api.get("/system-config/public", {
     json: {
       login_methods: ["passkey", "magic_link", "email_otp", "phone_otp"],

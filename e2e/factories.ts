@@ -12,6 +12,9 @@ import type {
   Organization,
   OrganizationMembership,
   PartialAuthEvent,
+  PolicyDocument,
+  PolicyDryRunResponse,
+  PolicyVersion,
   Session,
   StepUpStatus,
   SystemConfig,
@@ -311,6 +314,51 @@ export function makeSystemConfig(
     origins: ["http://localhost:4287"],
     ...overrides,
   } as SystemConfig;
+}
+
+export function makePolicy(
+  overrides: Partial<PolicyDocument> = {},
+): PolicyDocument {
+  const config = makeSystemConfig();
+
+  return {
+    login_methods: config.login_methods,
+    passkey_login_fallback_enabled: config.passkey_login_fallback_enabled,
+    phishing_resistant_only: false,
+    prompt_passkey_enrollment: false,
+    authenticator_policy: config.authenticator_policy,
+    lockout_policy: config.lockout_policy,
+    recovery_codes: config.recovery_codes,
+    account_recovery: config.account_recovery,
+    ...overrides,
+  };
+}
+
+export function makePolicyVersion(
+  overrides: Partial<PolicyVersion> = {},
+): PolicyVersion {
+  return {
+    version: 1,
+    policy: makePolicy(),
+    source: "bootstrap",
+    publishedAt: isoOffset(-30 * DAY),
+    publishedBy: null,
+    ...overrides,
+  };
+}
+
+export function makePolicyDryRun(
+  overrides: Partial<PolicyDryRunResponse> = {},
+): PolicyDryRunResponse {
+  return {
+    window: { from: isoOffset(-7 * DAY), to: isoOffset(0) },
+    signInsEvaluated: 0,
+    usersEvaluated: 0,
+    wouldFail: [],
+    usersLockedOut: 0,
+    breakGlassAccounts: 0,
+    ...overrides,
+  };
 }
 
 export function makeCoverageReport() {

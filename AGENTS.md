@@ -119,6 +119,7 @@ Current route model:
 - `/events`
 - `/security`
 - `/system`
+- `/policy`
 - `/profile`
 
 Public auth routes are wrapped in `PublicAuthRoute`. Authenticated dashboard routes are wrapped in
@@ -192,6 +193,12 @@ Important current API contract:
 
 Prefer adding a new dedicated hook over inlining `fetch` inside a page.
 
+Every admin write the API guards with step-up calls `ensureStepUp()` from `useStepUpGuard` before
+the mutation. `apiFetch` also handles `403 { error: "step_up_required" }` centrally: it asks
+`StepUpRequiredHandler` for a step-up and retries the request once, so a window that lapses
+mid-task prompts instead of failing. `ApiError.code` carries the API's `error` code for branching
+(for example `policy_version_conflict`).
+
 For a route that answers with a file rather than JSON (the coverage CSV, the audit
 export), use `apiDownload(path, fallbackName)` and `saveBlob` from `src/lib/csvExport.ts`.
 `apiDownload` shares `apiFetch`'s credentials and error handling and takes the filename
@@ -214,6 +221,7 @@ Current page intent:
 - `Events.tsx`: auth event browsing and filtering, including grouped quick filters
 - `Security.tsx`: anomaly and login-stat visibility with drill-down links, plus the audit trail panel (integrity check and NDJSON export)
 - `SystemConfig.tsx`: editable system settings and roles
+- `Policy.tsx`: staged sign-in policy: draft versus published diff, dry run, publish, version history and rollback
 - `Profile.tsx`: current user profile, sessions, and credentials
 - `Unauthenticated.tsx`: access-required state and redirect handling
 

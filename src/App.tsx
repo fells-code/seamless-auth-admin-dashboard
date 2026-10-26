@@ -22,6 +22,7 @@ import Enrollment from "./pages/Enrollment";
 import Coverage from "./pages/Coverage";
 import UserDetail from "./pages/UserDetail";
 import SystemConfig from "./pages/SystemConfig";
+import Policy from "./pages/Policy";
 import { AuthProvider } from "@seamless-auth/react";
 import { getApiUrl, getBasePath } from "./lib/runtimeConfig";
 import RequireAuth from "./components/RequireAuth";
@@ -109,6 +110,7 @@ const router = createBrowserRouter(
             { path: "/security", element: <Security /> },
             { path: "/users/:id", element: <UserDetail /> },
             { path: "/system", element: <SystemConfig /> },
+            { path: "/policy", element: <Policy /> },
             { path: "/profile", element: <Profile /> },
 
             // Inside the shell, so an unrecognised address keeps the navigation
