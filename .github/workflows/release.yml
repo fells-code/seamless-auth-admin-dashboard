@@ -19,6 +19,7 @@ jobs:
     if: github.repository == 'fells-code/seamless-auth-admin-dashboard'
     name: Create or update Changesets version PR
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       HUSKY: 0
     outputs:
