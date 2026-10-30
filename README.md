@@ -70,7 +70,7 @@ talks to the adapter, and the adapter talks to the API.
 | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | [seamless-auth-api](https://github.com/fells-code/seamless-auth-api)       | The authentication API this dashboard administers. Listens on port 5312 by default. The dashboard does not call it directly. |
 | [seamless-auth-server](https://github.com/fells-code/seamless-auth-server) | Server-side SDKs. Mount the adapter at `/auth` in your backend; this is the origin `API_URL` points at.                      |
-| [seamless-auth-react](https://github.com/fells-code/seamless-auth-react)   | The React SDK this dashboard is built on.                                                                                    |
+| [seamless-auth-js](https://github.com/fells-code/seamless-auth-js)         | The React SDK this dashboard is built on.                                                                                    |
 | [seamless-templates](https://github.com/fells-code/seamless-templates)     | Example projects showing the adapter wired into an application.                                                              |
 
 A Seamless Auth instance can also serve this dashboard itself at `/console` on
