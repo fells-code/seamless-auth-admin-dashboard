@@ -113,6 +113,8 @@ Current route model:
 - `/users`
 - `/users/:id`
 - `/organizations`
+- `/applications`
+- `/resources`
 - `/enrollment`
 - `/coverage`
 - `/sessions`
@@ -215,6 +217,8 @@ Current page intent:
 - `Users.tsx`: searchable user directory with create, edit, and delete actions
 - `UserDetail.tsx`: single-user overview, sessions, credentials, events, and anomalies
 - `Organizations.tsx`: organization directory, details, and membership management
+- `Applications.tsx`: OpenID Provider applications (clients): create and edit, public and confidential clients, redirect URI checks (https, loopback, private-use), secret rotation shown once, key registration, and the resources and scopes each application may use. Shared-secret clients are marked as weaker
+- `Resources.tsx`: OpenID Provider resources (APIs), their audience identifier, scopes, and token TTL
 - `Enrollment.tsx`: passkey enrollment status by user, and enrollment invites
 - `Coverage.tsx`: authentication coverage report for assessments, with the API's CSV download
 - `Sessions.tsx`: global session inventory and revoke actions

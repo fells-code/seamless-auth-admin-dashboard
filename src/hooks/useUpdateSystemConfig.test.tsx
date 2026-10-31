@@ -48,6 +48,11 @@ const config: SystemConfig = {
   prompt_passkey_enrollment: false,
   phishing_resistant_only: false,
   oauth_providers: [],
+  oidc_provider_enabled: false,
+  oidc_issuer: null,
+  allow_client_secrets: false,
+  third_party_clients_enabled: false,
+  hosted_ui: null,
   lockout_policy: {
     enabled: true,
     maxFailures: 5,

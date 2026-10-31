@@ -87,6 +87,7 @@ want that instead of running a separate container.
 - edit system configuration
 - sign in with Seamless Auth headless-client flows, including passkeys, magic links, and OTP fallbacks
 - manage organizations and organization membership
+- register OpenID Provider applications and the APIs (resources) they may get tokens for
 - configure allowed login methods and OAuth providers
 - configure account lockout policy
 - run admin-assisted device-replacement recovery
@@ -216,6 +217,14 @@ When the server adapter is mounted at `/auth`, the dashboard sends this as `DELE
 - list and inspect organizations
 - create and update organizations
 - add, update, and remove organization members
+
+### Applications and Resources
+
+- register OpenID Provider applications: public clients (PKCE) and confidential clients (private key JWT or a shared secret, which is marked as weaker)
+- check redirect URIs as they are typed: exact https, loopback on 127.0.0.1 or [::1] with any port, and private-use schemes for native apps
+- rotate a client secret (shown once) and register a public key set or JWKS URI
+- define resources with their audience identifier and scopes, and choose which resources and scopes each application may use
+- every write asks for step-up first
 
 ### Sessions
 

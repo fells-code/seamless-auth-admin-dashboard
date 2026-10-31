@@ -15,6 +15,7 @@ describe("eventGroups", () => {
       "breakGlass",
       "login",
       "oauth",
+      "oidc",
       "webauthn",
       "magicLink",
       "otp",
