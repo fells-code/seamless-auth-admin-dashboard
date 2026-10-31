@@ -327,6 +327,31 @@ describe("SystemConfigPage", () => {
     expect(payload).not.toHaveProperty("app_name");
   });
 
+  it("saves hosted page branding on its own, apart from the config draft", async () => {
+    mocks.useSystemConfig.mockReturnValue({
+      data: { ...baseConfig, hosted_ui: { appName: "Acme" } },
+      isLoading: false,
+    });
+
+    renderPage();
+
+    expect(screen.getByLabelText("Brand Name")).toHaveValue("Acme");
+    fireEvent.change(screen.getByLabelText("Primary"), {
+      target: { value: "#0b3d91" },
+    });
+
+    expect(
+      screen.getByRole("button", { name: /save changes/i }),
+    ).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Save Branding" }));
+
+    await waitFor(() => expect(mocks.mutate).toHaveBeenCalled());
+    expect(mocks.mutate.mock.calls[0]![0]).toEqual({
+      hosted_ui: { appName: "Acme", colors: { primary: "#0b3d91" } },
+    });
+  });
+
   it("does not save config when step-up fails", async () => {
     const ensureStepUp = vi.fn().mockResolvedValue(false);
     mocks.useStepUpGuard.mockReturnValue(ensureStepUp);
