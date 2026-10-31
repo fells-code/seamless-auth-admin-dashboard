@@ -23,6 +23,8 @@ import { useToast } from "../hooks/useToast";
 import { useConfirm } from "../hooks/useConfirm";
 import { useUnsavedChangesGuard } from "../hooks/useUnsavedChangesGuard";
 import Skeleton from "../components/Skeleton";
+import HostedUiBrandingEditor from "../components/HostedUiBrandingEditor";
+import { type HostedUiForm, isHostedUiFormDirty } from "../lib/hostedUi";
 import RemovableChips from "../components/RemovableChips";
 import RoleChips from "../components/RoleChips";
 import { Section } from "../components/Section";
@@ -142,6 +144,7 @@ export default function SystemConfigPage() {
 
   const [draft, setDraft] = useState<Partial<SystemConfig>>({});
   const [stepUpPending, setStepUpPending] = useState(false);
+  const [brandingDraft, setBrandingDraft] = useState<HostedUiForm | null>(null);
 
   const form = useMemo<SystemConfig | null>(() => {
     if (!data) return null;
@@ -157,7 +160,9 @@ export default function SystemConfigPage() {
   // navigating away, going back, or refreshing silently discarded all of them.
   // The sticky bar reported unsaved changes but did nothing to protect them.
   // Must be called before the loading and error early returns below.
-  useUnsavedChangesGuard(isDirty);
+  useUnsavedChangesGuard(
+    isDirty || isHostedUiFormDirty(brandingDraft, data?.hosted_ui),
+  );
 
   if (isLoading) {
     return (
@@ -525,6 +530,22 @@ export default function SystemConfigPage() {
           helperText="This is the operator-facing or relying-party name used by the system."
           onChange={(value) => updateField("app_name", value)}
           disabled={!canWrite}
+        />
+      </Section>
+
+      <Section
+        title="Hosted Page Branding"
+        description="Brand the OpenID Provider's hosted sign-in and consent pages. Branding saves and resets apply immediately and are not part of the Save action below."
+      >
+        <HostedUiBrandingEditor
+          stored={form.hosted_ui ?? null}
+          defaultAppName={data?.app_name ?? form.app_name}
+          draft={brandingDraft}
+          onDraftChange={setBrandingDraft}
+          canWrite={canWrite}
+          ensureStepUp={ensureStepUp}
+          toast={toast}
+          confirm={confirm}
         />
       </Section>
 
