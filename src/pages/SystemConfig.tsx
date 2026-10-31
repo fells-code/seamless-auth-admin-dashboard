@@ -10,10 +10,12 @@ import { Link } from "react-router-dom";
 import { useSystemConfig } from "../hooks/useSystemConfig";
 import { usePolicyState } from "../hooks/usePolicy";
 import { touchesPolicy } from "../lib/policyDiff";
-import type {
-  AuthenticatorPolicy,
-  OAuthProviderConfig,
-  SystemConfig,
+import {
+  type AuthenticatorPolicy,
+  missingOAuthProviderEndpoints,
+  OAUTH_PROVIDER_REQUIRED_ENDPOINTS,
+  type OAuthProviderConfig,
+  type SystemConfig,
 } from "@seamless-auth/types";
 import { useUpdateSystemConfig } from "../hooks/useUpdateSystemConfig";
 import { useOAuthProviders } from "../hooks/useOAuthProviders";
@@ -71,7 +73,11 @@ type ProviderFieldErrors = Partial<Record<keyof OAuthProviderConfig, string>>;
 
 function validateProvider(
   draft: OAuthProviderConfig,
-  { isNew, existingIds }: { isNew: boolean; existingIds: string[] },
+  {
+    isNew,
+    isFromIssuer,
+    existingIds,
+  }: { isNew: boolean; isFromIssuer: boolean; existingIds: string[] },
 ): ProviderFieldErrors {
   const errors: ProviderFieldErrors = {};
 
@@ -89,10 +95,21 @@ function validateProvider(
     errors.clientSecretEnv = "An environment variable name is required.";
   }
 
-  for (const key of ["authorizationUrl", "tokenUrl", "userInfoUrl"] as const) {
-    const value = draft[key].trim();
+  const issuer = draft.issuer?.trim();
+  if (isFromIssuer && !issuer) {
+    errors.issuer =
+      "Enter the issuer URL, such as https://accounts.google.com.";
+  } else if (issuer && !isAbsoluteUrl(issuer)) {
+    errors.issuer = "Enter a full URL, including https://.";
+  }
+
+  const missing = isFromIssuer ? [] : missingOAuthProviderEndpoints(draft);
+  for (const key of OAUTH_PROVIDER_REQUIRED_ENDPOINTS) {
+    const value = draft[key]?.trim();
     if (!value) {
-      errors[key] = "This URL is required for OAuth to work.";
+      if (missing.includes(key)) {
+        errors[key] = "This URL is required for OAuth to work.";
+      }
     } else if (!isAbsoluteUrl(value)) {
       errors[key] = "Enter a full URL, including https://.";
     }
@@ -1003,6 +1020,7 @@ const emptyOAuthProvider: OAuthProviderConfig = {
   authorizationUrl: "",
   tokenUrl: "",
   userInfoUrl: "",
+  issuer: "",
   scopes: [],
   redirectUri: "",
   redirectUris: [],
@@ -1047,10 +1065,24 @@ function OAuthProvidersEditor({
   // is what keeps an untouched field out of the PATCH body.
   const [editing, setEditing] = useState<OAuthProviderConfig | null>(null);
   const [errors, setErrors] = useState<ProviderFieldErrors>({});
+  const [fromIssuer, setFromIssuer] = useState(false);
+  const [discovered, setDiscovered] = useState<
+    Record<string, OAuthProviderConfig>
+  >({});
+  const [discoveryErrors, setDiscoveryErrors] = useState<
+    Record<string, string>
+  >({});
   const accountLinkingId = useId();
-  const { create, update, remove } = useOAuthProviders();
+  const endpointSourceName = useId();
+  const { create, update, remove, refreshDiscovery } = useOAuthProviders();
 
-  const isSaving = create.isPending || update.isPending || remove.isPending;
+  const isSaving =
+    create.isPending ||
+    update.isPending ||
+    remove.isPending ||
+    refreshDiscovery.isPending;
+  // The update route cannot unset a field, so a stored issuer stays put.
+  const issuerLocked = Boolean(editing?.issuer);
 
   const setField = <K extends keyof OAuthProviderConfig>(
     key: K,
@@ -1076,12 +1108,14 @@ function OAuthProvidersEditor({
     const normalizedProvider = toDraft(provider);
     setEditing(normalizedProvider);
     setDraft(normalizedProvider);
+    setFromIssuer(Boolean(provider.issuer));
     setErrors({});
   };
 
   const cancelEditing = () => {
     setEditing(null);
     setDraft(emptyOAuthProvider);
+    setFromIssuer(false);
     setErrors({});
   };
 
@@ -1091,9 +1125,10 @@ function OAuthProvidersEditor({
     name: draft.name.trim(),
     clientId: draft.clientId.trim(),
     clientSecretEnv: draft.clientSecretEnv.trim(),
-    authorizationUrl: draft.authorizationUrl.trim(),
-    tokenUrl: draft.tokenUrl.trim(),
-    userInfoUrl: draft.userInfoUrl.trim(),
+    authorizationUrl: draft.authorizationUrl?.trim() || undefined,
+    tokenUrl: draft.tokenUrl?.trim() || undefined,
+    userInfoUrl: draft.userInfoUrl?.trim() || undefined,
+    issuer: fromIssuer ? draft.issuer?.trim() || undefined : undefined,
     scopes: draft.scopes.filter(Boolean),
     redirectUris: draft.redirectUris.filter(Boolean),
     redirectUri: draft.redirectUri?.trim() || undefined,
@@ -1106,6 +1141,7 @@ function OAuthProvidersEditor({
     const provider = normalized();
     const found = validateProvider(provider, {
       isNew: !editing,
+      isFromIssuer: fromIssuer,
       existingIds: providers.map((current) => current.id),
     });
 
@@ -1127,7 +1163,7 @@ function OAuthProvidersEditor({
       for (const key of Object.keys(
         provider,
       ) as (keyof OAuthProviderConfig)[]) {
-        if (key === "id") continue;
+        if (key === "id" || provider[key] === undefined) continue;
         if (JSON.stringify(editing[key]) !== JSON.stringify(provider[key])) {
           updates[key] = provider[key];
         }
@@ -1177,6 +1213,29 @@ function OAuthProvidersEditor({
           toast.error("Could not update provider", getErrorMessage(error)),
       },
     );
+  };
+
+  const refreshProviderDiscovery = async (provider: OAuthProviderConfig) => {
+    if (!canWrite) return;
+    if (!(await ensureStepUp())) return;
+
+    setDiscoveryErrors((prev) => withoutKey(prev, provider.id));
+
+    refreshDiscovery.mutate(provider.id, {
+      onSuccess: ({ provider: resolved }) => {
+        setDiscovered((prev) => ({ ...prev, [provider.id]: resolved }));
+        toast.success(
+          "Discovery refreshed",
+          `${provider.name} endpoints were read from its issuer.`,
+        );
+      },
+      onError: (error) => {
+        const message = getErrorMessage(error);
+        setDiscovered((prev) => withoutKey(prev, provider.id));
+        setDiscoveryErrors((prev) => ({ ...prev, [provider.id]: message }));
+        toast.error("Could not refresh discovery", message);
+      },
+    });
   };
 
   const removeProvider = async (provider: OAuthProviderConfig) => {
@@ -1246,26 +1305,89 @@ function OAuthProvidersEditor({
             disabled={!canWrite}
             onChange={(value) => setField("clientSecretEnv", value)}
           />
+          <fieldset className="space-y-2 lg:col-span-2">
+            <legend className="text-sm font-medium text-primary">
+              Endpoints
+            </legend>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name={endpointSourceName}
+                  checked={fromIssuer}
+                  disabled={!canWrite || issuerLocked}
+                  onChange={() => setFromIssuer(true)}
+                />
+                Discover from issuer
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name={endpointSourceName}
+                  checked={!fromIssuer}
+                  disabled={!canWrite || issuerLocked}
+                  onChange={() => setFromIssuer(false)}
+                />
+                Enter endpoints
+              </label>
+            </div>
+            <p className="text-sm text-muted">
+              {fromIssuer
+                ? "Any endpoint left blank is read from the issuer's /.well-known/openid-configuration when the provider is used, and ID tokens are checked against the issuer."
+                : "Enter the authorization, token, and user info URLs from the provider's documentation."}
+            </p>
+          </fieldset>
+          {fromIssuer && (
+            <Input
+              label="Issuer"
+              value={draft.issuer ?? ""}
+              placeholder="https://accounts.google.com"
+              helperText={
+                issuerLocked
+                  ? "A stored issuer cannot be changed here. Remove the provider and add it again to use a different one."
+                  : "The provider's OpenID Connect issuer URL."
+              }
+              error={errors.issuer}
+              disabled={!canWrite}
+              readOnly={issuerLocked}
+              onChange={(value) => setField("issuer", value)}
+            />
+          )}
           <Input
             label="Authorization URL"
-            value={draft.authorizationUrl}
-            placeholder="https://accounts.example.com/o/oauth2/v2/auth"
+            value={draft.authorizationUrl ?? ""}
+            placeholder={
+              fromIssuer
+                ? "Discovered from the issuer"
+                : "https://accounts.example.com/o/oauth2/v2/auth"
+            }
+            helperText={fromIssuer ? DISCOVERED_ENDPOINT_HELP : undefined}
             error={errors.authorizationUrl}
             disabled={!canWrite}
             onChange={(value) => setField("authorizationUrl", value)}
           />
           <Input
             label="Token URL"
-            value={draft.tokenUrl}
-            placeholder="https://oauth2.example.com/token"
+            value={draft.tokenUrl ?? ""}
+            placeholder={
+              fromIssuer
+                ? "Discovered from the issuer"
+                : "https://oauth2.example.com/token"
+            }
+            helperText={fromIssuer ? DISCOVERED_ENDPOINT_HELP : undefined}
             error={errors.tokenUrl}
             disabled={!canWrite}
             onChange={(value) => setField("tokenUrl", value)}
           />
           <Input
             label="User Info URL"
-            value={draft.userInfoUrl}
-            placeholder="https://openidconnect.example.com/v1/userinfo"
+            value={draft.userInfoUrl ?? ""}
+            placeholder={
+              fromIssuer
+                ? "Discovered from the issuer"
+                : "https://openidconnect.example.com/v1/userinfo"
+            }
+            helperText={fromIssuer ? DISCOVERED_ENDPOINT_HELP : undefined}
             error={errors.userInfoUrl}
             disabled={!canWrite}
             onChange={(value) => setField("userInfoUrl", value)}
@@ -1423,6 +1545,16 @@ function OAuthProvidersEditor({
                 >
                   Edit
                 </button>
+                {provider.issuer && (
+                  <button
+                    onClick={() => void refreshProviderDiscovery(provider)}
+                    disabled={!canWrite || isSaving}
+                    aria-label={`Refresh discovery for ${provider.name}`}
+                    className="btn btn-secondary"
+                  >
+                    Refresh discovery
+                  </button>
+                )}
                 <button
                   onClick={() => void toggleProvider(provider)}
                   disabled={!canWrite || isSaving}
@@ -1460,13 +1592,27 @@ function OAuthProvidersEditor({
                 Just-in-time signup:{" "}
                 {provider.allowSignup ? "allowed" : "blocked"}
               </span>
+              {provider.issuer && (
+                <span className="truncate">Issuer: {provider.issuer}</span>
+              )}
               <span className="truncate">
-                Authorization: {provider.authorizationUrl}
+                Authorization:{" "}
+                {provider.authorizationUrl ?? "Discovered from issuer"}
               </span>
               <span className="truncate">
-                User info: {provider.userInfoUrl}
+                User info: {provider.userInfoUrl ?? "Discovered from issuer"}
               </span>
             </div>
+
+            {discoveryErrors[provider.id] && (
+              <p role="alert" className="mt-3 text-sm text-[var(--highlight)]">
+                Discovery failed: {discoveryErrors[provider.id]}
+              </p>
+            )}
+
+            {discovered[provider.id] && (
+              <DiscoveredEndpoints provider={discovered[provider.id]} />
+            )}
           </div>
         ))}
 
@@ -1476,6 +1622,44 @@ function OAuthProvidersEditor({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function withoutKey<T>(record: Record<string, T>, key: string) {
+  const next = { ...record };
+  delete next[key];
+  return next;
+}
+
+const DISCOVERED_ENDPOINT_HELP =
+  "Optional. Leave blank to use the issuer's discovered value.";
+
+function DiscoveredEndpoints({ provider }: { provider: OAuthProviderConfig }) {
+  const rows: [string, string | undefined][] = [
+    ["Authorization", provider.authorizationUrl],
+    ["Token", provider.tokenUrl],
+    ["User info", provider.userInfoUrl],
+    ["JWKS", provider.jwksUri],
+  ];
+
+  return (
+    <div
+      role="region"
+      aria-label={`Discovered endpoints for ${provider.name}`}
+      className="mt-3 space-y-1 rounded-md border border-subtle bg-surface p-3 text-xs"
+    >
+      <div className="text-sm font-medium text-primary">
+        Endpoints sign-in will use
+      </div>
+      <dl className="grid gap-1 sm:grid-cols-[auto_1fr] sm:gap-x-3">
+        {rows.map(([label, value]) => (
+          <div key={label} className="contents">
+            <dt className="text-muted">{label}</dt>
+            <dd className="truncate text-primary">{value ?? "None"}</dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }
