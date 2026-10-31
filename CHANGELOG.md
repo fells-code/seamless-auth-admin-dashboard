@@ -1,5 +1,12 @@
 # seamless-auth-admin-dashboard
 
+## 0.12.0
+
+### Minor Changes
+
+- d98f302: Add a Hosted Page Branding section to System Configuration for the OpenID Provider's hosted sign-in and consent pages. Admins can set a brand name, an https logo URL (with a small preview), the six page colors as a color picker plus hex value, and a system font stack, and see a live preview of both pages. Values are checked against the API's schema before saving, and WCAG 2.2 AA contrast warnings (4.5:1 for text, 3:1 for the primary color on the card) are shown without blocking the save. Saving asks for step-up and replaces the whole branding object, and Reset to Defaults clears it. Needs `@seamless-auth/types` 0.34.0-next.2.
+- caa2786: Add Applications and Resources pages for the OpenID Provider. Admins can register public and confidential clients, see redirect URIs checked as they type them (https, loopback and private-use schemes), rotate a client secret that is shown once, register a public key set or JWKS URI, define resources and their scopes, and choose which resources and scopes each application may use. Shared-secret clients are marked as weaker, every write asks for step-up first, and read-only admins see no write controls. Auth events from the OpenID Provider get their own category. Needs `@seamless-auth/types` 0.34.0-next.1 and an adapter that serves the `/admin/applications` and `/admin/resources` routes.
+
 ## 0.11.0
 
 ### Minor Changes
