@@ -35,6 +35,8 @@ describe("eventCategories", () => {
   it("classifies concrete API event types into operator categories", () => {
     expect(getEventCategory("oauth_login_success").value).toBe("oauth");
     expect(getEventCategory("oidc_consent_denied").value).toBe("oidc");
+    expect(getEventCategory("oidc_account_notice_sent").value).toBe("oidc");
+    expect(getEventCategory("oidc_account_notice_failed").value).toBe("oidc");
     expect(getEventCategory("admin_oidc_application_created").value).toBe(
       "oidc",
     );

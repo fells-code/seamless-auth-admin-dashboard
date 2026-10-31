@@ -14,6 +14,24 @@ import {
 } from "../helpers";
 import { makeSystemConfig } from "../factories";
 
+const issuerProvider = {
+  id: "okta",
+  name: "Okta",
+  enabled: true,
+  clientId: "client-abc",
+  clientSecretEnv: "OKTA_CLIENT_SECRET",
+  issuer: "https://example.okta.com",
+  scopes: ["openid", "email"],
+  redirectUris: [],
+  subjectJsonPath: "sub",
+  emailJsonPath: "email",
+  emailVerifiedJsonPath: "email_verified",
+  allowSignup: true,
+  accountLinking: "email" as const,
+  requireEmailVerified: false,
+  promptPasskeyEnrollment: false,
+};
+
 test.describe("System Configuration", () => {
   test("renders the current configuration", async ({ page, signInAs }) => {
     await signInAs("writeAdmin", "/system");
@@ -165,6 +183,123 @@ test.describe("System Configuration", () => {
     });
     // The secret value itself never reaches the browser or the request.
     expect(Object.keys(payload)).not.toContain("clientSecret");
+  });
+
+  test("adds an OAuth provider from its issuer alone", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    await signInAs("writeAdmin", "/system");
+
+    await page.getByLabel("Provider ID").fill("okta");
+    await page.getByLabel("Display Name").fill("Okta");
+    await page.getByLabel("Client ID").fill("client-abc");
+    await page.getByLabel("Client Secret Env").fill("OKTA_CLIENT_SECRET");
+    await page.getByRole("radio", { name: "Discover from issuer" }).check();
+    await expect(
+      page.getByText(
+        /read from the issuer's \/\.well-known\/openid-configuration/,
+      ),
+    ).toBeVisible();
+    await page
+      .getByLabel("Issuer", { exact: true })
+      .fill("https://example.okta.com");
+
+    await page.getByRole("button", { name: "Add Provider" }).click();
+    await expectToast(page, "Provider added");
+
+    const payload = api.lastCall("POST", "/system-config/oauth-providers")
+      ?.payload as Record<string, unknown>;
+
+    expect(payload).toMatchObject({
+      id: "okta",
+      issuer: "https://example.okta.com",
+    });
+    expect(Object.keys(payload)).not.toContain("authorizationUrl");
+    expect(Object.keys(payload)).not.toContain("tokenUrl");
+    expect(Object.keys(payload)).not.toContain("userInfoUrl");
+  });
+
+  test("refreshes a provider's discovered endpoints", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    api.get("/system-config/admin", {
+      json: makeSystemConfig({ oauth_providers: [issuerProvider] }),
+    });
+    api.post("/system-config/oauth-providers/:id/discovery", {
+      json: {
+        provider: {
+          ...issuerProvider,
+          authorizationUrl: "https://example.okta.com/oauth2/v1/authorize",
+          tokenUrl: "https://example.okta.com/oauth2/v1/token",
+          userInfoUrl: "https://example.okta.com/oauth2/v1/userinfo",
+          jwksUri: "https://example.okta.com/oauth2/v1/keys",
+        },
+      },
+    });
+
+    await signInAs("writeAdmin", "/system");
+
+    const card = page.getByRole("group", { name: "Okta" });
+    await expect(
+      card.getByText("Authorization: Discovered from issuer"),
+    ).toBeVisible();
+
+    await card
+      .getByRole("button", { name: "Refresh discovery for Okta" })
+      .click();
+    await expectToast(page, "Discovery refreshed");
+
+    const discovered = card.getByRole("region", {
+      name: "Discovered endpoints for Okta",
+    });
+    await expect(
+      discovered.getByText("https://example.okta.com/oauth2/v1/token"),
+    ).toBeVisible();
+    await expect(
+      discovered.getByText("https://example.okta.com/oauth2/v1/keys"),
+    ).toBeVisible();
+    expect(
+      api.recordedCalls(
+        "POST",
+        "/system-config/oauth-providers/okta/discovery",
+      ),
+    ).toHaveLength(1);
+  });
+
+  test("reports why a discovery refresh failed", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    api.get("/system-config/admin", {
+      json: makeSystemConfig({ oauth_providers: [issuerProvider] }),
+    });
+    api.post("/system-config/oauth-providers/:id/discovery", {
+      status: 502,
+      json: {
+        error: "oauth_discovery_failed",
+        message: "OpenID discovery document names a different issuer",
+      },
+    });
+
+    await signInAs("writeAdmin", "/system");
+
+    const card = page.getByRole("group", { name: "Okta" });
+    await card
+      .getByRole("button", { name: "Refresh discovery for Okta" })
+      .click();
+
+    await expectToast(page, "Could not refresh discovery");
+    await expect(card.getByRole("alert")).toHaveText(
+      "Discovery failed: OpenID discovery document names a different issuer",
+    );
+    await expect(
+      card.getByRole("region", { name: "Discovered endpoints for Okta" }),
+    ).toHaveCount(0);
   });
 
   test("rejects a provider URL that is not absolute", async ({

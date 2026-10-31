@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   createProvider: vi.fn(),
   updateProvider: vi.fn(),
   removeProvider: vi.fn(),
+  refreshDiscovery: vi.fn(),
   useSystemConfig: vi.fn(),
   useUpdateSystemConfig: vi.fn(),
   useOAuthProviders: vi.fn(),
@@ -123,10 +124,12 @@ describe("SystemConfigPage", () => {
     mocks.createProvider.mockReset();
     mocks.updateProvider.mockReset();
     mocks.removeProvider.mockReset();
+    mocks.refreshDiscovery.mockReset();
     mocks.useOAuthProviders.mockReturnValue({
       create: { mutate: mocks.createProvider, isPending: false },
       update: { mutate: mocks.updateProvider, isPending: false },
       remove: { mutate: mocks.removeProvider, isPending: false },
+      refreshDiscovery: { mutate: mocks.refreshDiscovery, isPending: false },
     });
     mocks.useAdminPermissions.mockReturnValue({
       canRead: true,
@@ -534,6 +537,202 @@ describe("SystemConfigPage", () => {
       await screen.findAllByText("This URL is required for OAuth to work."),
     ).toHaveLength(3);
     expect(mocks.createProvider).not.toHaveBeenCalled();
+  });
+
+  it("adds a provider from its issuer without any endpoints", async () => {
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText(/provider id/i), {
+      target: { value: "okta" },
+    });
+    fireEvent.change(screen.getByLabelText(/display name/i), {
+      target: { value: "Okta" },
+    });
+    fireEvent.change(screen.getByLabelText(/^client id$/i), {
+      target: { value: "client-id" },
+    });
+    fireEvent.change(screen.getByLabelText(/client secret env/i), {
+      target: { value: "OKTA_CLIENT_SECRET" },
+    });
+    fireEvent.click(
+      screen.getByRole("radio", { name: /discover from issuer/i }),
+    );
+    fireEvent.change(screen.getByLabelText(/^issuer$/i), {
+      target: { value: "https://example.okta.com" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /add provider/i }));
+
+    await waitFor(() => expect(mocks.createProvider).toHaveBeenCalled());
+    const [payload] = mocks.createProvider.mock.calls[0]!;
+    expect(payload).toMatchObject({
+      id: "okta",
+      issuer: "https://example.okta.com",
+    });
+    expect(payload.authorizationUrl).toBeUndefined();
+    expect(payload.tokenUrl).toBeUndefined();
+    expect(payload.userInfoUrl).toBeUndefined();
+  });
+
+  it("requires an issuer when discovering endpoints", async () => {
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText(/provider id/i), {
+      target: { value: "okta" },
+    });
+    fireEvent.change(screen.getByLabelText(/display name/i), {
+      target: { value: "Okta" },
+    });
+    fireEvent.change(screen.getByLabelText(/^client id$/i), {
+      target: { value: "client-id" },
+    });
+    fireEvent.change(screen.getByLabelText(/client secret env/i), {
+      target: { value: "OKTA_CLIENT_SECRET" },
+    });
+    fireEvent.click(
+      screen.getByRole("radio", { name: /discover from issuer/i }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /add provider/i }));
+
+    expect(
+      await screen.findByText(
+        "Enter the issuer URL, such as https://accounts.google.com.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("This URL is required for OAuth to work."),
+    ).not.toBeInTheDocument();
+    expect(mocks.createProvider).not.toHaveBeenCalled();
+  });
+
+  it("keeps a stored issuer and leaves blank endpoints out of the update", async () => {
+    mocks.useSystemConfig.mockReturnValue({
+      data: {
+        ...baseConfig,
+        oauth_providers: [
+          {
+            ...storedProvider,
+            id: "okta",
+            name: "Okta",
+            issuer: "https://example.okta.com",
+            authorizationUrl: undefined,
+            tokenUrl: undefined,
+            userInfoUrl: undefined,
+          },
+        ],
+      },
+      isLoading: false,
+    });
+    renderPage();
+
+    const card = within(screen.getByRole("group", { name: "Okta" }));
+    expect(
+      card.getByText("Issuer: https://example.okta.com"),
+    ).toBeInTheDocument();
+    expect(
+      card.getByText("Authorization: Discovered from issuer"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /edit okta/i }));
+
+    expect(
+      screen.getByRole("radio", { name: /enter endpoints/i }),
+    ).toBeDisabled();
+    expect(screen.getByLabelText(/^issuer$/i)).toHaveAttribute("readonly");
+
+    fireEvent.change(screen.getByLabelText(/^client id$/i), {
+      target: { value: "new-client" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save provider/i }));
+
+    await waitFor(() => expect(mocks.updateProvider).toHaveBeenCalled());
+    const [payload] = mocks.updateProvider.mock.calls[0]!;
+    expect(payload).toEqual({
+      id: "okta",
+      updates: { clientId: "new-client" },
+    });
+  });
+
+  it("refreshes discovery after step-up and shows the endpoints it found", async () => {
+    mocks.useSystemConfig.mockReturnValue({
+      data: {
+        ...baseConfig,
+        oauth_providers: [
+          storedProvider,
+          {
+            ...storedProvider,
+            id: "okta",
+            name: "Okta",
+            issuer: "https://example.okta.com",
+          },
+        ],
+      },
+      isLoading: false,
+    });
+    mocks.refreshDiscovery.mockImplementation((_id, { onSuccess }) =>
+      onSuccess({
+        provider: {
+          ...storedProvider,
+          id: "okta",
+          name: "Okta",
+          issuer: "https://example.okta.com",
+          jwksUri: "https://example.okta.com/oauth2/v1/keys",
+        },
+      }),
+    );
+    renderPage();
+
+    expect(
+      within(screen.getByRole("group", { name: "Google" })).queryByRole(
+        "button",
+        { name: /refresh discovery/i },
+      ),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Refresh discovery for Okta" }),
+    );
+
+    const region = await screen.findByRole("region", {
+      name: "Discovered endpoints for Okta",
+    });
+    expect(mocks.refreshDiscovery).toHaveBeenCalledWith(
+      "okta",
+      expect.anything(),
+    );
+    expect(mocks.useStepUpGuard()).toHaveBeenCalled();
+    expect(
+      within(region).getByText("https://example.okta.com/oauth2/v1/keys"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows why a discovery refresh failed", async () => {
+    mocks.useSystemConfig.mockReturnValue({
+      data: {
+        ...baseConfig,
+        oauth_providers: [
+          {
+            ...storedProvider,
+            id: "okta",
+            name: "Okta",
+            issuer: "https://example.okta.com",
+          },
+        ],
+      },
+      isLoading: false,
+    });
+    mocks.refreshDiscovery.mockImplementation((_id, { onError }) =>
+      onError(new Error("OpenID discovery document names a different issuer")),
+    );
+    renderPage();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Refresh discovery for Okta" }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "OpenID discovery document names a different issuer",
+    );
   });
 
   it("rejects a malformed url and a provider id that is not kebab-case", async () => {
