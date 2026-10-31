@@ -236,6 +236,11 @@ export default function SystemConfigPage() {
   const enforcesModelRestrictions =
     authenticatorPolicy.attestation === "direct";
 
+  const oidcIssuerError =
+    form.oidc_issuer && !isAbsoluteUrl(form.oidc_issuer)
+      ? "Enter a full URL, such as https://id.example.com."
+      : undefined;
+
   const updateAuthenticatorPolicy = (patch: Partial<AuthenticatorPolicy>) =>
     updateField("authenticator_policy", { ...authenticatorPolicy, ...patch });
 
@@ -298,6 +303,11 @@ export default function SystemConfigPage() {
     // includes read-only keys from the GET, such as frontend_url) is rejected.
     const changes = draft;
     if (Object.keys(changes).length === 0) return;
+
+    if (oidcIssuerError) {
+      toast.error("Configuration not saved", oidcIssuerError);
+      return;
+    }
 
     // Both fields decide whether an existing passkey can still be asserted, and
     // neither failure is visible until a user cannot sign in.
@@ -819,6 +829,53 @@ export default function SystemConfigPage() {
             origins={form.origins}
             setOrigins={(value) => updateField("origins", value)}
             canWrite={canWrite}
+          />
+        </div>
+      </Section>
+
+      <Section
+        title="OpenID Provider"
+        description="Let applications you register sign users in through this instance. Applications and their resources are managed on the Applications and Resources pages."
+      >
+        <div className="space-y-4">
+          <Input
+            label="OIDC Issuer"
+            value={form.oidc_issuer ?? ""}
+            placeholder="https://id.example.com"
+            helperText="The provider service's public URL, such as https://id.example.com. Its host must be the RP ID or a subdomain of it, and it cannot be this API's own issuer."
+            error={oidcIssuerError}
+            onChange={(value) =>
+              updateField("oidc_issuer", value.trim() || null)
+            }
+            disabled={!canWrite}
+          />
+
+          <CheckboxField
+            label="Enable OpenID Provider"
+            description="Turns on the provider's /oidc routes. The API refuses this until the issuer is set and its host falls under the relying-party ID, and the provider's signing keys and service token are configured on the server."
+            checked={form.oidc_provider_enabled ?? false}
+            onChange={(checked) =>
+              updateField("oidc_provider_enabled", checked)
+            }
+            disabled={!canWrite}
+          />
+
+          <CheckboxField
+            label="Allow Client Secrets"
+            description="Lets an application authenticate with a shared client secret (client_secret_basic or client_secret_post). This is weaker than a registered key: anyone who reads the secret can act as the application. Each application still opts in on its own."
+            checked={form.allow_client_secrets ?? false}
+            onChange={(checked) => updateField("allow_client_secrets", checked)}
+            disabled={!canWrite}
+          />
+
+          <CheckboxField
+            label="Allow Third-Party Clients"
+            description="Third-party applications, ones this deployment does not operate, can only be registered while this is on. Users always see a consent page for them."
+            checked={form.third_party_clients_enabled ?? false}
+            onChange={(checked) =>
+              updateField("third_party_clients_enabled", checked)
+            }
+            disabled={!canWrite}
           />
         </div>
       </Section>

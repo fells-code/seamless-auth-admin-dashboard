@@ -146,6 +146,26 @@ describe("apiFetch", () => {
     );
   });
 
+  it("lists the problems a policy refusal names", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: "Invalid OpenID Provider config",
+          details: [
+            "oidc_issuer host id.example.org is not covered by rpid example.com",
+            "oidc_provider_enabled needs OIDC_JWKS_ACTIVE_KID and OIDC_JWKS_KEYS",
+            "not_prose",
+          ],
+        }),
+        { status: 400 },
+      ),
+    );
+
+    await expect(apiFetch("/system-config/admin")).rejects.toThrow(
+      "Invalid OpenID Provider config: oidc_issuer host id.example.org is not covered by rpid example.com; oidc_provider_enabled needs OIDC_JWKS_ACTIVE_KID and OIDC_JWKS_KEYS",
+    );
+  });
+
   it("falls back to the reason when the detail is not renderable", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValue(

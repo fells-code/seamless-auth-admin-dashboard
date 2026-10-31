@@ -1071,6 +1071,73 @@ describe("SystemConfigPage", () => {
     expect(screen.getByLabelText(/allowed origins/i)).toBeDisabled();
   });
 
+  it("shows the OpenID Provider settings and saves only what changed", async () => {
+    mocks.useSystemConfig.mockReturnValue({
+      data: {
+        ...baseConfig,
+        oidc_provider_enabled: false,
+        oidc_issuer: null,
+        allow_client_secrets: false,
+        third_party_clients_enabled: true,
+      },
+      isLoading: false,
+    });
+    renderPage();
+
+    expect(screen.getByLabelText(/oidc issuer/i)).toHaveValue("");
+    expect(
+      screen.getByRole("checkbox", { name: /allow third-party clients/i }),
+    ).toBeChecked();
+    expect(
+      screen.getByRole("checkbox", { name: /allow client secrets/i }),
+    ).toHaveAccessibleName(/weaker than a registered key/i);
+
+    fireEvent.change(screen.getByLabelText(/oidc issuer/i), {
+      target: { value: "https://id.example.com" },
+    });
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /enable openid provider/i }),
+    );
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /allow client secrets/i }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => expect(mocks.mutate).toHaveBeenCalled());
+    expect(mocks.mutate.mock.calls[0]![0]).toEqual({
+      oidc_issuer: "https://id.example.com",
+      oidc_provider_enabled: true,
+      allow_client_secrets: true,
+    });
+    expect(mocks.useStepUpGuard()).toHaveBeenCalled();
+  });
+
+  it("clears the OIDC issuer to null and refuses one that is not a URL", async () => {
+    mocks.useSystemConfig.mockReturnValue({
+      data: { ...baseConfig, oidc_issuer: "https://id.example.com" },
+      isLoading: false,
+    });
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText(/oidc issuer/i), {
+      target: { value: "id.example.com" },
+    });
+    expect(
+      screen.getByText("Enter a full URL, such as https://id.example.com."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+    await waitFor(() => expect(mocks.useStepUpGuard()).not.toHaveBeenCalled());
+    expect(mocks.mutate).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText(/oidc issuer/i), {
+      target: { value: "" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => expect(mocks.mutate).toHaveBeenCalled());
+    expect(mocks.mutate.mock.calls[0]![0]).toEqual({ oidc_issuer: null });
+  });
+
   it("confirms before discarding a dirty draft", async () => {
     mocks.confirm.mockResolvedValue(false);
 

@@ -359,6 +359,10 @@ export function makeSystemConfig(
     delay_after: 10,
     rpid: "localhost",
     origins: ["http://localhost:4287"],
+    oidc_provider_enabled: false,
+    oidc_issuer: null,
+    allow_client_secrets: false,
+    third_party_clients_enabled: false,
     hosted_ui: null,
     ...overrides,
   } as SystemConfig;
