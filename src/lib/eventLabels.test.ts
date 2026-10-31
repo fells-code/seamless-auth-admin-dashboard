@@ -21,7 +21,17 @@ describe("getEventLabel", () => {
     expect(getEventLabel("step_up_success")).toBe("Step-up succeeded");
   });
 
+  it("names the account notices an application sends", () => {
+    expect(getEventLabel("oidc_account_notice_sent")).toBe(
+      "Application account notice sent",
+    );
+    expect(getEventLabel("oidc_account_notice_failed")).toBe(
+      "Application account notice failed",
+    );
+  });
+
   it("derives a readable name for other types, keeping acronyms", () => {
+    expect(getEventLabel("oidc_token_issued")).toBe("OIDC token issued");
     expect(getEventLabel("login_success")).toBe("Login success");
     expect(getEventLabel("mfa_otp_failed")).toBe("MFA OTP failed");
     expect(getEventLabel("oauth_login_started")).toBe("OAuth login started");

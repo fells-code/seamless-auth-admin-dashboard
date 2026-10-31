@@ -9,6 +9,7 @@ import { notifySessionExpired } from "./sessionExpiry";
 import { requestStepUp } from "./stepUpRequired";
 
 export const STEP_UP_REQUIRED = "step_up_required";
+export const OAUTH_DISCOVERY_FAILED = "oauth_discovery_failed";
 
 /**
  * Carries the HTTP status, and the API's machine-readable `error` code when
@@ -173,7 +174,7 @@ function formatApiError(
     return "This action needs a recent step-up verification. Try again and complete the verification prompt.";
   }
 
-  return safeApiMessage(status, body) ?? friendlyStatusMessage(status);
+  return safeApiMessage(status, body, code) ?? friendlyStatusMessage(status);
 }
 
 // Statuses where the API's own message is operator-actionable validation
@@ -214,8 +215,17 @@ function renderableMessage(candidate: unknown): string | undefined {
  * Either field can be a machine code or server internals, so whichever is chosen still
  * has to look like operator-facing prose, and the other is tried when it does not.
  */
-function safeApiMessage(status: number, body: string): string | undefined {
-  if (!MESSAGE_SURFACING_STATUSES.has(status)) {
+function safeApiMessage(
+  status: number,
+  body: string,
+  code?: string,
+): string | undefined {
+  // A failed OpenID discovery is a 502 whose message names what the issuer got
+  // wrong, which is the only thing an operator can act on.
+  const surfaced =
+    MESSAGE_SURFACING_STATUSES.has(status) ||
+    (status === 502 && code === OAUTH_DISCOVERY_FAILED);
+  if (!surfaced) {
     return undefined;
   }
 

@@ -191,6 +191,45 @@ describe("apiFetch", () => {
     consoleError.mockRestore();
   });
 
+  it("surfaces the reason an OpenID discovery request failed", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: "oauth_discovery_failed",
+          message: "OpenID discovery document names a different issuer",
+        }),
+        { status: 502 },
+      ),
+    );
+
+    await expect(
+      apiFetch("/system-config/oauth-providers/okta/discovery"),
+    ).rejects.toThrow("OpenID discovery document names a different issuer");
+
+    consoleError.mockRestore();
+  });
+
+  it("keeps the friendly wording for other gateway errors", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({ error: "bad_gateway", message: "Upstream is down" }),
+        { status: 502 },
+      ),
+    );
+
+    await expect(apiFetch("/admin/users")).rejects.toThrow(
+      "The Seamless Auth API had a problem. Try again shortly.",
+    );
+
+    consoleError.mockRestore();
+  });
+
   it("does not surface unstructured error bodies", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValue(

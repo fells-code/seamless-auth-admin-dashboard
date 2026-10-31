@@ -66,5 +66,15 @@ export function useOAuthProviders() {
     onSuccess: invalidate,
   });
 
-  return { create, update, remove };
+  // Nothing is stored, so there is nothing to invalidate. The answer is the
+  // provider as sign-in will use it, with the discovered endpoints filled in.
+  const refreshDiscovery = useMutation<OAuthProviderResponse, Error, string>({
+    mutationFn: (id) =>
+      apiFetch<OAuthProviderResponse>(
+        `${BASE_PATH}/${encodeURIComponent(id)}/discovery`,
+        { method: "POST" },
+      ),
+  });
+
+  return { create, update, remove, refreshDiscovery };
 }
