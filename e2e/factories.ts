@@ -9,6 +9,8 @@ import type {
   AuthEvent,
   CredentialResponse,
   MeUser,
+  OidcApplication,
+  OidcResource,
   Organization,
   OrganizationMembership,
   PartialAuthEvent,
@@ -185,6 +187,51 @@ export function makeMembership(
       phone: null,
       roles: ["user"],
     },
+    ...overrides,
+  };
+}
+
+export function makeOidcApplication(
+  overrides: Partial<OidcApplication> = {},
+): OidcApplication {
+  return {
+    id: nextId("client"),
+    name: "Docs Portal",
+    clientType: "confidential",
+    applicationType: "web",
+    firstParty: false,
+    tokenEndpointAuthMethod: "private_key_jwt",
+    redirectUris: ["https://docs.example.com/callback"],
+    postLogoutRedirectUris: [],
+    grantTypes: ["authorization_code", "refresh_token"],
+    deviceFlowEnabled: false,
+    noticesEnabled: false,
+    jwks: null,
+    jwksUri: null,
+    hasSecret: false,
+    backchannelLogoutUri: null,
+    accessTokenTtlSeconds: null,
+    idTokenTtlSeconds: null,
+    refreshTokenTtlSeconds: null,
+    disabled: false,
+    createdAt: isoOffset(-30 * DAY),
+    updatedAt: isoOffset(-1 * DAY),
+    ...overrides,
+  };
+}
+
+export function makeOidcResource(
+  overrides: Partial<OidcResource> = {},
+): OidcResource {
+  sequence += 1;
+  return {
+    id: `00000000-0000-4000-8000-${String(sequence).padStart(12, "0")}`,
+    identifier: "https://api.example.com",
+    name: "Orders API",
+    scopes: ["orders:read", "orders:write"],
+    accessTokenTtlSeconds: null,
+    createdAt: isoOffset(-30 * DAY),
+    updatedAt: isoOffset(-1 * DAY),
     ...overrides,
   };
 }

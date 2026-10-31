@@ -18,6 +18,8 @@ import Sessions from "./pages/Sessions";
 import Events from "./pages/Events";
 import Security from "./pages/Security";
 import Organizations from "./pages/Organizations";
+import Applications from "./pages/Applications";
+import Resources from "./pages/Resources";
 import Enrollment from "./pages/Enrollment";
 import Coverage from "./pages/Coverage";
 import UserDetail from "./pages/UserDetail";
@@ -103,6 +105,8 @@ const router = createBrowserRouter(
             { path: "/", element: <Overview /> },
             { path: "/users", element: <Users /> },
             { path: "/organizations", element: <Organizations /> },
+            { path: "/applications", element: <Applications /> },
+            { path: "/resources", element: <Resources /> },
             { path: "/enrollment", element: <Enrollment /> },
             { path: "/coverage", element: <Coverage /> },
             { path: "/sessions", element: <Sessions /> },

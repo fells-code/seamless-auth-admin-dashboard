@@ -61,6 +61,11 @@ export const eventCategories: EventCategory[] = [
     match: startsWithAny(["oauth_"]),
   },
   {
+    label: "OpenID Provider",
+    value: "oidc",
+    match: startsWithAny(["oidc_", "admin_oidc_"]),
+  },
+  {
     label: "Passkeys",
     value: "webauthn",
     match: startsWithAny(["webauthn_"]),
