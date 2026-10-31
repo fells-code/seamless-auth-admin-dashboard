@@ -233,7 +233,18 @@ function safeApiMessage(status: number, body: string): string | undefined {
 
   const fields = parsed as Record<string, unknown>;
 
-  return renderableMessage(fields.message) ?? renderableMessage(fields.error);
+  const reason =
+    renderableMessage(fields.message) ?? renderableMessage(fields.error);
+
+  // Policy refusals list what to fix in `details`, such as "oidc_issuer host
+  // id.example.org is not covered by rpid example.com".
+  const details = Array.isArray(fields.details)
+    ? fields.details.map(renderableMessage).filter(Boolean)
+    : [];
+
+  return reason && details.length > 0
+    ? `${reason}: ${details.join("; ")}`
+    : reason;
 }
 
 function friendlyStatusMessage(status: number): string {

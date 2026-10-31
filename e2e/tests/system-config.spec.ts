@@ -9,6 +9,7 @@ import {
   confirmDialog,
   drainRetries,
   expectErrorState,
+  expectInlineAlert,
   expectToast,
 } from "../helpers";
 import { makeSystemConfig } from "../factories";
@@ -249,6 +250,93 @@ test.describe("System Configuration", () => {
     await expectToast(page, "Configuration save failed");
     // The detail is what an operator can act on, so it wins over the reason.
     await expectToast(page, /Roles not available on this instance/);
+  });
+
+  test("reads the OpenID Provider settings", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    api.get("/system-config/admin", {
+      json: makeSystemConfig({
+        rpid: "example.com",
+        oidc_provider_enabled: true,
+        oidc_issuer: "https://id.example.com",
+        allow_client_secrets: false,
+        third_party_clients_enabled: true,
+      }),
+    });
+
+    await signInAs("writeAdmin", "/system");
+
+    await expect(
+      page.getByRole("heading", { name: "OpenID Provider" }),
+    ).toBeVisible();
+    await expect(page.getByLabel("OIDC Issuer")).toHaveValue(
+      "https://id.example.com",
+    );
+    await expect(
+      page.getByRole("checkbox", { name: /enable openid provider/i }),
+    ).toBeChecked();
+    await expect(
+      page.getByRole("checkbox", { name: /allow client secrets/i }),
+    ).not.toBeChecked();
+    await expect(
+      page.getByRole("checkbox", { name: /allow third-party clients/i }),
+    ).toBeChecked();
+  });
+
+  test("saves the OpenID Provider settings after step-up", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    await signInAs("writeAdmin", "/system");
+
+    await page.getByLabel("OIDC Issuer").fill("https://id.localhost");
+    await page
+      .getByRole("checkbox", { name: /enable openid provider/i })
+      .check();
+    await page.getByRole("checkbox", { name: /allow client secrets/i }).check();
+    await page
+      .getByRole("checkbox", { name: /allow third-party clients/i })
+      .check();
+    await page.getByRole("button", { name: "Save Changes" }).click();
+
+    await expectToast(page, "Configuration saved");
+    expect(api.lastCall("PATCH", "/system-config/admin")?.payload).toEqual({
+      oidc_issuer: "https://id.localhost",
+      oidc_provider_enabled: true,
+      allow_client_secrets: true,
+      third_party_clients_enabled: true,
+    });
+  });
+
+  test("reports why the API refused to enable the provider", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    api.patch("/system-config/admin", {
+      status: 400,
+      json: {
+        error: "Invalid OpenID Provider config",
+        details: ["oidc_provider_enabled needs oidc_issuer"],
+      },
+    });
+
+    await signInAs("writeAdmin", "/system");
+
+    await page
+      .getByRole("checkbox", { name: /enable openid provider/i })
+      .check();
+    await page.getByRole("button", { name: "Save Changes" }).click();
+
+    await expectToast(page, "Configuration save failed");
+    await expectInlineAlert(
+      page,
+      "Invalid OpenID Provider config: oidc_provider_enabled needs oidc_issuer",
+    );
   });
 
   test("surfaces a failed load", async ({ page, api, signInAs }) => {

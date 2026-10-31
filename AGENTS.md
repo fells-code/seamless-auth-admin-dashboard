@@ -224,7 +224,7 @@ Current page intent:
 - `Sessions.tsx`: global session inventory and revoke actions
 - `Events.tsx`: auth event browsing and filtering, including grouped quick filters
 - `Security.tsx`: anomaly and login-stat visibility with drill-down links, plus the audit trail panel (integrity check and NDJSON export)
-- `SystemConfig.tsx`: editable system settings and roles, plus hosted page branding (saved on its own through `HostedUiBrandingEditor`, with contrast checks from `src/lib/hostedUi.ts`)
+- `SystemConfig.tsx`: editable system settings and roles (including the OpenID Provider switch, issuer, client secret, and third-party client settings), plus hosted page branding (saved on its own through `HostedUiBrandingEditor`, with contrast checks from `src/lib/hostedUi.ts`)
 - `Policy.tsx`: staged sign-in policy: draft versus published diff, dry run, publish, version history and rollback
 - `Profile.tsx`: current user profile, sessions, and credentials
 - `Unauthenticated.tsx`: access-required state and redirect handling

@@ -145,7 +145,8 @@ export default function OidcApplicationDialog({
           <p className="rounded-md border border-[color:var(--highlight)]/35 bg-surface-alt p-3 text-xs text-muted">
             A shared secret is weaker than a registered key: anyone who reads it
             can act as this client. Prefer private key JWT where the client can
-            hold a key. The instance must also allow client secrets.
+            hold a key. The instance must also allow client secrets, under
+            OpenID Provider on the System page.
           </p>
         )}
 
