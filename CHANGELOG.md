@@ -1,5 +1,19 @@
 # seamless-auth-admin-dashboard
 
+## 0.12.0
+
+### Minor Changes
+
+- 9f12e4b: The application page shows whether an application requires PKCE and the nonce, and the edit dialog changes them on a confidential client. The nonce setting appears only once PKCE is off, and turning PKCE back on restores the nonce requirement, matching the API's rules. An application with both off relies only on `state` and client authentication against authorization code injection, so it is marked in the list and warned about on its page and in the dialog. Saving goes through step-up like every application write. Pins `@seamless-auth/types` 0.34.0.
+- d98f302: Add a Hosted Page Branding section to System Configuration for the OpenID Provider's hosted sign-in and consent pages. Admins can set a brand name, an https logo URL (with a small preview), the six page colors as a color picker plus hex value, and a system font stack, and see a live preview of both pages. Values are checked against the API's schema before saving, and WCAG 2.2 AA contrast warnings (4.5:1 for text, 3:1 for the primary color on the card) are shown without blocking the save. Saving asks for step-up and replaces the whole branding object, and Reset to Defaults clears it. Needs `@seamless-auth/types` 0.34.0.
+- 9db26b7: Add OAuth providers from their issuer. The provider form gains a "Discover from issuer" option: enter the issuer URL and leave the authorization, token, and user info URLs blank to have the API read them from the issuer's `/.well-known/openid-configuration` when the provider is used, or fill any of them to override the discovered value. Providers with an issuer get a Refresh discovery action (step-up required) that re-reads the discovery document and shows the endpoints sign-in will use, or the reason the document was refused. The `oidc_account_notice_sent` and `oidc_account_notice_failed` events are labelled and grouped under OpenID Provider, and other OIDC event names now read "OIDC". Needs `@seamless-auth/types` 0.34.0 and an adapter in front of Seamless Auth API 0.21.0 or later for the discovery route.
+- caa2786: Add Applications and Resources pages for the OpenID Provider. Admins can register public and confidential clients, see redirect URIs checked as they type them (https, loopback and private-use schemes), rotate a client secret that is shown once, register a public key set or JWKS URI, define resources and their scopes, and choose which resources and scopes each application may use. Shared-secret clients are marked as weaker, every write asks for step-up first, and read-only admins see no write controls. Auth events from the OpenID Provider get their own category. Needs `@seamless-auth/types` 0.34.0 and an adapter that serves the `/admin/applications` and `/admin/resources` routes.
+- 873b975: Add an OpenID Provider section to System Configuration that shows and edits `oidc_provider_enabled`, `oidc_issuer`, `allow_client_secrets`, and `third_party_clients_enabled`. They save with the rest of the page through `PATCH /system-config/admin` after step-up. A cleared issuer is sent as `null`, and an issuer that is not a URL is refused before saving. When the API refuses the change, for example enabling the provider before the issuer is set or while its host is outside the relying-party ID, the problems it lists in `details` are now shown after its reason, here and on every other refusal that carries them. Needs `@seamless-auth/types` 0.34.0 and Seamless Auth API 0.21.0 or later.
+
+### Patch Changes
+
+- 25d96b2: Depend on `@seamless-auth/types` `^0.34.0`, the stable release, instead of the 0.34.0 prerelease.
+
 ## 0.11.0
 
 ### Minor Changes
