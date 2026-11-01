@@ -28,6 +28,8 @@ import {
   emptyApplicationForm,
   GRANT_LABELS,
   isSharedSecretMethod,
+  lacksCodeBinding,
+  NO_CODE_BINDING_WARNING,
   parseJwks,
   REDIRECT_KIND_LABELS,
   updateRequestFromForm,
@@ -311,9 +313,18 @@ export default function Applications() {
               key: "disabled",
               label: "Status",
               width: "compact",
-              render: (value) => (
-                <span className="text-sm text-muted">
+              wrap: true,
+              render: (value, row) => (
+                <span className="inline-flex flex-wrap items-center gap-2 text-sm text-muted">
                   {value ? "Disabled" : "Active"}
+                  {lacksCodeBinding(row) && (
+                    <span
+                      className="rounded-full border border-[color:var(--highlight)]/35 bg-[color:var(--highlight)]/10 px-2 py-0.5 text-xs text-[var(--highlight)]"
+                      title={NO_CODE_BINDING_WARNING}
+                    >
+                      No PKCE or nonce
+                    </span>
+                  )}
                 </span>
               ),
             },
@@ -523,6 +534,22 @@ function ApplicationDetails({ app }: { app: OidcApplication }) {
         label="Account notices"
         value={app.noticesEnabled ? "Allowed" : "Off"}
       />
+      <Detail
+        label="PKCE"
+        value={app.pkceRequired ? "Required" : "Not required"}
+      />
+      <Detail
+        label="Nonce"
+        value={app.nonceRequired ? "Required" : "Not required"}
+      />
+      {lacksCodeBinding(app) && (
+        <p
+          role="alert"
+          className="rounded-md border border-[color:var(--highlight)]/35 bg-[color:var(--highlight)]/10 p-3 text-sm text-[var(--highlight)] sm:col-span-2"
+        >
+          {NO_CODE_BINDING_WARNING}
+        </p>
+      )}
     </div>
   );
 }

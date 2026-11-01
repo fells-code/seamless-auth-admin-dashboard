@@ -37,6 +37,16 @@ export const REDIRECT_KIND_LABELS = {
   private_use: "Private-use scheme",
 } as const;
 
+export const NO_CODE_BINDING_WARNING =
+  "PKCE and the nonce are both off. This application relies only on state and client authentication against authorization code injection. Keep this only for a client that needs it, such as an OpenID certification test client.";
+
+/** True when neither PKCE nor a nonce binds the authorization code to the client's request. */
+export function lacksCodeBinding(
+  app: Pick<OidcApplication, "pkceRequired" | "nonceRequired">,
+) {
+  return !app.pkceRequired && !app.nonceRequired;
+}
+
 /** Shared secrets are allowed but weaker than keys: anyone who reads one can act as the client. */
 export function isSharedSecretMethod(method: OidcTokenEndpointAuthMethod) {
   return method === "client_secret_basic" || method === "client_secret_post";
@@ -92,6 +102,8 @@ export type ApplicationForm = {
   grantTypes: OidcApplicationGrantType[];
   deviceFlowEnabled: boolean;
   noticesEnabled: boolean;
+  pkceRequired: boolean;
+  nonceRequired: boolean;
   backchannelLogoutUri: string;
   accessTokenTtlSeconds: string;
   idTokenTtlSeconds: string;
@@ -110,6 +122,8 @@ export function emptyApplicationForm(): ApplicationForm {
     grantTypes: ["authorization_code", "refresh_token"],
     deviceFlowEnabled: false,
     noticesEnabled: false,
+    pkceRequired: true,
+    nonceRequired: true,
     backchannelLogoutUri: "",
     accessTokenTtlSeconds: "",
     idTokenTtlSeconds: "",
@@ -133,6 +147,8 @@ export function applicationToForm(app: OidcApplication): ApplicationForm {
     grantTypes: app.grantTypes,
     deviceFlowEnabled: app.deviceFlowEnabled,
     noticesEnabled: app.noticesEnabled,
+    pkceRequired: app.pkceRequired,
+    nonceRequired: app.nonceRequired,
     backchannelLogoutUri: app.backchannelLogoutUri ?? "",
     accessTokenTtlSeconds: ttlText(app.accessTokenTtlSeconds),
     idTokenTtlSeconds: ttlText(app.idTokenTtlSeconds),
@@ -156,6 +172,8 @@ function settingsFromForm(form: ApplicationForm) {
     grantTypes: form.grantTypes,
     deviceFlowEnabled: form.deviceFlowEnabled,
     noticesEnabled: form.noticesEnabled,
+    pkceRequired: form.pkceRequired,
+    nonceRequired: form.nonceRequired,
     backchannelLogoutUri: form.backchannelLogoutUri.trim() || null,
     accessTokenTtlSeconds: ttlValue(form.accessTokenTtlSeconds),
     idTokenTtlSeconds: ttlValue(form.idTokenTtlSeconds),
@@ -172,6 +190,8 @@ const FIELD_LABELS: Record<string, string> = {
   postLogoutRedirectUris: "Post-logout redirect URI",
   grantTypes: "Grants",
   deviceFlowEnabled: "Device grant",
+  pkceRequired: "PKCE",
+  nonceRequired: "Nonce",
   backchannelLogoutUri: "Back-channel logout URI",
   accessTokenTtlSeconds: "Access token TTL",
   idTokenTtlSeconds: "ID token TTL",

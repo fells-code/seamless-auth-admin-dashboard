@@ -4,7 +4,13 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OidcApplication } from "@seamless-auth/types";
 import Applications from "./Applications";
@@ -76,6 +82,8 @@ const legacy: OidcApplication = {
   grantTypes: ["authorization_code"],
   deviceFlowEnabled: false,
   noticesEnabled: false,
+  pkceRequired: true,
+  nonceRequired: true,
   jwks: null,
   jwksUri: null,
   hasSecret: true,
@@ -193,6 +201,70 @@ describe("Applications", () => {
         "conflict",
       ),
     );
+  });
+
+  it("shows the PKCE and nonce settings and warns when both are off", () => {
+    const { unmount } = render(<Applications />);
+    expect(screen.getAllByText("Required")).toHaveLength(2);
+    expect(screen.queryByText("No PKCE or nonce")).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+    unmount();
+
+    mocks.useOidcApplications.mockReturnValue({
+      data: {
+        applications: [
+          { ...legacy, pkceRequired: false, nonceRequired: false },
+        ],
+      },
+      isLoading: false,
+    });
+    render(<Applications />);
+    expect(screen.getAllByText("Not required")).toHaveLength(2);
+    expect(screen.getByText("No PKCE or nonce")).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "relies only on state and client authentication",
+    );
+  });
+
+  it("offers the nonce only once PKCE is off, and restores it with PKCE", async () => {
+    mocks.update.mockImplementation((_request, options) =>
+      options.onSuccess({ application: legacy }),
+    );
+    render(<Applications />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Legacy" }));
+    expect(screen.queryByLabelText("Require a nonce")).toBeNull();
+
+    fireEvent.click(screen.getByLabelText("Require PKCE"));
+    fireEvent.click(screen.getByLabelText("Require a nonce"));
+    expect(
+      within(screen.getByRole("dialog")).getByRole("alert"),
+    ).toHaveTextContent("relies only on state and client authentication");
+
+    fireEvent.click(screen.getByLabelText("Require PKCE"));
+    expect(screen.queryByLabelText("Require a nonce")).toBeNull();
+    fireEvent.click(screen.getByLabelText("Require PKCE"));
+    expect(screen.getByLabelText("Require a nonce")).toBeChecked();
+
+    fireEvent.click(screen.getByLabelText("Require a nonce"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(mocks.update).toHaveBeenCalled());
+    expect(mocks.ensureStepUp).toHaveBeenCalled();
+    expect(mocks.update.mock.calls[0][0]).toMatchObject({
+      id: "client_legacy",
+      pkceRequired: false,
+      nonceRequired: false,
+    });
+  });
+
+  it("offers no PKCE opt-out to a public client", () => {
+    render(<Applications />);
+    fireEvent.click(screen.getByRole("button", { name: "New application" }));
+    fireEvent.change(screen.getByLabelText("Client type"), {
+      target: { value: "public" },
+    });
+    expect(screen.queryByLabelText("Require PKCE")).toBeNull();
+    expect(screen.getByText("Public clients always use PKCE.")).toBeVisible();
   });
 
   it("rotates the secret and deletes behind confirmations", async () => {
