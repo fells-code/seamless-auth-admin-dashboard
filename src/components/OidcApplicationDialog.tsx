@@ -19,6 +19,8 @@ import {
   checkRedirectUris,
   GRANT_LABELS,
   isSharedSecretMethod,
+  lacksCodeBinding,
+  NO_CODE_BINDING_WARNING,
   REDIRECT_KIND_LABELS,
   validateApplicationForm,
 } from "../lib/oidcApplications";
@@ -68,6 +70,17 @@ export default function OidcApplicationDialog({
         clientType === "public"
           ? current.grantTypes.filter((grant) => grant !== "client_credentials")
           : current.grantTypes,
+      pkceRequired: clientType === "public" ? true : current.pkceRequired,
+      nonceRequired: clientType === "public" ? true : current.nonceRequired,
+    }));
+
+  // The API refuses PKCE back on while the nonce is off, so turning PKCE on
+  // restores the nonce requirement with it.
+  const setPkceRequired = (on: boolean) =>
+    setForm((current) => ({
+      ...current,
+      pkceRequired: on,
+      nonceRequired: on ? true : current.nonceRequired,
     }));
 
   const toggleGrant = (grant: OidcApplicationGrantType, on: boolean) =>
@@ -244,6 +257,46 @@ export default function OidcApplicationDialog({
               checked={form.disabled}
               onChange={(on) => set("disabled", on)}
             />
+          )}
+        </fieldset>
+
+        <fieldset className="space-y-2">
+          <legend className="text-xs uppercase tracking-[0.18em] text-muted">
+            Code binding
+          </legend>
+          {form.clientType === "public" ? (
+            <p className="text-xs text-muted">
+              Public clients always use PKCE.
+            </p>
+          ) : (
+            <>
+              <Check
+                label="Require PKCE"
+                checked={form.pkceRequired}
+                onChange={setPkceRequired}
+              />
+              {!form.pkceRequired && (
+                <>
+                  <p className="text-xs text-muted">
+                    Without PKCE the client must send a nonce whenever it asks
+                    for an ID token.
+                  </p>
+                  <Check
+                    label="Require a nonce"
+                    checked={form.nonceRequired}
+                    onChange={(on) => set("nonceRequired", on)}
+                  />
+                </>
+              )}
+              {lacksCodeBinding(form) && (
+                <p
+                  role="alert"
+                  className="rounded-md border border-[color:var(--highlight)]/35 bg-surface-alt p-3 text-xs text-[var(--highlight)]"
+                >
+                  {NO_CODE_BINDING_WARNING}
+                </p>
+              )}
+            </>
           )}
         </fieldset>
 

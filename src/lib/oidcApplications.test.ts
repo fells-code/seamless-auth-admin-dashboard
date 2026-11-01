@@ -13,6 +13,7 @@ import {
   createRequestFromForm,
   emptyApplicationForm,
   isSharedSecretMethod,
+  lacksCodeBinding,
   parseJwks,
   parseList,
   updateRequestFromForm,
@@ -31,6 +32,8 @@ const app: OidcApplication = {
   grantTypes: ["authorization_code"],
   deviceFlowEnabled: false,
   noticesEnabled: true,
+  pkceRequired: true,
+  nonceRequired: true,
   jwks: null,
   jwksUri: null,
   hasSecret: false,
@@ -133,6 +136,44 @@ describe("oidcApplications", () => {
       disabled: true,
     });
     expect(updateRequestFromForm(form)).not.toHaveProperty("clientType");
+  });
+
+  it("flags an application only when PKCE and the nonce are both off", () => {
+    expect(lacksCodeBinding(app)).toBe(false);
+    expect(lacksCodeBinding({ pkceRequired: false, nonceRequired: true })).toBe(
+      false,
+    );
+    expect(
+      lacksCodeBinding({ pkceRequired: false, nonceRequired: false }),
+    ).toBe(true);
+  });
+
+  it("refuses the PKCE and nonce opt-outs the API would refuse", () => {
+    const publicForm = {
+      ...applicationToForm(app),
+      clientType: "public" as const,
+      tokenEndpointAuthMethod: "none" as const,
+      pkceRequired: false,
+    };
+    expect(validateApplicationForm(publicForm)).toContainEqual(
+      expect.objectContaining({ field: "pkceRequired", label: "PKCE" }),
+    );
+
+    const nonceOnly = { ...applicationToForm(app), nonceRequired: false };
+    expect(validateApplicationForm(nonceOnly)).toContainEqual(
+      expect.objectContaining({ field: "nonceRequired", label: "Nonce" }),
+    );
+
+    const both = {
+      ...applicationToForm(app),
+      pkceRequired: false,
+      nonceRequired: false,
+    };
+    expect(validateApplicationForm(both)).toEqual([]);
+    expect(updateRequestFromForm(both)).toMatchObject({
+      pkceRequired: false,
+      nonceRequired: false,
+    });
   });
 
   it("parses a public key set and refuses private members or bad JSON", () => {

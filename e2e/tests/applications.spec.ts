@@ -270,6 +270,111 @@ test.describe("Applications", () => {
     expect(payload).not.toHaveProperty("clientType");
   });
 
+  test("flags an application with PKCE and the nonce both off", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    seedApplications(api, [
+      makeOidcApplication({ id: "client_docs", name: "Docs Portal" }),
+      makeOidcApplication({
+        id: "client_cert",
+        name: "Certification RP",
+        pkceRequired: false,
+        nonceRequired: false,
+      }),
+    ]);
+
+    await signInAs("writeAdmin", "/applications");
+    const table = page.getByRole("table", { name: "Applications" });
+    await expect(
+      table.getByRole("row", { name: /Certification RP/ }),
+    ).toContainText("No PKCE or nonce");
+    await expect(
+      table.getByRole("row", { name: /Docs Portal/ }),
+    ).not.toContainText("No PKCE or nonce");
+
+    await select(page, "Docs Portal");
+    await expect(page.getByRole("alert")).toHaveCount(0);
+
+    await select(page, "Certification RP");
+    await expect(page.getByRole("alert")).toContainText(
+      "relies only on state and client authentication",
+    );
+  });
+
+  test("turns off PKCE and then the nonce through step-up", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    seedApplications(api);
+    let attempts = 0;
+    api.patch("/admin/applications/:id", ({ payload }) => {
+      attempts += 1;
+      if (attempts === 1) {
+        return {
+          status: 403,
+          json: {
+            error: "step_up_required",
+            message: "Recent step-up authentication is required",
+            fresh: false,
+            method: null,
+            verifiedAt: null,
+            expiresAt: null,
+            maxAgeSeconds: 300,
+          },
+        };
+      }
+      return {
+        json: {
+          application: makeOidcApplication({
+            id: "client_docs",
+            name: "Docs Portal",
+            ...(payload as object),
+          }),
+        },
+      };
+    });
+
+    await signInAs("writeAdmin", "/applications");
+    await page.getByRole("button", { name: "Edit Docs Portal" }).click();
+    const form = dialog(page);
+    await expect(form.getByLabel("Require a nonce")).toHaveCount(0);
+
+    await form.getByLabel("Require PKCE").uncheck();
+    await form.getByLabel("Require a nonce").uncheck();
+    await expect(form.getByRole("alert")).toContainText(
+      "relies only on state and client authentication",
+    );
+    await form.getByRole("button", { name: "Save" }).click();
+
+    await expectToast(page, "Application updated");
+    expect(attempts).toBe(2);
+    const payload = api.lastCall("PATCH", "/admin/applications/client_docs")
+      ?.payload as Record<string, unknown>;
+    expect(payload).toMatchObject({
+      pkceRequired: false,
+      nonceRequired: false,
+    });
+  });
+
+  test("offers no PKCE opt-out on a public client", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    seedApplications(api);
+
+    await signInAs("writeAdmin", "/applications");
+    await page.getByRole("button", { name: "Edit Desk CLI" }).click();
+    const form = dialog(page);
+    await expect(
+      form.getByText("Public clients always use PKCE."),
+    ).toBeVisible();
+    await expect(form.getByLabel("Require PKCE")).toHaveCount(0);
+  });
+
   test("rotates a secret behind a confirmation", async ({
     page,
     api,
