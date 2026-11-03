@@ -8,7 +8,9 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
 import type { DashboardMetricsResponse } from "@seamless-auth/types";
 
-export function useDashboard(params: { from?: string; to?: string } = {}) {
+export function useDashboard(
+  params: { from?: string; to?: string; enabled?: boolean } = {},
+) {
   const query = new URLSearchParams();
 
   if (params.from) query.set("from", params.from);
@@ -18,6 +20,7 @@ export function useDashboard(params: { from?: string; to?: string } = {}) {
 
   return useQuery({
     queryKey: ["dashboard", params.from, params.to],
+    enabled: params.enabled ?? true,
     queryFn: () =>
       apiFetch<DashboardMetricsResponse>(
         `/internal/metrics/dashboard${search ? `?${search}` : ""}`,

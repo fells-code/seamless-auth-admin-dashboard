@@ -13,6 +13,8 @@ import {
   getRangeFromSearch,
   intervalForRange,
   isTimeRange,
+  rangeExceedsMaximum,
+  rangeSpanMs,
   resolveRangeBounds,
   toDateTimeLocalValue,
 } from "./timeRange";
@@ -244,5 +246,33 @@ describe("describeRange", () => {
     expect(describeRange({ range: "24h" })).toBe("the last 24 hours");
     expect(describeRange({ range: "7d" })).toBe("the last 7 days");
     expect(describeRange({ range: "custom" })).toBe("the selected window");
+  });
+});
+
+describe("rangeExceedsMaximum", () => {
+  const day = 1000 * 60 * 60 * 24;
+  const from = "2026-01-01T00:00:00.000Z";
+  const start = new Date(from).getTime();
+
+  it("accepts exactly 366 days, the API's day-interval cap", () => {
+    const to = new Date(start + 366 * day).toISOString();
+
+    expect(rangeExceedsMaximum({ from, to }, 0)).toBe(false);
+    expect(
+      rangeExceedsMaximum(
+        { from, to: new Date(start + 366 * day + 1).toISOString() },
+        0,
+      ),
+    ).toBe(true);
+  });
+
+  it("measures an open-ended window to the reference, as the API does", () => {
+    expect(rangeSpanMs({ from }, start + 5 * day)).toBe(5 * day);
+    expect(rangeExceedsMaximum({ from }, start + 400 * day)).toBe(true);
+  });
+
+  it("has nothing to measure without a start", () => {
+    expect(rangeExceedsMaximum({}, Date.now())).toBe(false);
+    expect(rangeExceedsMaximum({ to: from }, Date.now())).toBe(false);
   });
 });

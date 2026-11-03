@@ -25,6 +25,7 @@ import { Section } from "../components/Section";
 import { QueryErrorState, StateMessage } from "../components/StateMessage";
 import RangeFilter from "../components/RangeFilter";
 import ReviewAccountsNotice from "../components/ReviewAccountsNotice";
+import { ApiError } from "../lib/api";
 import { getErrorMessage } from "../lib/errorMessage";
 import { formatBytes } from "../lib/formatBytes";
 import { formatDuration } from "../lib/formatDuration";
@@ -34,6 +35,9 @@ import {
   describeRange,
   getRangeFromSearch,
   intervalForRange,
+  MAX_RANGE_DAYS,
+  rangeExceedsMaximum,
+  rangeSpanMs,
   resolveRangeBounds,
 } from "../lib/timeRange";
 
@@ -47,6 +51,12 @@ function describeInterval(stats: IntervalStats, noun: string, range: string) {
   if (stats.count === 0) return `No ${noun} completed in ${range}`;
 
   return `p90 ${formatDuration(stats.p90Seconds)} across ${stats.count.toLocaleString()} ${noun} in ${range}`;
+}
+
+const DAY_MS = 1000 * 60 * 60 * 24;
+
+function isRejectedRequest(error: unknown) {
+  return error instanceof ApiError && error.status === 400;
 }
 
 export default function Overview() {
@@ -75,6 +85,12 @@ export default function Overview() {
 
   const rangeLabel = describeRange(range);
 
+  // A window the API would refuse is never sent. Every figure on the screen
+  // depends on it, and the refusal used to render as zeros under copy blaming
+  // an API that predates ranges.
+  const rangeTooLong = rangeExceedsMaximum(bounds, referenceNow);
+  const queryParams = { ...bounds, enabled: !rangeTooLong };
+
   const handleRangeChange = (next: typeof range) =>
     navigate({
       pathname: "/",
@@ -89,31 +105,31 @@ export default function Overview() {
     refetch,
     isFetching,
     dataUpdatedAt,
-  } = useDashboard(bounds);
+  } = useDashboard(queryParams);
   const {
     data: timeseries,
     isError: timeseriesError,
     error: timeseriesErrorValue,
     refetch: refetchTimeseries,
-  } = useAuthTimeseries({ ...bounds, interval });
+  } = useAuthTimeseries({ ...queryParams, interval });
   const {
     data: grouped,
     isError: groupedError,
     error: groupedErrorValue,
     refetch: refetchGrouped,
-  } = useGroupedEvents(bounds);
+  } = useGroupedEvents(queryParams);
   const {
     data: funnel,
     isError: funnelError,
     error: funnelErrorValue,
     refetch: refetchFunnel,
-  } = useFunnelMetrics(bounds);
+  } = useFunnelMetrics(queryParams);
   const {
     data: signIns,
     isError: signInsError,
     error: signInsErrorValue,
     refetch: refetchSignIns,
-  } = useSignInMetrics(bounds);
+  } = useSignInMetrics(queryParams);
 
   const dropOff = signIns ? describeDropOff(signIns.attempts) : undefined;
   const byMethod = signIns ? pivotBreakdown(signIns.breakdown, "method") : [];
@@ -124,10 +140,25 @@ export default function Overview() {
     ? pivotBreakdown(signIns.breakdown, "mailProvider")
     : [];
 
+  // The API answers 400 when it refuses the window, which can still happen if
+  // its cap is tighter than the one mirrored here.
+  const rejectedError = [
+    error,
+    timeseriesErrorValue,
+    groupedErrorValue,
+    funnelErrorValue,
+    signInsErrorValue,
+  ].find(isRejectedRequest);
+
+  const showFigures = !rangeTooLong && !rejectedError;
+
   const figures = dashboardFigures(data);
+  // Only a response without a window marks an API that predates ranges. No
+  // response at all says nothing about the API, so it never earns that copy.
+  const fixedWindow = data !== undefined && !figures.ranged;
   // Said wherever a figure appears, so a tile never claims to follow the range
   // selector while an API that predates ranges is still giving it 24 hours.
-  const figuresWindow = figures.ranged ? rangeLabel : "the last 24 hours";
+  const figuresWindow = fixedWindow ? "the last 24 hours" : rangeLabel;
   const totalAttempts = figures.loginSuccess + figures.loginFailed;
   // With no attempts in the window there is no rate to report. Deriving one
   // anyway rendered "100%" next to "Elevated enough to merit review" on the
@@ -152,7 +183,7 @@ export default function Overview() {
   const securitySignalCount =
     grouped?.summary.find((item) => item.type === "security")?.count ?? 0;
 
-  if (isError) {
+  if (isError && !isRejectedRequest(error)) {
     return (
       <QueryErrorState
         title="Could not load overview metrics"
@@ -183,9 +214,9 @@ export default function Overview() {
                 <p className="max-w-2xl text-sm text-muted">
                   A live snapshot of authentication health, growth, and operator
                   attention areas across your Seamless Auth deployment.{" "}
-                  {figures.ranged
-                    ? "The range below drives every figure on this screen apart from the current totals."
-                    : "The range below drives the activity chart and the event distribution."}
+                  {fixedWindow
+                    ? "The range below drives the activity chart and the event distribution."
+                    : "The range below drives every figure on this screen apart from the current totals."}
                 </p>
               </div>
 
@@ -209,334 +240,358 @@ export default function Overview() {
                 label="Activity time range"
               />
 
-              <div className="flex flex-wrap gap-2">
-                <StatusPill
-                  label={
-                    figures.ranged
-                      ? `Auth attempts in ${rangeLabel}`
-                      : "24h auth attempts (fixed window)"
-                  }
-                  value={totalAttempts.toLocaleString()}
+              {showFigures ? (
+                <div className="flex flex-wrap gap-2">
+                  <StatusPill
+                    label={
+                      fixedWindow
+                        ? "24h auth attempts (fixed window)"
+                        : `Auth attempts in ${rangeLabel}`
+                    }
+                    value={totalAttempts.toLocaleString()}
+                  />
+                  <StatusPill
+                    label={`Peak ${interval} in ${rangeLabel}`}
+                    value={
+                      busiestBucket
+                        ? `${busiestBucket.success + busiestBucket.failed}`
+                        : "0"
+                    }
+                  />
+                  <StatusPill
+                    label={`Top event in ${rangeLabel}`}
+                    value={dominantEvent?.label ?? dominantEvent?.type ?? "n/a"}
+                  />
+                </div>
+              ) : rangeTooLong ? (
+                <StateMessage
+                  tone="error"
+                  title="This range is too long to report on"
+                  description={`The Seamless Auth API reports on at most ${MAX_RANGE_DAYS} days at a time, and this range spans ${Math.ceil(rangeSpanMs(bounds, referenceNow) / DAY_MS)} days. Narrow it to see figures.`}
                 />
-                <StatusPill
-                  label={`Peak ${interval} in ${rangeLabel}`}
-                  value={
-                    busiestBucket
-                      ? `${busiestBucket.success + busiestBucket.failed}`
-                      : "0"
-                  }
+              ) : rejectedError ? (
+                <StateMessage
+                  tone="error"
+                  title="The API rejected this range"
+                  description={`${getErrorMessage(rejectedError)} Check that the start is before the end and that the range spans at most ${MAX_RANGE_DAYS} days.`}
                 />
-                <StatusPill
-                  label={`Top event in ${rangeLabel}`}
-                  value={dominantEvent?.label ?? dominantEvent?.type ?? "n/a"}
+              ) : null}
+            </div>
+
+            {showFigures && (
+              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                <HighlightPanel
+                  icon={ShieldAlert}
+                  title="Security posture"
+                  value={`${securitySignalCount}`}
+                  description={`Suspicious auth signals in ${rangeLabel}.`}
+                  onClick={() => navigate("/security")}
+                  actionLabel="Open Security"
+                />
+
+                <HighlightPanel
+                  icon={Users}
+                  title="User growth"
+                  value={`${figures.newUsers}`}
+                  description={`Accounts created in ${figuresWindow}.`}
+                  onClick={() => navigate("/users")}
+                  actionLabel="Review Users"
+                />
+
+                <HighlightPanel
+                  icon={Waves}
+                  title="Event traffic"
+                  value={formatPercent(figures.successRate)}
+                  description={`Authentication success rate in ${figuresWindow}.`}
+                  onClick={() => navigate("/events")}
+                  actionLabel="Inspect Events"
                 />
               </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-              <HighlightPanel
-                icon={ShieldAlert}
-                title="Security posture"
-                value={`${securitySignalCount}`}
-                description={`Suspicious auth signals in ${rangeLabel}.`}
-                onClick={() => navigate("/security")}
-                actionLabel="Open Security"
-              />
-
-              <HighlightPanel
-                icon={Users}
-                title="User growth"
-                value={`${figures.newUsers}`}
-                description={`Accounts created in ${figuresWindow}.`}
-                onClick={() => navigate("/users")}
-                actionLabel="Review Users"
-              />
-
-              <HighlightPanel
-                icon={Waves}
-                title="Event traffic"
-                value={formatPercent(figures.successRate)}
-                description={`Authentication success rate in ${figuresWindow}.`}
-                onClick={() => navigate("/events")}
-                actionLabel="Inspect Events"
-              />
-            </div>
+            )}
           </div>
         </div>
       </section>
 
-      <div className="space-y-3">
-        <p className="text-sm text-muted">
-          {figures.ranged
-            ? `Users, Database and Sessions are current totals. The login figures cover ${rangeLabel}.`
-            : "Deployment metrics cover a fixed 24-hour window. This API's metrics endpoint takes no date range, so these figures do not follow the range selector."}
-        </p>
+      {showFigures && (
+        <>
+          <div className="space-y-3">
+            <p className="text-sm text-muted">
+              {fixedWindow
+                ? "Deployment metrics cover a fixed 24-hour window. This API's metrics endpoint takes no date range, so these figures do not follow the range selector."
+                : `Users, Database and Sessions are current totals. The login figures cover ${rangeLabel}.`}
+            </p>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          {isLoading ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-32 rounded-2xl" />
-            ))
-          ) : (
-            <>
-              <StatCard
-                label="Users"
-                value={data?.totalUsers ?? 0}
-                hint={`${figures.newUsers} new in ${figuresWindow}`}
-              />
-              <StatCard
-                label="Database"
-                value={formatBytes(data?.databaseSize ?? 0)}
-                hint="Current storage footprint"
-              />
-              <StatCard
-                label="Sessions"
-                value={data?.activeSessions ?? 0}
-                hint="Currently active sessions"
-              />
-              <StatCard
-                label="Successful Logins"
-                value={figures.loginSuccess}
-                hint={`${totalAttempts.toLocaleString()} total attempts in the same window`}
-              />
-              <StatCard
-                label="Failure Rate"
-                value={
-                  failureRate === null ? "n/a" : formatPercent(failureRate)
-                }
-                hint={
-                  failureRate === null
-                    ? "No authentication attempts in this window"
-                    : failureRate > 0.1
-                      ? "Elevated enough to merit review"
-                      : "Within a low-friction range"
-                }
-              />
-            </>
-          )}
-        </div>
-      </div>
-
-      <Section
-        title="Passwordless Funnel"
-        description={`How long the path takes and how far passkeys are adopted, for what started in ${rangeLabel}. Each figure is a median, with the p90 and the count it was computed over beneath it.`}
-      >
-        {funnelError ? (
-          <StateMessage
-            tone="error"
-            title="Funnel metrics unavailable"
-            description={getErrorMessage(funnelErrorValue)}
-          />
-        ) : funnel ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              label="Time to registration"
-              value={formatDuration(funnel.timeToRegistration.medianSeconds)}
-              hint={describeInterval(
-                funnel.timeToRegistration,
-                "registrations",
-                rangeLabel,
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-32 rounded-2xl" />
+                ))
+              ) : (
+                <>
+                  <StatCard
+                    label="Users"
+                    value={data?.totalUsers ?? 0}
+                    hint={`${figures.newUsers} new in ${figuresWindow}`}
+                  />
+                  <StatCard
+                    label="Database"
+                    value={formatBytes(data?.databaseSize ?? 0)}
+                    hint="Current storage footprint"
+                  />
+                  <StatCard
+                    label="Sessions"
+                    value={data?.activeSessions ?? 0}
+                    hint="Currently active sessions"
+                  />
+                  <StatCard
+                    label="Successful Logins"
+                    value={figures.loginSuccess}
+                    hint={`${totalAttempts.toLocaleString()} total attempts in the same window`}
+                  />
+                  <StatCard
+                    label="Failure Rate"
+                    value={
+                      failureRate === null ? "n/a" : formatPercent(failureRate)
+                    }
+                    hint={
+                      failureRate === null
+                        ? "No authentication attempts in this window"
+                        : failureRate > 0.1
+                          ? "Elevated enough to merit review"
+                          : "Within a low-friction range"
+                    }
+                  />
+                </>
               )}
-            />
-            <StatCard
-              label="Time to login"
-              value={formatDuration(funnel.timeToLogin.medianSeconds)}
-              hint={describeInterval(
-                funnel.timeToLogin,
-                "sign-ins",
-                rangeLabel,
-              )}
-            />
-            <StatCard
-              label="Passkey adoption"
-              value={
-                funnel.passkeyAdoption.users > 0
-                  ? formatPercent(funnel.passkeyAdoption.rate)
-                  : "n/a"
-              }
-              hint={
-                funnel.passkeyAdoption.users > 0
-                  ? `${funnel.passkeyAdoption.withPasskey.toLocaleString()} of ${funnel.passkeyAdoption.users.toLocaleString()} accounts created in ${rangeLabel} hold a passkey`
-                  : `No accounts created in ${rangeLabel}`
-              }
-            />
-            <StatCard
-              label="Time to first passkey"
-              value={formatDuration(funnel.timeToFirstPasskey.medianSeconds)}
-              hint={describeInterval(
-                funnel.timeToFirstPasskey,
-                "enrollments",
-                rangeLabel,
-              )}
-            />
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-32 rounded-2xl" />
-            ))}
-          </div>
-        )}
-      </Section>
-
-      <Section
-        title="Sign-in Outcomes"
-        description={`How sign-in attempts in ${rangeLabel} ended, and where the ones that did not get in stopped. Counted per attempt, so a code mistyped and then entered correctly is one success.`}
-      >
-        {signInsError ? (
-          <StateMessage
-            tone="error"
-            title="Sign-in metrics unavailable"
-            description={getErrorMessage(signInsErrorValue)}
-          />
-        ) : signIns && dropOff ? (
-          <>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <StatCard
-                label="Sign-in success"
-                value={
-                  signIns.signIns.success + signIns.signIns.failed > 0
-                    ? formatPercent(signIns.signIns.successRate)
-                    : "n/a"
-                }
-                hint={
-                  signIns.signIns.success + signIns.signIns.failed > 0
-                    ? `${signIns.signIns.success.toLocaleString()} got in, ${signIns.signIns.failed.toLocaleString()} did not, in ${rangeLabel}`
-                    : `No factors presented in ${rangeLabel}`
-                }
-              />
-              <StatCard
-                label="Attempts started"
-                value={signIns.attempts.started.toLocaleString()}
-                hint={`${signIns.attempts.presented.toLocaleString()} presented a factor and ${signIns.attempts.completed.toLocaleString()} completed in ${rangeLabel}`}
-              />
-              <StatCard
-                label="Gave up early"
-                value={dropOff.abandoned.toLocaleString()}
-                hint="Started and never presented a factor"
-              />
-              <StatCard
-                label="Failed and stopped"
-                value={dropOff.stopped.toLocaleString()}
-                hint="Presented a factor and never got in"
-              />
             </div>
-
-            <div className="grid gap-4 xl:grid-cols-3">
-              <OutcomeBreakdown
-                title="By method"
-                entries={byMethod}
-                emptyDescription={`No factors presented in ${rangeLabel}`}
-              />
-              <OutcomeBreakdown
-                title="By device"
-                entries={byDevice}
-                emptyDescription={`No factors presented in ${rangeLabel}`}
-              />
-              <OutcomeBreakdown
-                title="By mail provider"
-                entries={byProvider}
-                emptyDescription={`No factors presented in ${rangeLabel}`}
-              />
-            </div>
-          </>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-32 rounded-2xl" />
-            ))}
           </div>
-        )}
-      </Section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
-        <Section
-          title="Login Activity"
-          description={`Authentication flow across ${rangeLabel}, bucketed by ${interval} and split between successful and failed attempts.`}
-          actions={
-            <button
-              onClick={() => navigate("/events")}
-              className="btn btn-secondary"
+          <Section
+            title="Passwordless Funnel"
+            description={`How long the path takes and how far passkeys are adopted, for what started in ${rangeLabel}. Each figure is a median, with the p90 and the count it was computed over beneath it.`}
+          >
+            {funnelError ? (
+              <StateMessage
+                tone="error"
+                title="Funnel metrics unavailable"
+                description={getErrorMessage(funnelErrorValue)}
+              />
+            ) : funnel ? (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <StatCard
+                  label="Time to registration"
+                  value={formatDuration(
+                    funnel.timeToRegistration.medianSeconds,
+                  )}
+                  hint={describeInterval(
+                    funnel.timeToRegistration,
+                    "registrations",
+                    rangeLabel,
+                  )}
+                />
+                <StatCard
+                  label="Time to login"
+                  value={formatDuration(funnel.timeToLogin.medianSeconds)}
+                  hint={describeInterval(
+                    funnel.timeToLogin,
+                    "sign-ins",
+                    rangeLabel,
+                  )}
+                />
+                <StatCard
+                  label="Passkey adoption"
+                  value={
+                    funnel.passkeyAdoption.users > 0
+                      ? formatPercent(funnel.passkeyAdoption.rate)
+                      : "n/a"
+                  }
+                  hint={
+                    funnel.passkeyAdoption.users > 0
+                      ? `${funnel.passkeyAdoption.withPasskey.toLocaleString()} of ${funnel.passkeyAdoption.users.toLocaleString()} accounts created in ${rangeLabel} hold a passkey`
+                      : `No accounts created in ${rangeLabel}`
+                  }
+                />
+                <StatCard
+                  label="Time to first passkey"
+                  value={formatDuration(
+                    funnel.timeToFirstPasskey.medianSeconds,
+                  )}
+                  hint={describeInterval(
+                    funnel.timeToFirstPasskey,
+                    "enrollments",
+                    rangeLabel,
+                  )}
+                />
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-32 rounded-2xl" />
+                ))}
+              </div>
+            )}
+          </Section>
+
+          <Section
+            title="Sign-in Outcomes"
+            description={`How sign-in attempts in ${rangeLabel} ended, and where the ones that did not get in stopped. Counted per attempt, so a code mistyped and then entered correctly is one success.`}
+          >
+            {signInsError ? (
+              <StateMessage
+                tone="error"
+                title="Sign-in metrics unavailable"
+                description={getErrorMessage(signInsErrorValue)}
+              />
+            ) : signIns && dropOff ? (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <StatCard
+                    label="Sign-in success"
+                    value={
+                      signIns.signIns.success + signIns.signIns.failed > 0
+                        ? formatPercent(signIns.signIns.successRate)
+                        : "n/a"
+                    }
+                    hint={
+                      signIns.signIns.success + signIns.signIns.failed > 0
+                        ? `${signIns.signIns.success.toLocaleString()} got in, ${signIns.signIns.failed.toLocaleString()} did not, in ${rangeLabel}`
+                        : `No factors presented in ${rangeLabel}`
+                    }
+                  />
+                  <StatCard
+                    label="Attempts started"
+                    value={signIns.attempts.started.toLocaleString()}
+                    hint={`${signIns.attempts.presented.toLocaleString()} presented a factor and ${signIns.attempts.completed.toLocaleString()} completed in ${rangeLabel}`}
+                  />
+                  <StatCard
+                    label="Gave up early"
+                    value={dropOff.abandoned.toLocaleString()}
+                    hint="Started and never presented a factor"
+                  />
+                  <StatCard
+                    label="Failed and stopped"
+                    value={dropOff.stopped.toLocaleString()}
+                    hint="Presented a factor and never got in"
+                  />
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-3">
+                  <OutcomeBreakdown
+                    title="By method"
+                    entries={byMethod}
+                    emptyDescription={`No factors presented in ${rangeLabel}`}
+                  />
+                  <OutcomeBreakdown
+                    title="By device"
+                    entries={byDevice}
+                    emptyDescription={`No factors presented in ${rangeLabel}`}
+                  />
+                  <OutcomeBreakdown
+                    title="By mail provider"
+                    entries={byProvider}
+                    emptyDescription={`No factors presented in ${rangeLabel}`}
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-32 rounded-2xl" />
+                ))}
+              </div>
+            )}
+          </Section>
+
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
+            <Section
+              title="Login Activity"
+              description={`Authentication flow across ${rangeLabel}, bucketed by ${interval} and split between successful and failed attempts.`}
+              actions={
+                <button
+                  onClick={() => navigate("/events")}
+                  className="btn btn-secondary"
+                >
+                  View Events
+                </button>
+              }
             >
-              View Events
-            </button>
-          }
-        >
-          {timeseriesError ? (
-            <StateMessage
-              tone="error"
-              title="Login activity unavailable"
-              description={getErrorMessage(timeseriesErrorValue)}
-            />
-          ) : timeseries ? (
-            <LineChart data={timeseries.timeseries} />
-          ) : (
-            <Skeleton className="h-72 rounded-2xl" />
-          )}
-        </Section>
+              {timeseriesError ? (
+                <StateMessage
+                  tone="error"
+                  title="Login activity unavailable"
+                  description={getErrorMessage(timeseriesErrorValue)}
+                />
+              ) : timeseries ? (
+                <LineChart data={timeseries.timeseries} />
+              ) : (
+                <Skeleton className="h-72 rounded-2xl" />
+              )}
+            </Section>
 
-        <Section
-          title="Event Distribution"
-          description={`The highest-volume auth events across ${rangeLabel}.`}
-          actions={
-            <button
-              onClick={() => navigate("/security")}
-              className="btn btn-secondary"
+            <Section
+              title="Event Distribution"
+              description={`The highest-volume auth events across ${rangeLabel}.`}
+              actions={
+                <button
+                  onClick={() => navigate("/security")}
+                  className="btn btn-secondary"
+                >
+                  Review Security
+                </button>
+              }
             >
-              Review Security
-            </button>
-          }
-        >
-          {groupedError ? (
-            <StateMessage
-              tone="error"
-              title="Event distribution unavailable"
-              description={getErrorMessage(groupedErrorValue)}
-            />
-          ) : grouped ? (
-            <PieChart data={grouped.summary} />
-          ) : (
-            <Skeleton className="h-72 rounded-2xl" />
-          )}
-        </Section>
-      </div>
+              {groupedError ? (
+                <StateMessage
+                  tone="error"
+                  title="Event distribution unavailable"
+                  description={getErrorMessage(groupedErrorValue)}
+                />
+              ) : grouped ? (
+                <PieChart data={grouped.summary} />
+              ) : (
+                <Skeleton className="h-72 rounded-2xl" />
+              )}
+            </Section>
+          </div>
 
-      <Section
-        title="Operator Focus"
-        description={`Use this section to quickly decide where to spend attention next. These figures cover ${figuresWindow}.`}
-      >
-        <div className="grid gap-4 lg:grid-cols-3">
-          <ActionCard
-            tone={figures.loginFailed > 0 ? "danger" : "neutral"}
-            title="Failed logins"
-            value={`${figures.loginFailed}`}
-            description="Recent login failures are the fastest signal of friction or abuse."
-            actionLabel="Investigate security"
-            onClick={() => navigate("/security")}
-          />
+          <Section
+            title="Operator Focus"
+            description={`Use this section to quickly decide where to spend attention next. These figures cover ${figuresWindow}.`}
+          >
+            <div className="grid gap-4 lg:grid-cols-3">
+              <ActionCard
+                tone={figures.loginFailed > 0 ? "danger" : "neutral"}
+                title="Failed logins"
+                value={`${figures.loginFailed}`}
+                description="Recent login failures are the fastest signal of friction or abuse."
+                actionLabel="Investigate security"
+                onClick={() => navigate("/security")}
+              />
 
-          {/* passkeyUsage counts passkey sign-ins. Adoption, the share of
+              {/* passkeyUsage counts passkey sign-ins. Adoption, the share of
               accounts holding one, is the funnel figure above, and the two
               used to share a title. */}
-          <ActionCard
-            tone="neutral"
-            title="Passkey sign-ins"
-            value={`${figures.passkeyUsage}`}
-            description="Passkey usage helps show whether stronger authentication paths are gaining traction."
-            actionLabel="Explore events"
-            onClick={() => navigate("/events")}
-          />
+              <ActionCard
+                tone="neutral"
+                title="Passkey sign-ins"
+                value={`${figures.passkeyUsage}`}
+                description="Passkey usage helps show whether stronger authentication paths are gaining traction."
+                actionLabel="Explore events"
+                onClick={() => navigate("/events")}
+              />
 
-          <ActionCard
-            tone="neutral"
-            title="New user activity"
-            value={`${figures.newUsers}`}
-            description="Freshly created accounts can point to product growth, onboarding spikes, or provisioning issues."
-            actionLabel="Open users"
-            onClick={() => navigate("/users")}
-          />
-        </div>
-      </Section>
+              <ActionCard
+                tone="neutral"
+                title="New user activity"
+                value={`${figures.newUsers}`}
+                description="Freshly created accounts can point to product growth, onboarding spikes, or provisioning issues."
+                actionLabel="Open users"
+                onClick={() => navigate("/users")}
+              />
+            </div>
+          </Section>
+        </>
+      )}
     </div>
   );
 }

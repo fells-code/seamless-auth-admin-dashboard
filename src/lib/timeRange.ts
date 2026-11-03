@@ -172,3 +172,32 @@ export function describeRange(filter: RangeFilterValue): string {
 
   return "the selected window";
 }
+
+// Mirrors MAX_METRICS_WINDOW_MS.day in seamless-auth-api's internal.query.ts,
+// the cap on every ranged metrics endpoint Overview calls. The API caps hourly
+// buckets at 31 days, but intervalForRange switches to daily long before that.
+export const MAX_RANGE_DAYS = 366;
+const MAX_RANGE_MS = 1000 * 60 * 60 * 24 * MAX_RANGE_DAYS;
+
+/**
+ * How long the bounds span. A window with no end runs to `reference`, which is
+ * how the API measures an open-ended range.
+ */
+export function rangeSpanMs(
+  bounds: { from?: string; to?: string },
+  reference: number,
+): number {
+  if (!bounds.from) return 0;
+
+  const end = bounds.to ? new Date(bounds.to).getTime() : reference;
+
+  return end - new Date(bounds.from).getTime();
+}
+
+/** True when the bounds span more than the API accepts. */
+export function rangeExceedsMaximum(
+  bounds: { from?: string; to?: string },
+  reference: number,
+): boolean {
+  return rangeSpanMs(bounds, reference) > MAX_RANGE_MS;
+}

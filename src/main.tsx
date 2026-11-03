@@ -12,17 +12,13 @@ import ThemeProvider from "./components/ThemeProvider";
 import ToastProvider from "./components/ToastProvider";
 import ConfirmProvider from "./components/ConfirmProvider";
 import TotpPromptProvider from "./components/TotpPromptProvider";
-import { ApiError } from "./lib/api";
+import { shouldRetryQuery } from "./lib/queryRetry";
 import "./index.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // An expired session is not a transient failure, and retrying it delays
-      // the redirect while firing more requests that cannot succeed.
-      retry: (failureCount, error) =>
-        !(error instanceof ApiError && error.status === 401) &&
-        failureCount < 3,
+      retry: shouldRetryQuery,
     },
   },
 });

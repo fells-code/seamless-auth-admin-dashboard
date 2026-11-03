@@ -10,7 +10,12 @@ import { apiFetch } from "../lib/api";
 import type { AuthEventTimeseriesResponse } from "@seamless-auth/types";
 
 export function useAuthTimeseries(
-  params: { from?: string; to?: string; interval?: "hour" | "day" } = {},
+  params: {
+    from?: string;
+    to?: string;
+    interval?: "hour" | "day";
+    enabled?: boolean;
+  } = {},
 ) {
   const interval = params.interval ?? "hour";
   const query = new URLSearchParams({ interval });
@@ -20,6 +25,7 @@ export function useAuthTimeseries(
 
   return useQuery({
     queryKey: ["auth-timeseries", interval, params.from, params.to],
+    enabled: params.enabled ?? true,
     queryFn: () =>
       apiFetch<AuthEventTimeseriesResponse>(
         `/internal/auth-events/timeseries?${query}`,
