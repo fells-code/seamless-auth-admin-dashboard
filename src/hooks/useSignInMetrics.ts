@@ -43,7 +43,9 @@ export interface SignInMetricsResponse {
   breakdown: SignInBreakdownRow[];
 }
 
-export function useSignInMetrics(params: { from?: string; to?: string } = {}) {
+export function useSignInMetrics(
+  params: { from?: string; to?: string; enabled?: boolean } = {},
+) {
   const query = new URLSearchParams();
 
   if (params.from) query.set("from", params.from);
@@ -53,6 +55,7 @@ export function useSignInMetrics(params: { from?: string; to?: string } = {}) {
 
   return useQuery({
     queryKey: ["signInMetrics", params.from, params.to],
+    enabled: params.enabled ?? true,
     queryFn: () =>
       apiFetch<SignInMetricsResponse>(
         `/internal/metrics/sign-ins${search ? `?${search}` : ""}`,

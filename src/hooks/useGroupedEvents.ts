@@ -17,7 +17,9 @@ export interface GroupedEvents {
   }[];
 }
 
-export function useGroupedEvents(params: { from?: string; to?: string } = {}) {
+export function useGroupedEvents(
+  params: { from?: string; to?: string; enabled?: boolean } = {},
+) {
   const query = new URLSearchParams();
 
   if (params.from) query.set("from", params.from);
@@ -27,6 +29,7 @@ export function useGroupedEvents(params: { from?: string; to?: string } = {}) {
 
   return useQuery({
     queryKey: ["grouped-events", params.from, params.to],
+    enabled: params.enabled ?? true,
     queryFn: async (): Promise<GroupedEvents> => {
       const data = await apiFetch<AuthEventSummaryResponse>(
         `/internal/auth-events/summary${search ? `?${search}` : ""}`,

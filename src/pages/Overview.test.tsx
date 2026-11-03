@@ -7,6 +7,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "../lib/api";
 import Overview from "./Overview";
 
 const mocks = vi.hoisted(() => ({
@@ -155,18 +156,10 @@ describe("Overview", () => {
     expect(
       new Date(bounds.to).getTime() - new Date(bounds.from).getTime(),
     ).toBe(24 * 60 * 60 * 1000);
-    expect(mocks.useGroupedEvents).toHaveBeenCalledWith({
-      from: bounds.from,
-      to: bounds.to,
-    });
-    expect(mocks.useFunnelMetrics).toHaveBeenCalledWith({
-      from: bounds.from,
-      to: bounds.to,
-    });
-    expect(mocks.useSignInMetrics).toHaveBeenCalledWith({
-      from: bounds.from,
-      to: bounds.to,
-    });
+    const expected = { from: bounds.from, to: bounds.to, enabled: true };
+    expect(mocks.useGroupedEvents).toHaveBeenCalledWith(expected);
+    expect(mocks.useFunnelMetrics).toHaveBeenCalledWith(expected);
+    expect(mocks.useSignInMetrics).toHaveBeenCalledWith(expected);
   });
 
   it("reads the window from the URL so a narrowed view is linkable", () => {
@@ -231,7 +224,11 @@ describe("Overview", () => {
     renderPage("/?range=7d");
 
     const { from, to } = mocks.useAuthTimeseries.mock.lastCall![0];
-    expect(mocks.useDashboard).toHaveBeenLastCalledWith({ from, to });
+    expect(mocks.useDashboard).toHaveBeenLastCalledWith({
+      from,
+      to,
+      enabled: true,
+    });
     expect(
       screen.queryByText("24h auth attempts (fixed window)"),
     ).not.toBeInTheDocument();
@@ -429,5 +426,112 @@ describe("Overview", () => {
     expect(
       screen.getByText("Could not load overview metrics"),
     ).toBeInTheDocument();
+  });
+
+  it("does not send a range longer than the API accepts, and says so", () => {
+    // The production report: an all-time range drew a 400 from every metrics
+    // endpoint and rendered as zeros under the legacy fixed-window copy.
+    renderPage("/?range=custom&from=2025-01-01T00:00&to=2026-11-03T23:59");
+
+    for (const hook of [
+      mocks.useDashboard,
+      mocks.useAuthTimeseries,
+      mocks.useGroupedEvents,
+      mocks.useFunnelMetrics,
+      mocks.useSignInMetrics,
+    ]) {
+      expect(hook).toHaveBeenLastCalledWith(
+        expect.objectContaining({ enabled: false }),
+      );
+    }
+
+    expect(
+      screen.getByText("This range is too long to report on"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/reports on at most 366 days at a time/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/this range spans \d+ days/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Range start")).toBeInTheDocument();
+
+    expect(
+      screen.queryByText(/This API's metrics endpoint takes no date range/),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Successful Logins")).not.toBeInTheDocument();
+    expect(screen.queryByText("Passwordless Funnel")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Auth attempts in/)).not.toBeInTheDocument();
+  });
+
+  it("sends a custom range inside the maximum", () => {
+    renderPage("/?range=custom&from=2026-08-01T00:00&to=2026-11-03T23:59");
+
+    expect(mocks.useDashboard).toHaveBeenLastCalledWith(
+      expect.objectContaining({ enabled: true }),
+    );
+    expect(
+      screen.queryByText("This range is too long to report on"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("reports a range the API rejects instead of showing zeros", () => {
+    const rejected = new ApiError(
+      "Request failed schema validation.",
+      400,
+      "validation_error",
+    );
+    mocks.useDashboard.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: rejected,
+      refetch: mocks.refetch,
+      isFetching: false,
+      dataUpdatedAt: 0,
+    });
+    mocks.useFunnelMetrics.mockReturnValue({
+      data: undefined,
+      isError: true,
+      error: rejected,
+      refetch: mocks.refetch,
+    });
+
+    renderPage("/?range=custom&from=2026-01-01T00:00&to=2026-11-03T23:59");
+
+    expect(screen.getByText("The API rejected this range")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Request failed schema validation\. .*spans at most 366 days/,
+      ),
+    ).toBeInTheDocument();
+    // The range stays editable, so the operator can fix what was refused.
+    expect(screen.getByLabelText("Range start")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Could not load overview metrics"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/This API's metrics endpoint takes no date range/),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Successful Logins")).not.toBeInTheDocument();
+  });
+
+  it("keeps the fixed-window copy for a response, not a pending request", () => {
+    mocks.useDashboard.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      error: null,
+      refetch: mocks.refetch,
+      isFetching: true,
+      dataUpdatedAt: 0,
+    });
+
+    renderPage("/?range=7d");
+
+    expect(
+      screen.queryByText(/This API's metrics endpoint takes no date range/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("24h auth attempts (fixed window)"),
+    ).not.toBeInTheDocument();
   });
 });

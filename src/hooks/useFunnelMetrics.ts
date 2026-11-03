@@ -29,7 +29,9 @@ export interface FunnelMetricsResponse {
   timeToFirstPasskey: IntervalStats;
 }
 
-export function useFunnelMetrics(params: { from?: string; to?: string } = {}) {
+export function useFunnelMetrics(
+  params: { from?: string; to?: string; enabled?: boolean } = {},
+) {
   const query = new URLSearchParams();
 
   if (params.from) query.set("from", params.from);
@@ -39,6 +41,7 @@ export function useFunnelMetrics(params: { from?: string; to?: string } = {}) {
 
   return useQuery({
     queryKey: ["funnelMetrics", params.from, params.to],
+    enabled: params.enabled ?? true,
     queryFn: () =>
       apiFetch<FunnelMetricsResponse>(
         `/internal/metrics/funnel${search ? `?${search}` : ""}`,
