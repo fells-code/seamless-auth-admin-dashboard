@@ -250,7 +250,7 @@ export default function SystemConfigPage() {
     if (
       !(await confirm({
         title: "Remove role",
-        description: `Remove "${role}" from the available roles? It will no longer be assignable, and it will be removed from the default roles.`,
+        description: `Remove "${role}" from the available roles? It will no longer be assignable, and it will be removed from the default roles. Any permissions it grants are removed too, so adding the name back later grants nothing.`,
         confirmLabel: "Remove",
         tone: "danger",
       }))

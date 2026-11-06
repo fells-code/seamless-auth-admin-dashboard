@@ -50,6 +50,7 @@ const config: SystemConfig = {
   oauth_providers: [],
   oidc_provider_enabled: false,
   oidc_issuer: null,
+  oidc_cli_client_id: null,
   allow_client_secrets: false,
   third_party_clients_enabled: false,
   hosted_ui: null,
@@ -109,6 +110,9 @@ describe("useUpdateSystemConfig", () => {
     });
     // A patch that touches a policy key is recorded as a new policy version.
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["policy"] });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["role-definitions"],
+    });
   });
 
   it("does not refresh the config when the save fails", async () => {

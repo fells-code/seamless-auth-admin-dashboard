@@ -31,6 +31,7 @@ const app: OidcApplication = {
   postLogoutRedirectUris: [],
   grantTypes: ["authorization_code"],
   deviceFlowEnabled: false,
+  sessionExchangeEnabled: false,
   noticesEnabled: true,
   pkceRequired: true,
   nonceRequired: true,

@@ -20,7 +20,9 @@ import {
   makeMeUser,
   makeOrganization,
   makePolicyDryRun,
+  makePermission,
   makePolicyVersion,
+  makeRoleDefinition,
   makeSession,
   makeStepUpStatus,
   makeSystemConfig,
@@ -172,6 +174,22 @@ export function seedDeployment(api: MockApi) {
   }));
   api.get("/system-config/roles", {
     json: { roles: ["user", "admin:read", "admin:write"] },
+  });
+  api.get("/admin/permissions", () => {
+    const permissions = [makePermission({ name: "invoices:read" })];
+    return { json: { permissions, total: permissions.length } };
+  });
+  api.get("/admin/roles", {
+    json: {
+      roles: [
+        ...["user", "admin:read", "admin:write"].map((name) =>
+          makeRoleDefinition({ name, kind: "instance" }),
+        ),
+        ...["admin", "member", "owner"].map((name) =>
+          makeRoleDefinition({ name, builtIn: true }),
+        ),
+      ],
+    },
   });
   api.post("/system-config/oauth-providers", ({ payload }) => ({
     provider: payload,

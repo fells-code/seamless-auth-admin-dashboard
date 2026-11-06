@@ -6,12 +6,14 @@
 
 import type { ComponentType, FormEvent, ReactNode } from "react";
 import { useId, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Building2, Pencil, Plus, Save, Trash2, Users2 } from "lucide-react";
 import Table from "../components/Table";
 import Dialog from "../components/Dialog";
 import SearchInput from "../components/SearchInput";
 import RoleChips from "../components/RoleChips";
 import { useRoles } from "../hooks/useRoles";
+import { useRoleDefinitions } from "../hooks/useRolePermissions";
 import Skeleton from "../components/Skeleton";
 import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
@@ -21,6 +23,7 @@ import {
   StateMessage,
 } from "../components/StateMessage";
 import { getErrorMessage } from "../lib/errorMessage";
+import { describeRefusal, isRouteMissing } from "../lib/roleRefusals";
 import {
   useAddOrganizationMember,
   useCreateOrganization,
@@ -115,10 +118,19 @@ export default function Organizations() {
   const [createSlug, setCreateSlug] = useState("");
   const [memberEmail, setMemberEmail] = useState("");
   const updateMember = useUpdateOrganizationMember();
-  const { data: roleData } = useRoles();
-  // Roles are chosen from what the instance actually defines. Free-form text
-  // accepted typos silently, and a mistyped role simply grants nothing.
-  const availableRoles = roleData?.roles ?? [];
+  const catalogue = useRoleDefinitions();
+  // An API older than v0.23 has no organization role catalogue and takes any
+  // role, so it keeps offering the instance's roles as it always did.
+  const catalogueMissing = isRouteMissing(catalogue.error);
+  const { data: roleData } = useRoles({ enabled: catalogueMissing });
+  // Roles are chosen from the catalogue because the API refuses anything else
+  // with a 400. Free-form text accepted typos silently, and a mistyped role
+  // simply grants nothing.
+  const availableRoles = catalogueMissing
+    ? (roleData?.roles ?? [])
+    : (catalogue.data?.roles ?? [])
+        .filter((role) => role.kind === "organization")
+        .map((role) => role.name);
   const defaultMemberRoles = availableRoles.includes("member")
     ? ["member"]
     : [];
@@ -128,6 +140,7 @@ export default function Organizations() {
   >(undefined);
   const [editMemberRoles, setEditMemberRoles] = useState<string[]>([]);
   const [editMemberScopes, setEditMemberScopes] = useState("");
+  const [editMemberError, setEditMemberError] = useState<string | null>(null);
   const [memberScopes, setMemberScopes] = useState("");
 
   const {
@@ -274,7 +287,7 @@ export default function Organizations() {
           toast.success("Member added", `${email} was added.`);
         },
         onError: (error) => {
-          toast.error("Member add failed", getErrorMessage(error));
+          toast.error("Member add failed", describeRefusal(error));
         },
       },
     );
@@ -286,6 +299,7 @@ export default function Organizations() {
 
     if (!(await ensureStepUp())) return;
 
+    setEditMemberError(null);
     updateMember.mutate(
       {
         organizationId: selectedOrganization.id,
@@ -302,7 +316,8 @@ export default function Organizations() {
           );
         },
         onError: (error) => {
-          toast.error("Membership update failed", getErrorMessage(error));
+          toast.error("Membership update failed", describeRefusal(error));
+          setEditMemberError(describeRefusal(error));
         },
       },
     );
@@ -662,7 +677,14 @@ export default function Organizations() {
           <StateMessage
             tone="error"
             title="Member add failed"
-            description={getErrorMessage(addMember.error)}
+            description={describeRefusal(addMember.error)}
+          />
+        )}
+        {catalogue.isError && !catalogueMissing && (
+          <QueryErrorState
+            title="Could not load the organization role catalogue"
+            error={catalogue.error}
+            onRetry={() => void catalogue.refetch()}
           />
         )}
         {removeMember.isError && (
@@ -751,6 +773,7 @@ export default function Organizations() {
                         setEditingMember(row);
                         setEditMemberRoles(row.roles ?? []);
                         setEditMemberScopes((row.scopes ?? []).join(", "));
+                        setEditMemberError(null);
                       },
                     },
                     {
@@ -777,13 +800,38 @@ export default function Organizations() {
             className="space-y-4"
             onSubmit={(event) => void handleSaveMember(event)}
           >
-            <Field label="Roles">
+            <div className="space-y-2">
+              <span className="block text-xs uppercase tracking-[0.18em] text-muted">
+                Roles
+              </span>
               <RoleChips
-                roles={availableRoles}
+                // A member's existing roles stay on offer even outside the
+                // catalogue. The API lets a member keep one, and leaving it out
+                // here would hide a role the save still sends.
+                roles={Array.from(
+                  new Set([...availableRoles, ...(editingMember.roles ?? [])]),
+                )}
                 selected={editMemberRoles}
                 onChange={setEditMemberRoles}
               />
-            </Field>
+              {!catalogueMissing && catalogue.isSuccess && (
+                <LegacyRolesNote
+                  roles={(editingMember.roles ?? []).filter(
+                    (role) => !availableRoles.includes(role),
+                  )}
+                />
+              )}
+              <p className="text-xs text-muted">
+                These are organization roles, separate from instance roles of
+                the same name. A change reaches this member when their next
+                access token is issued.{" "}
+                {!catalogueMissing && (
+                  <Link to="/roles" className="underline">
+                    Manage the catalogue
+                  </Link>
+                )}
+              </p>
+            </div>
 
             <Field label="Scopes">
               <input
@@ -794,6 +842,14 @@ export default function Organizations() {
                 className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
               />
             </Field>
+
+            {editMemberError && (
+              <StateMessage
+                tone="error"
+                title="Membership not updated"
+                description={editMemberError}
+              />
+            )}
 
             <div className="flex justify-end gap-2">
               <button
@@ -815,6 +871,17 @@ export default function Organizations() {
         </Dialog>
       )}
     </div>
+  );
+}
+
+function LegacyRolesNote({ roles }: { roles: string[] }) {
+  if (roles.length === 0) return null;
+
+  return (
+    <p className="text-xs text-muted">
+      Not in the catalogue: {roles.join(", ")}. This member keeps it unless you
+      turn it off, and once removed it cannot be assigned again.
+    </p>
   );
 }
 

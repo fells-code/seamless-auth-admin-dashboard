@@ -217,6 +217,17 @@ When the server adapter is mounted at `/auth`, the dashboard sends this as `DELE
 - list and inspect organizations
 - create and update organizations
 - add, update, and remove organization members
+- assign members roles from the organization role catalogue, keeping a legacy role a member already holds
+
+### Roles and Permissions
+
+- manage the permission catalogue and the organization role catalogue
+- edit which permissions each instance and organization role grants
+- instance roles stay defined in System configuration, and the page links there
+- a change reaches a user when their next access token is issued, within the access token TTL
+- an instance `admin` and an organization `admin` are different roles and never share a grant
+- needs Seamless Auth API v0.23, and a server adapter that forwards these routes. An older API answers 404, and the page says so
+- every write asks for step-up first
 
 ### Applications and Resources
 

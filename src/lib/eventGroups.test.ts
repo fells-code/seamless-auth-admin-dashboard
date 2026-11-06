@@ -27,6 +27,7 @@ describe("eventGroups", () => {
       "serviceToken",
       "logout",
       "user",
+      "rolesAndPermissions",
       "system",
       "policy",
       "jwks",

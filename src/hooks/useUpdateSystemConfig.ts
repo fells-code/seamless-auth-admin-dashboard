@@ -29,6 +29,9 @@ export function useUpdateSystemConfig() {
       qc.invalidateQueries({ queryKey: ["system-config"] });
       // A patch that touches a policy key is recorded as a new policy version.
       qc.invalidateQueries({ queryKey: ["policy"] });
+      // available_roles is the instance role registry, and removing a role also
+      // removes what it was mapped to.
+      qc.invalidateQueries({ queryKey: ["role-definitions"] });
     },
   });
 }

@@ -108,8 +108,9 @@ export const eventCategories: EventCategory[] = [
     label: "Session Tokens",
     value: "token",
     match: (type) =>
-      startsWithAny(["bearer_token_", "refresh_token_"])(type) ||
-      type === "session_evicted",
+      startsWithAny(["bearer_token_", "refresh_token_", "session_exchange"])(
+        type,
+      ) || type === "session_evicted",
   },
   {
     label: "Service Tokens",
@@ -137,6 +138,23 @@ export const eventCategories: EventCategory[] = [
       "user_data_failed",
       "user_data_success",
       "user_deleted",
+    ]),
+  },
+  {
+    label: "Roles and Permissions",
+    value: "rolesAndPermissions",
+    match: exact([
+      "admin_organization_role_created",
+      "admin_organization_role_deleted",
+      "admin_organization_role_updated",
+      "admin_permission_created",
+      "admin_permission_deleted",
+      "admin_permission_updated",
+      "admin_role_permissions_updated",
+      "organization_member_added",
+      "organization_member_removed",
+      "organization_member_role_grant_refused",
+      "organization_member_updated",
     ]),
   },
   {

@@ -47,6 +47,13 @@ describe("eventCategories", () => {
     );
     expect(getEventCategory("step_up_challenge").value).toBe("stepUp");
     expect(getEventCategory("login_suspicious").value).toBe("security");
+    expect(getEventCategory("session_exchanged").value).toBe("token");
+    expect(getEventCategory("admin_permission_deleted").value).toBe(
+      "rolesAndPermissions",
+    );
+    expect(
+      getEventCategory("organization_member_role_grant_refused").value,
+    ).toBe("rolesAndPermissions");
   });
 
   it("groups raw event summaries and only keeps populated categories", () => {

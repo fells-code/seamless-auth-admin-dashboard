@@ -18,12 +18,20 @@ export const OAUTH_DISCOVERY_FAILED = "oauth_discovery_failed";
 export class ApiError extends Error {
   readonly status: number;
   readonly code?: string;
+  /** The API's `details`, unparsed: its shape depends on the route refusing. */
+  readonly details?: unknown;
 
-  constructor(message: string, status: number, code?: string) {
+  constructor(
+    message: string,
+    status: number,
+    code?: string,
+    details?: unknown,
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -127,13 +135,14 @@ async function apiRequest(
       formatApiError(res.status, text, path, code),
       res.status,
       code,
+      errorField(text, "details"),
     );
   }
 
   return res;
 }
 
-function errorCode(body: string): string | undefined {
+function errorField(body: string, field: string): unknown {
   let parsed: unknown;
   try {
     parsed = JSON.parse(body);
@@ -145,7 +154,11 @@ function errorCode(body: string): string | undefined {
     return undefined;
   }
 
-  const { error } = parsed as Record<string, unknown>;
+  return (parsed as Record<string, unknown>)[field];
+}
+
+function errorCode(body: string): string | undefined {
+  const error = errorField(body, "error");
   return typeof error === "string" ? error : undefined;
 }
 

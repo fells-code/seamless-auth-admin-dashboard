@@ -413,4 +413,30 @@ describe("Table", () => {
 
     expect(screen.getByText("Showing 1-2 of 40")).toBeInTheDocument();
   });
+
+  it("leaves a row action off the rows it does not apply to", () => {
+    render(
+      <Table
+        data={[
+          { id: "1", name: "kept" },
+          { id: "2", name: "built-in" },
+        ]}
+        rowLabel={(row) => row.name}
+        columns={[{ key: "name", label: "Name" }]}
+        actions={[
+          {
+            icon: () => null,
+            label: "Delete",
+            hidden: (row) => row.name === "built-in",
+            onClick: () => undefined,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Delete kept" })).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Delete built-in" }),
+    ).toBeNull();
+  });
 });

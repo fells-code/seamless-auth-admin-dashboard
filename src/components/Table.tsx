@@ -71,6 +71,8 @@ type RowAction<T> = {
   onClick: (row: T) => void;
   label?: string;
   variant?: "default" | "danger";
+  /** Leaves the action off a row it can never apply to. */
+  hidden?: (row: T) => boolean;
 };
 
 type BulkAction<T> = {
@@ -564,6 +566,8 @@ export default function Table<T extends Record<string, unknown>>({
                         >
                           {actions.map((action, idx) => {
                             const Icon = action.icon;
+
+                            if (action.hidden?.(row)) return null;
 
                             return (
                               <button

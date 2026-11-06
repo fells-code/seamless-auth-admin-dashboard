@@ -7,9 +7,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
 
-export function useRoles() {
+export function useRoles({ enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ["roles"],
+    enabled,
     queryFn: () => apiFetch<{ roles: string[] }>("/system-config/roles"),
   });
 }

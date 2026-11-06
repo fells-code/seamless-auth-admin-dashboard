@@ -220,13 +220,13 @@ test.describe("Organizations", () => {
       .click();
 
     await page.getByLabel("Member email").fill("hopper@example.com");
-    await page.getByLabel("Member roles").selectOption("user");
+    await page.getByLabel("Member roles").selectOption("admin");
     await page.getByRole("button", { name: "Add", exact: true }).click();
 
     await expectToast(page, "Member added");
     expect(
       api.lastCall("POST", "/admin/organizations/org_1/members")?.payload,
-    ).toMatchObject({ email: "hopper@example.com", roles: ["user"] });
+    ).toMatchObject({ email: "hopper@example.com", roles: ["admin"] });
   });
 
   test("removes a member behind a confirmation", async ({

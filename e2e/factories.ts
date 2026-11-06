@@ -14,9 +14,11 @@ import type {
   Organization,
   OrganizationMembership,
   PartialAuthEvent,
+  Permission,
   PolicyDocument,
   PolicyDryRunResponse,
   PolicyVersion,
+  RoleDefinition,
   Session,
   StepUpStatus,
   SystemConfig,
@@ -205,6 +207,7 @@ export function makeOidcApplication(
     postLogoutRedirectUris: [],
     grantTypes: ["authorization_code", "refresh_token"],
     deviceFlowEnabled: false,
+    sessionExchangeEnabled: false,
     noticesEnabled: false,
     pkceRequired: true,
     nonceRequired: true,
@@ -218,6 +221,32 @@ export function makeOidcApplication(
     disabled: false,
     createdAt: isoOffset(-30 * DAY),
     updatedAt: isoOffset(-1 * DAY),
+    ...overrides,
+  };
+}
+
+export function makePermission(
+  overrides: Partial<Permission> = {},
+): Permission {
+  return {
+    id: nextId("permission"),
+    name: "invoices:read",
+    description: null,
+    createdAt: isoOffset(-30 * DAY),
+    updatedAt: isoOffset(-1 * DAY),
+    ...overrides,
+  };
+}
+
+export function makeRoleDefinition(
+  overrides: Partial<RoleDefinition> = {},
+): RoleDefinition {
+  return {
+    name: "member",
+    kind: "organization",
+    description: null,
+    builtIn: false,
+    permissions: [],
     ...overrides,
   };
 }
@@ -363,6 +392,7 @@ export function makeSystemConfig(
     origins: ["http://localhost:4287"],
     oidc_provider_enabled: false,
     oidc_issuer: null,
+    oidc_cli_client_id: null,
     allow_client_secrets: false,
     third_party_clients_enabled: false,
     hosted_ui: null,
