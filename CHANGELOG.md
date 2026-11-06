@@ -1,5 +1,17 @@
 # seamless-auth-admin-dashboard
 
+## 0.13.0
+
+### Minor Changes
+
+- f2d95b1: Add a Roles page to manage the permission catalogue, the organization role catalogue, and what each instance and organization role grants. Every write asks for step-up, read-only admins see the model without the controls, and a refused delete or mapping names what stood in the way. The page states that a change reaches a user with their next access token, and that an instance `admin` and an organization `admin` never share a grant. Against an API older than v0.23 it says the API needs upgrading instead of retrying an error.
+
+  Organization member roles are now picked from the organization role catalogue. A legacy role a member already holds stays visible and is kept, and a refused grant names the roles. The audit events for permissions, roles, members and session exchange have categories and labels in the Events view. `@seamless-auth/types` moves to 0.38.
+
+### Patch Changes
+
+- 89389ee: Overview no longer shows zeros for a custom range the API refuses. A range longer than the API's 366 day maximum is caught before it is sent, and the page says how long the range is and what the limit is. A range the API rejects anyway is reported as an error, with the range picker still in place to fix it. The fixed 24 hour copy now appears only when the API answers without range support, not while a request is pending or has failed. Queries no longer retry a 400 or 422, which fails the same way every time.
+
 ## 0.12.0
 
 ### Minor Changes
