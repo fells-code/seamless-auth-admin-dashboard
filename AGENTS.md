@@ -113,6 +113,7 @@ Current route model:
 - `/users`
 - `/users/:id`
 - `/organizations`
+- `/roles`
 - `/applications`
 - `/resources`
 - `/enrollment`
@@ -199,7 +200,8 @@ Every admin write the API guards with step-up calls `ensureStepUp()` from `useSt
 the mutation. `apiFetch` also handles `403 { error: "step_up_required" }` centrally: it asks
 `StepUpRequiredHandler` for a step-up and retries the request once, so a window that lapses
 mid-task prompts instead of failing. `ApiError.code` carries the API's `error` code for branching
-(for example `policy_version_conflict`).
+(for example `policy_version_conflict`). `ApiError.details` carries the API's `details` unparsed;
+`describeRefusal` in `src/lib/roleRefusals.ts` turns the role and permission refusals into text.
 
 For a route that answers with a file rather than JSON (the coverage CSV, the audit
 export), use `apiDownload(path, fallbackName)` and `saveBlob` from `src/lib/csvExport.ts`.
@@ -217,6 +219,7 @@ Current page intent:
 - `Users.tsx`: searchable user directory with create, edit, and delete actions
 - `UserDetail.tsx`: single-user overview, sessions, credentials, events, and anomalies
 - `Organizations.tsx`: organization directory, details, and membership management
+- `Roles.tsx`: the permission catalogue, organization role catalogue, and what each role grants. Instance roles are listed for their mappings but stay defined in `SystemConfig.tsx`. An API older than v0.23 answers 404 on these routes, which is a state of its own rather than an error
 - `Applications.tsx`: OpenID Provider applications (clients): create and edit, public and confidential clients, redirect URI checks (https, loopback, private-use), secret rotation shown once, key registration, and the resources and scopes each application may use. Shared-secret clients are marked as weaker
 - `Resources.tsx`: OpenID Provider resources (APIs), their audience identifier, scopes, and token TTL
 - `Enrollment.tsx`: passkey enrollment status by user, and enrollment invites

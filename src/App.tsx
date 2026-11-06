@@ -20,6 +20,7 @@ import Security from "./pages/Security";
 import Organizations from "./pages/Organizations";
 import Applications from "./pages/Applications";
 import Resources from "./pages/Resources";
+import Roles from "./pages/Roles";
 import Enrollment from "./pages/Enrollment";
 import Coverage from "./pages/Coverage";
 import UserDetail from "./pages/UserDetail";
@@ -107,6 +108,7 @@ const router = createBrowserRouter(
             { path: "/organizations", element: <Organizations /> },
             { path: "/applications", element: <Applications /> },
             { path: "/resources", element: <Resources /> },
+            { path: "/roles", element: <Roles /> },
             { path: "/enrollment", element: <Enrollment /> },
             { path: "/coverage", element: <Coverage /> },
             { path: "/sessions", element: <Sessions /> },

@@ -81,6 +81,7 @@ const legacy: OidcApplication = {
   postLogoutRedirectUris: [],
   grantTypes: ["authorization_code"],
   deviceFlowEnabled: false,
+  sessionExchangeEnabled: false,
   noticesEnabled: false,
   pkceRequired: true,
   nonceRequired: true,

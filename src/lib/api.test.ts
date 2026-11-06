@@ -542,6 +542,27 @@ describe("apiDownload", () => {
     expect(filename).toBe("evil.sh");
   });
 
+  it("carries the API's details on the error", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: "Organization role is still held",
+          details: { holders: 2 },
+        }),
+        { status: 409 },
+      ),
+    );
+
+    await expect(apiFetch("/admin/organization-roles/x")).rejects.toMatchObject(
+      {
+        name: "ApiError",
+        status: 409,
+        message: "Organization role is still held",
+        details: { holders: 2 },
+      },
+    );
+  });
+
   it("raises the same errors apiFetch does", async () => {
     const expired = vi.fn();
     const unsubscribe = onSessionExpired(expired);

@@ -4,8 +4,16 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
+import { ApiError } from "../lib/api";
 import Organizations from "./Organizations";
 
 const mocks = vi.hoisted(() => ({
@@ -23,6 +31,7 @@ const mocks = vi.hoisted(() => ({
   useUpdateOrganization: vi.fn(),
   useUpdateOrganizationMember: vi.fn(),
   useRoles: vi.fn(),
+  useRoleDefinitions: vi.fn(),
   useAdminPermissions: vi.fn(),
   useStepUpGuard: vi.fn(),
   useToast: vi.fn(),
@@ -47,6 +56,10 @@ vi.mock("../hooks/useOrganizations", () => ({
 
 vi.mock("../hooks/useRoles", () => ({
   useRoles: mocks.useRoles,
+}));
+
+vi.mock("../hooks/useRolePermissions", () => ({
+  useRoleDefinitions: mocks.useRoleDefinitions,
 }));
 
 vi.mock("../hooks/useAdminPermissions", () => ({
@@ -75,6 +88,24 @@ const organization = {
   updatedAt: "2026-05-18T12:00:00.000Z",
   memberCount: 1,
 };
+
+function renderOrganizations() {
+  return render(
+    <MemoryRouter>
+      <Organizations />
+    </MemoryRouter>,
+  );
+}
+
+function orgRole(name: string) {
+  return {
+    name,
+    kind: "organization",
+    description: null,
+    builtIn: true,
+    permissions: [],
+  };
+}
 
 describe("Organizations", () => {
   beforeEach(() => {
@@ -122,7 +153,24 @@ describe("Organizations", () => {
       isPending: false,
     });
     mocks.useRoles.mockReturnValue({
-      data: { roles: ["member", "admin"] },
+      data: { roles: ["user", "reports"] },
+    });
+    mocks.useRoleDefinitions.mockReturnValue({
+      isSuccess: true,
+      data: {
+        roles: [
+          {
+            name: "reports",
+            kind: "instance",
+            description: null,
+            builtIn: false,
+            permissions: [],
+          },
+          orgRole("owner"),
+          orgRole("admin"),
+          orgRole("member"),
+        ],
+      },
     });
     mocks.useAddOrganizationMember.mockReturnValue({
       mutate: mocks.addMember,
@@ -155,7 +203,7 @@ describe("Organizations", () => {
   });
 
   it("renders organizations and members", () => {
-    render(<Organizations />);
+    renderOrganizations();
 
     expect(
       screen.getByRole("heading", { name: "Organizations" }),
@@ -165,7 +213,7 @@ describe("Organizations", () => {
   });
 
   it("creates organizations from the directory form after step-up", async () => {
-    render(<Organizations />);
+    renderOrganizations();
 
     fireEvent.change(screen.getByPlaceholderText("Organization name"), {
       target: { value: "Beta" },
@@ -186,7 +234,7 @@ describe("Organizations", () => {
 
   it("does not create an organization when step-up fails", async () => {
     mocks.ensureStepUp.mockResolvedValue(false);
-    render(<Organizations />);
+    renderOrganizations();
 
     fireEvent.change(screen.getByPlaceholderText("Organization name"), {
       target: { value: "Beta" },
@@ -198,7 +246,7 @@ describe("Organizations", () => {
   });
 
   it("steps up before saving organization details", async () => {
-    render(<Organizations />);
+    renderOrganizations();
 
     fireEvent.change(screen.getByDisplayValue(organization.name), {
       target: { value: "Acme Renamed" },
@@ -216,7 +264,7 @@ describe("Organizations", () => {
 
   it("does not save organization details when step-up fails", async () => {
     mocks.ensureStepUp.mockResolvedValue(false);
-    render(<Organizations />);
+    renderOrganizations();
 
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
@@ -225,7 +273,7 @@ describe("Organizations", () => {
   });
 
   it("adds organization members after step-up", async () => {
-    render(<Organizations />);
+    renderOrganizations();
 
     fireEvent.change(screen.getByPlaceholderText("member@example.com"), {
       target: { value: "member@example.com" },
@@ -253,18 +301,8 @@ describe("Organizations", () => {
     expect(mocks.useStepUpGuard()).toHaveBeenCalled();
   });
 
-  it("offers only the roles the instance defines", () => {
-    render(<Organizations />);
-
-    const roleSelect = screen.getByLabelText("Member roles");
-
-    expect(
-      Array.from(roleSelect.querySelectorAll("option")).map((o) => o.value),
-    ).toEqual(["member", "admin"]);
-  });
-
   it("refuses to save an organization with an empty name", () => {
-    render(<Organizations />);
+    renderOrganizations();
 
     const nameField = screen.getByDisplayValue(organization.name);
     fireEvent.change(nameField, { target: { value: "   " } });
@@ -276,7 +314,7 @@ describe("Organizations", () => {
   });
 
   it("asks the server for the first page on mount", () => {
-    render(<Organizations />);
+    renderOrganizations();
 
     expect(mocks.useOrganizations).toHaveBeenCalledWith({
       limit: 50,
@@ -288,7 +326,7 @@ describe("Organizations", () => {
   // The filter used to narrow the rows already loaded, which could not reach an
   // organization the endpoint had not returned. It is a query parameter now.
   it("sends the search term to the server once typing settles", async () => {
-    render(<Organizations />);
+    renderOrganizations();
 
     fireEvent.change(screen.getByPlaceholderText("Search name or slug"), {
       target: { value: "beta" },
@@ -309,7 +347,7 @@ describe("Organizations", () => {
       isLoading: false,
     });
 
-    render(<Organizations />);
+    renderOrganizations();
 
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
@@ -330,7 +368,7 @@ describe("Organizations", () => {
       isLoading: false,
     });
 
-    render(<Organizations />);
+    renderOrganizations();
 
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
     await waitFor(() =>
@@ -353,7 +391,7 @@ describe("Organizations", () => {
   });
 
   it("requires confirmation and step-up before deleting an organization", async () => {
-    render(<Organizations />);
+    renderOrganizations();
 
     fireEvent.click(screen.getByRole("button", { name: "Remove Acme" }));
 
@@ -367,7 +405,7 @@ describe("Organizations", () => {
   // The count comes from the row, so an operator is told what the cascade costs
   // before they agree to it rather than afterwards.
   it("names the membership count in the confirmation", async () => {
-    render(<Organizations />);
+    renderOrganizations();
 
     fireEvent.click(screen.getByRole("button", { name: "Remove Acme" }));
 
@@ -383,7 +421,7 @@ describe("Organizations", () => {
   it("does not delete an organization when the confirmation is dismissed", async () => {
     mocks.confirm.mockResolvedValue(false);
 
-    render(<Organizations />);
+    renderOrganizations();
 
     fireEvent.click(screen.getByRole("button", { name: "Remove Acme" }));
 
@@ -395,7 +433,7 @@ describe("Organizations", () => {
   it("does not delete an organization when step-up fails", async () => {
     mocks.ensureStepUp.mockResolvedValue(false);
 
-    render(<Organizations />);
+    renderOrganizations();
 
     fireEvent.click(screen.getByRole("button", { name: "Remove Acme" }));
 
@@ -404,7 +442,7 @@ describe("Organizations", () => {
   });
 
   it("reports the outcome of an organization delete through toasts", async () => {
-    render(<Organizations />);
+    renderOrganizations();
 
     fireEvent.click(screen.getByRole("button", { name: "Remove Acme" }));
 
@@ -434,10 +472,173 @@ describe("Organizations", () => {
       canWrite: false,
     });
 
-    render(<Organizations />);
+    renderOrganizations();
 
     expect(
       screen.queryByRole("button", { name: "Remove Acme" }),
     ).not.toBeInTheDocument();
+  });
+  describe("member role assignment", () => {
+    const openEditor = () =>
+      fireEvent.click(
+        screen.getByRole("button", { name: "Edit roles owner@example.com" }),
+      );
+
+    function withMemberRoles(roles: string[]) {
+      mocks.useOrganizationMembers.mockReturnValue({
+        data: {
+          members: [
+            {
+              id: "membership-1",
+              organizationId: "org-1",
+              userId: "user-1",
+              roles,
+              scopes: [],
+              createdAt: "2026-05-18T12:00:00.000Z",
+              updatedAt: "2026-05-18T12:00:00.000Z",
+              user: {
+                id: "user-1",
+                email: "owner@example.com",
+                roles: [],
+              },
+            },
+          ],
+        },
+        isLoading: false,
+      });
+    }
+
+    it("offers the organization catalogue, not the instance roles", () => {
+      renderOrganizations();
+
+      const picker = screen.getByLabelText("Member roles");
+      expect(
+        Array.from(picker.querySelectorAll("option")).map((o) => o.value),
+      ).toEqual(["owner", "admin", "member"]);
+      expect(mocks.useRoles).toHaveBeenCalledWith({ enabled: false });
+    });
+
+    it("falls back to the instance roles on an API without the catalogue", () => {
+      mocks.useRoleDefinitions.mockReturnValue({
+        isError: true,
+        error: new ApiError("Not found", 404),
+      });
+      renderOrganizations();
+
+      const picker = screen.getByLabelText("Member roles");
+      expect(
+        Array.from(picker.querySelectorAll("option")).map((o) => o.value),
+      ).toEqual(["user", "reports"]);
+      expect(mocks.useRoles).toHaveBeenCalledWith({ enabled: true });
+      expect(screen.queryByText(/organization role catalogue/)).toBeNull();
+    });
+
+    it("reports a catalogue that failed to load", () => {
+      mocks.useRoleDefinitions.mockReturnValue({
+        isError: true,
+        error: new ApiError("Boom", 500),
+        refetch: vi.fn(),
+      });
+      renderOrganizations();
+
+      expect(
+        screen.getByText("Could not load the organization role catalogue"),
+      ).toBeVisible();
+    });
+
+    it("keeps a legacy role visible and retained on save", async () => {
+      withMemberRoles(["member", "Legacy Role"]);
+      renderOrganizations();
+      openEditor();
+
+      expect(
+        screen.getByRole("button", { name: "Legacy Role" }),
+      ).toHaveAttribute("aria-pressed", "true");
+      expect(
+        screen.getByText(/Not in the catalogue: Legacy Role/),
+      ).toBeVisible();
+
+      fireEvent.click(
+        within(screen.getByRole("dialog")).getByRole("button", {
+          name: "Save",
+        }),
+      );
+
+      await waitFor(() =>
+        expect(mocks.updateMemberMutate).toHaveBeenCalledWith(
+          expect.objectContaining({ roles: ["member", "Legacy Role"] }),
+          expect.anything(),
+        ),
+      );
+    });
+
+    it("says when a role change applies and that the kinds are separate", () => {
+      renderOrganizations();
+      openEditor();
+
+      expect(
+        screen.getByText(/separate from instance roles of the same name/),
+      ).toBeVisible();
+      expect(screen.getByText(/next access token is issued/)).toBeVisible();
+    });
+
+    it("names the roles in a 403 refusal and keeps the dialog open", async () => {
+      mocks.updateMemberMutate.mockImplementation((_input, options) =>
+        options.onError(
+          new ApiError("Forbidden", 403, "Not allowed to change these roles", {
+            roles: ["owner"],
+          }),
+        ),
+      );
+      renderOrganizations();
+      openEditor();
+      fireEvent.click(
+        within(screen.getByRole("dialog")).getByRole("button", {
+          name: "Save",
+        }),
+      );
+
+      expect(
+        await screen.findByText(/You may not change these roles: owner/),
+      ).toBeVisible();
+      expect(screen.getByRole("dialog")).toBeVisible();
+    });
+
+    it("steps up before saving and stops if it is refused", async () => {
+      mocks.ensureStepUp.mockResolvedValue(false);
+      renderOrganizations();
+      openEditor();
+      fireEvent.click(
+        within(screen.getByRole("dialog")).getByRole("button", {
+          name: "Save",
+        }),
+      );
+
+      await waitFor(() => expect(mocks.ensureStepUp).toHaveBeenCalled());
+      expect(mocks.updateMemberMutate).not.toHaveBeenCalled();
+    });
+
+    it("names an unknown role when adding a member is refused", async () => {
+      mocks.addMember.mockImplementation((_input, options) =>
+        options.onError(
+          new ApiError("Unknown organization roles", 400, undefined, {
+            roles: ["ghost"],
+          }),
+        ),
+      );
+      renderOrganizations();
+
+      fireEvent.change(screen.getByLabelText("Member email"), {
+        target: { value: "new@example.com" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+      await waitFor(() =>
+        expect(mocks.toastError).toHaveBeenCalledWith(
+          "Member add failed",
+          expect.stringContaining("Unknown organization roles: ghost"),
+        ),
+      );
+    });
   });
 });
