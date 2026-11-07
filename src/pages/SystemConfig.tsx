@@ -877,6 +877,24 @@ export default function SystemConfigPage() {
             }
             disabled={!canWrite}
           />
+
+          {form.oidc_cli_client_id === undefined ? (
+            <p className="text-sm text-muted">
+              Naming the application the Seamless CLI signs in with needs
+              Seamless Auth API v0.23 or later.
+            </p>
+          ) : (
+            <Input
+              label="CLI Application"
+              value={form.oidc_cli_client_id ?? ""}
+              placeholder="seamless-cli"
+              helperText="The client ID of the application the Seamless CLI signs in with through the provider. The API advertises it while the provider is on, so the CLI can offer provider sign-in instead of an email code. It must be an active first-party public native application with session exchange turned on, on the Applications page. Leave it empty to advertise none."
+              onChange={(value) =>
+                updateField("oidc_cli_client_id", value.trim() || null)
+              }
+              disabled={!canWrite}
+            />
+          )}
         </div>
       </Section>
 

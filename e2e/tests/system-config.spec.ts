@@ -474,6 +474,48 @@ test.describe("System Configuration", () => {
     );
   });
 
+  test("names the application the CLI signs in with", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    await signInAs("writeAdmin", "/system");
+
+    await page.getByLabel("CLI Application").fill("seamless-cli");
+    await page.getByRole("button", { name: "Save Changes" }).click();
+
+    await expectToast(page, "Configuration saved");
+    expect(api.lastCall("PATCH", "/system-config/admin")?.payload).toEqual({
+      oidc_cli_client_id: "seamless-cli",
+    });
+  });
+
+  test("reports why the API refused the CLI application", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    api.patch("/system-config/admin", {
+      status: 400,
+      json: {
+        error: "Invalid OpenID Provider config",
+        details: [
+          "oidc_cli_client_id must name an active application with session exchange on",
+        ],
+      },
+    });
+
+    await signInAs("writeAdmin", "/system");
+
+    await page.getByLabel("CLI Application").fill("docs-portal");
+    await page.getByRole("button", { name: "Save Changes" }).click();
+
+    await expectInlineAlert(
+      page,
+      "Invalid OpenID Provider config: oidc_cli_client_id must name an active application with session exchange on",
+    );
+  });
+
   test("surfaces a failed load", async ({ page, api, signInAs }) => {
     api.get("/system-config/admin", {
       status: 500,
