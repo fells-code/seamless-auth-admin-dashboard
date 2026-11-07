@@ -16,7 +16,7 @@ import { Section } from "../components/Section";
 import { QueryErrorState } from "../components/StateMessage";
 import EventTypeLabel from "../components/EventTypeLabel";
 import { eventGroups } from "../lib/eventGroups";
-import { isHighSeverityEvent } from "../lib/eventLabels";
+import { isHighSeverityEvent, PENDING_EVENT_TYPES } from "../lib/eventLabels";
 import {
   applyRangeToParams,
   DEFAULT_TIME_RANGE,
@@ -37,9 +37,10 @@ const groupedTypeAliases = new Set(
   eventGroups.map((group) => group.value).filter(Boolean),
 );
 
-const concreteEventTypes = AUTH_EVENT_TYPES.filter(
-  (type) => !groupedTypeAliases.has(type),
-);
+const concreteEventTypes: string[] = [
+  ...AUTH_EVENT_TYPES,
+  ...PENDING_EVENT_TYPES,
+].filter((type) => !groupedTypeAliases.has(type));
 
 function getFiltersFromSearch(search: string): EventFilter {
   return {

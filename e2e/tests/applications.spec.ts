@@ -5,7 +5,6 @@
  */
 
 import type { Page } from "@playwright/test";
-import type { OidcApplication } from "@seamless-auth/types";
 import { expect, test } from "../fixtures";
 import type { MockApi } from "../mockApi";
 import {
@@ -14,7 +13,11 @@ import {
   expectErrorState,
   expectToast,
 } from "../helpers";
-import { makeOidcApplication, makeOidcResource } from "../factories";
+import {
+  makeOidcApplication,
+  makeOidcResource,
+  type OidcApplicationV023,
+} from "../factories";
 
 const ORDERS = makeOidcResource({
   id: "00000000-0000-4000-8000-000000000001",
@@ -25,7 +28,7 @@ const ORDERS = makeOidcResource({
 
 function seedApplications(
   api: MockApi,
-  seeded: OidcApplication[] = [
+  seeded: OidcApplicationV023[] = [
     makeOidcApplication({ id: "client_docs", name: "Docs Portal" }),
     makeOidcApplication({
       id: "client_cli",
@@ -50,7 +53,7 @@ function seedApplications(
   api.get("/admin/resources", { json: { resources: [ORDERS] } });
 
   api.post("/admin/applications", ({ payload }) => {
-    const request = payload as Partial<OidcApplication>;
+    const request = payload as Partial<OidcApplicationV023>;
     const created = makeOidcApplication({
       ...request,
       id: "client_new",
@@ -116,7 +119,45 @@ function seedApplications(
     };
   });
 
-  return { applications, links };
+  const clientLinks: { clientId: string; linkedClientId: string }[] = [];
+  const linkView = (link: { clientId: string; linkedClientId: string }) => ({
+    ...link,
+    createdBy: null,
+    createdAt: "2026-10-01T00:00:00.000Z",
+  });
+  for (const app of applications) {
+    for (const linkedClientId of app.links) {
+      clientLinks.push({ clientId: app.id, linkedClientId });
+    }
+  }
+
+  api.get("/admin/applications/:id/links", ({ params }) => ({
+    json: {
+      links: clientLinks
+        .filter((link) => link.clientId === params.id)
+        .map(linkView),
+      linkedFrom: clientLinks
+        .filter((link) => link.linkedClientId === params.id)
+        .map(linkView),
+    },
+  }));
+
+  api.put("/admin/applications/:id/links/:linkedId", ({ params }) => {
+    const link = { clientId: params.id, linkedClientId: params.linkedId };
+    clientLinks.push(link);
+    return { json: { link: linkView(link) } };
+  });
+
+  api.delete("/admin/applications/:id/links/:linkedId", ({ params }) => {
+    const index = clientLinks.findIndex(
+      (link) =>
+        link.clientId === params.id && link.linkedClientId === params.linkedId,
+    );
+    clientLinks.splice(index, 1);
+    return { json: { message: "Link removed" } };
+  });
+
+  return { applications, links, clientLinks };
 }
 
 function dialog(page: Page) {
@@ -562,5 +603,207 @@ test.describe("Applications", () => {
     await drainRetries(page);
 
     await expectErrorState(page, "Could not load applications");
+  });
+
+  test.describe("v0.23 settings", () => {
+    const backend = () =>
+      makeOidcApplication({
+        id: "client_backend",
+        name: "Desk Backend",
+        firstParty: true,
+        redirectUris: [],
+        grantTypes: ["client_credentials"],
+        links: ["client_desk"],
+      });
+    const desk = () =>
+      makeOidcApplication({
+        id: "client_desk",
+        name: "Desk App",
+        clientType: "public",
+        applicationType: "native",
+        firstParty: true,
+        tokenEndpointAuthMethod: "none",
+        redirectUris: ["com.example.desk:/callback"],
+        linkedFrom: ["client_backend"],
+      });
+    const mobile = () =>
+      makeOidcApplication({
+        id: "client_mobile",
+        name: "Mobile App",
+        clientType: "public",
+        applicationType: "native",
+        firstParty: true,
+        tokenEndpointAuthMethod: "none",
+        redirectUris: ["http://127.0.0.1/callback"],
+      });
+
+    test("turns on session exchange for a first-party native client", async ({
+      page,
+      api,
+      signInAs,
+    }) => {
+      seedApplications(api, [desk()]);
+
+      await signInAs("writeAdmin", "/applications");
+      await page.getByRole("button", { name: "Edit Desk App" }).click();
+      const form = dialog(page);
+      await form.getByLabel("Session exchange for native admin tools").check();
+      await form.getByRole("button", { name: "Save" }).click();
+
+      await expectToast(page, "Application updated");
+      expect(
+        api.lastCall("PATCH", "/admin/applications/client_desk")?.payload,
+      ).toMatchObject({ sessionExchangeEnabled: true });
+      await expect(
+        page.getByText("Session exchange", { exact: true }),
+      ).toBeVisible();
+    });
+
+    test("does not offer session exchange to a confidential client", async ({
+      page,
+      api,
+      signInAs,
+    }) => {
+      seedApplications(api, [backend()]);
+
+      await signInAs("writeAdmin", "/applications");
+      await page.getByRole("button", { name: "Edit Desk Backend" }).click();
+
+      await expect(
+        dialog(page).getByLabel("Session exchange for native admin tools"),
+      ).toBeDisabled();
+    });
+
+    test("saves notice action origins", async ({ page, api, signInAs }) => {
+      seedApplications(api, [backend()]);
+
+      await signInAs("writeAdmin", "/applications");
+      await page.getByRole("button", { name: "Edit Desk Backend" }).click();
+      await dialog(page)
+        .getByLabel("Notice action origins (one per line)")
+        .fill("https://desk.example.com");
+      await dialog(page).getByRole("button", { name: "Save" }).click();
+
+      await expectToast(page, "Application updated");
+      expect(
+        api.lastCall("PATCH", "/admin/applications/client_backend")?.payload,
+      ).toMatchObject({ noticeActionOrigins: ["https://desk.example.com"] });
+    });
+
+    test("adds and removes a link through step-up", async ({
+      page,
+      api,
+      signInAs,
+    }) => {
+      seedApplications(api, [backend(), desk(), mobile()]);
+
+      await signInAs("writeAdmin", "/applications");
+      await select(page, "Desk Backend");
+
+      const actsFor = page.getByRole("list", { name: "Acts for" });
+      await expect(actsFor.getByText("Desk App")).toBeVisible();
+
+      await page
+        .getByRole("combobox", { name: "Application to act for" })
+        .selectOption("client_mobile");
+      await page.getByRole("button", { name: "Add link" }).click();
+      await expectToast(page, "Link added");
+      expect(
+        api.lastCall(
+          "PUT",
+          "/admin/applications/client_backend/links/client_mobile",
+        ),
+      ).toBeTruthy();
+      await expect(actsFor.getByText("Mobile App")).toBeVisible();
+
+      await page
+        .getByRole("button", { name: "Remove link with Desk App" })
+        .click();
+      await confirmDialog(page, "Remove");
+      await expectToast(page, "Link removed");
+      expect(
+        api.lastCall(
+          "DELETE",
+          "/admin/applications/client_backend/links/client_desk",
+        ),
+      ).toBeTruthy();
+      await expect(actsFor.getByText("Desk App")).toBeHidden();
+    });
+
+    test("shows the API's reason for refusing a link", async ({
+      page,
+      api,
+      signInAs,
+    }) => {
+      seedApplications(api, [backend(), mobile()]);
+      api.put("/admin/applications/:id/links/:linkedId", {
+        status: 400,
+        json: {
+          error:
+            "Third-party clients are off on this instance (third_party_clients_enabled)",
+        },
+      });
+
+      await signInAs("writeAdmin", "/applications");
+      await page.getByRole("button", { name: "Add link" }).click();
+
+      await expectToast(page, /Third-party clients are off on this instance/);
+    });
+
+    test("lists who acts for a public application", async ({
+      page,
+      api,
+      signInAs,
+    }) => {
+      seedApplications(api, [desk(), backend()]);
+
+      await signInAs("writeAdmin", "/applications");
+
+      await expect(
+        page
+          .getByRole("list", { name: "Acted for by" })
+          .getByText("Desk Backend"),
+      ).toBeVisible();
+      await expect(page.getByRole("button", { name: "Add link" })).toBeHidden();
+    });
+
+    test("shows links read-only to a read-only admin", async ({
+      page,
+      api,
+      signInAs,
+    }) => {
+      seedApplications(api, [backend(), desk(), mobile()]);
+
+      await signInAs("readAdmin", "/applications");
+
+      await expect(
+        page.getByRole("list", { name: "Acts for" }).getByText("Desk App"),
+      ).toBeVisible();
+      await expect(page.getByRole("button", { name: "Add link" })).toBeHidden();
+      await expect(
+        page.getByRole("button", { name: "Remove link with Desk App" }),
+      ).toBeHidden();
+    });
+
+    test("says links need v0.23 when the API has no links route", async ({
+      page,
+      api,
+      signInAs,
+    }) => {
+      seedApplications(api, [backend()]);
+      api.get("/admin/applications/:id/links", {
+        status: 404,
+        json: { error: "Not found" },
+      });
+
+      await signInAs("writeAdmin", "/applications");
+
+      await expect(
+        page.getByText("Needs Seamless Auth API v0.23"),
+      ).toBeVisible();
+      expect(
+        api.recordedCalls("GET", "/admin/applications/client_backend/links"),
+      ).toHaveLength(1);
+    });
   });
 });

@@ -1112,6 +1112,37 @@ describe("SystemConfigPage", () => {
     expect(mocks.useStepUpGuard()).toHaveBeenCalled();
   });
 
+  it("names the CLI application and clears it to null", async () => {
+    mocks.useSystemConfig.mockReturnValue({
+      data: { ...baseConfig, oidc_cli_client_id: null },
+      isLoading: false,
+    });
+    renderPage();
+
+    const field = screen.getByLabelText(/cli application/i);
+    expect(
+      screen.getByText(/the application the Seamless CLI signs in with/i),
+    ).toBeVisible();
+
+    fireEvent.change(field, { target: { value: " seamless-cli " } });
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => expect(mocks.mutate).toHaveBeenCalled());
+    expect(mocks.mutate.mock.calls[0]![0]).toEqual({
+      oidc_cli_client_id: "seamless-cli",
+    });
+    expect(mocks.useStepUpGuard()).toHaveBeenCalled();
+  });
+
+  it("says naming the CLI application needs v0.23 on an older API", () => {
+    renderPage();
+
+    expect(screen.queryByLabelText(/cli application/i)).toBeNull();
+    expect(
+      screen.getByText(/signs in with needs Seamless Auth API v0.23/),
+    ).toBeVisible();
+  });
+
   it("clears the OIDC issuer to null and refuses one that is not a URL", async () => {
     mocks.useSystemConfig.mockReturnValue({
       data: { ...baseConfig, oidc_issuer: "https://id.example.com" },

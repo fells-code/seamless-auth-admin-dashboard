@@ -6,7 +6,11 @@
 
 import { describe, expect, it } from "vitest";
 import { AUTH_EVENT_TYPES } from "@seamless-auth/types";
-import { getEventLabel, isHighSeverityEvent } from "./eventLabels";
+import {
+  getEventLabel,
+  isHighSeverityEvent,
+  PENDING_EVENT_TYPES,
+} from "./eventLabels";
 
 describe("getEventLabel", () => {
   it("names the v0.20 event types", () => {
@@ -30,6 +34,25 @@ describe("getEventLabel", () => {
     );
   });
 
+  it("names the v0.23 application, session exchange and logout events", () => {
+    expect(getEventLabel("admin_oidc_application_link_added")).toBe(
+      "Application link added",
+    );
+    expect(getEventLabel("admin_oidc_application_link_removed")).toBe(
+      "Application link removed",
+    );
+    expect(
+      getEventLabel("admin_oidc_application_session_exchange_updated"),
+    ).toBe("Application session exchange changed");
+    expect(getEventLabel("session_exchanged")).toBe("Session exchanged");
+    expect(getEventLabel("oidc_backchannel_logout_sent")).toBe(
+      "Back-channel logout sent",
+    );
+    expect(getEventLabel("oidc_backchannel_logout_failed")).toBe(
+      "Back-channel logout failed",
+    );
+  });
+
   it("derives a readable name for other types, keeping acronyms", () => {
     expect(getEventLabel("oidc_token_issued")).toBe("OIDC token issued");
     expect(getEventLabel("login_success")).toBe("Login success");
@@ -47,7 +70,7 @@ describe("getEventLabel", () => {
   });
 
   it("gives every known type a label without underscores", () => {
-    for (const type of AUTH_EVENT_TYPES) {
+    for (const type of [...AUTH_EVENT_TYPES, ...PENDING_EVENT_TYPES]) {
       expect(getEventLabel(type)).not.toContain("_");
     }
   });

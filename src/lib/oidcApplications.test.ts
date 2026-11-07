@@ -7,13 +7,18 @@
 import { describe, expect, it } from "vitest";
 import type { OidcApplication } from "@seamless-auth/types";
 import {
+  applicationFeatures,
   applicationToForm,
   authMethodsFor,
+  canUseSessionExchange,
   checkRedirectUris,
   createRequestFromForm,
   emptyApplicationForm,
   isSharedSecretMethod,
+  instanceApplicationFeatures,
   lacksCodeBinding,
+  linkCandidates,
+  noticeActionOriginProblem,
   parseJwks,
   parseList,
   updateRequestFromForm,
@@ -191,5 +196,153 @@ describe("oidcApplications", () => {
     );
     expect(privateKey.ok).toBe(false);
     expect(parseJwks(JSON.stringify({ keys: [] })).ok).toBe(false);
+  });
+
+  it("offers session exchange only to a first-party public native client", () => {
+    const native = {
+      firstParty: true,
+      clientType: "public" as const,
+      redirectUris: "com.example.cli:/callback",
+    };
+
+    expect(canUseSessionExchange(native)).toBe(true);
+    expect(
+      canUseSessionExchange({ ...native, redirectUris: "http://[::1]/cb" }),
+    ).toBe(true);
+    expect(canUseSessionExchange({ ...native, firstParty: false })).toBe(false);
+    expect(
+      canUseSessionExchange({ ...native, clientType: "confidential" }),
+    ).toBe(false);
+    expect(
+      canUseSessionExchange({
+        ...native,
+        redirectUris: "https://app.example.com/cb",
+      }),
+    ).toBe(false);
+  });
+
+  it("refuses session exchange the API would refuse", () => {
+    const problems = validateApplicationForm({
+      ...applicationToForm(app),
+      sessionExchangeEnabled: true,
+    });
+
+    expect(problems).toContainEqual(
+      expect.objectContaining({
+        field: "sessionExchangeEnabled",
+        label: "Session exchange",
+      }),
+    );
+  });
+
+  it("checks notice action origins the way the API does", () => {
+    expect(noticeActionOriginProblem("https://app.example.com")).toBeNull();
+    expect(noticeActionOriginProblem("http://app.example.com")).toMatch(
+      /https/,
+    );
+    expect(noticeActionOriginProblem("https://localhost")).toMatch(/loopback/);
+    expect(noticeActionOriginProblem("https://127.0.0.1")).toMatch(/loopback/);
+    expect(noticeActionOriginProblem("https://app.example.com/path")).toMatch(
+      /bare origins/,
+    );
+    expect(noticeActionOriginProblem("app.example.com")).toMatch(/absolute/);
+
+    const problems = validateApplicationForm({
+      ...applicationToForm(app),
+      noticeActionOrigins: "https://a.example.com\nhttps://a.example.com",
+    });
+    expect(problems.map((p) => p.message)).toContain("Origins must be unique");
+  });
+
+  it("sends the v0.23 settings on create only when they are used", () => {
+    const form = applicationToForm(app);
+
+    expect(createRequestFromForm(form)).not.toHaveProperty(
+      "sessionExchangeEnabled",
+    );
+    expect(createRequestFromForm(form)).not.toHaveProperty(
+      "noticeActionOrigins",
+    );
+    expect(
+      createRequestFromForm({
+        ...form,
+        noticeActionOrigins: "https://app.example.com",
+      }),
+    ).toMatchObject({ noticeActionOrigins: ["https://app.example.com"] });
+    expect(
+      createRequestFromForm({
+        ...form,
+        clientType: "public",
+        tokenEndpointAuthMethod: "none",
+        sessionExchangeEnabled: true,
+      }),
+    ).toMatchObject({ sessionExchangeEnabled: true });
+  });
+
+  it("sends the v0.23 settings on update only to an API that returned them", () => {
+    const current = {
+      ...app,
+      noticeActionOrigins: ["https://app.example.com"],
+      links: [],
+      linkedFrom: [],
+    };
+    const form = applicationToForm(current);
+
+    expect(applicationFeatures(current)).toEqual({
+      sessionExchange: true,
+      noticeActionOrigins: true,
+    });
+    expect(
+      updateRequestFromForm(form, applicationFeatures(current)),
+    ).toMatchObject({
+      sessionExchangeEnabled: false,
+      noticeActionOrigins: ["https://app.example.com"],
+    });
+
+    const older: Partial<OidcApplication> = { ...app };
+    delete older.sessionExchangeEnabled;
+    const olderFeatures = applicationFeatures(older as OidcApplication);
+    expect(olderFeatures).toEqual({
+      sessionExchange: false,
+      noticeActionOrigins: false,
+    });
+    expect(updateRequestFromForm(form, olderFeatures)).not.toHaveProperty(
+      "sessionExchangeEnabled",
+    );
+    expect(updateRequestFromForm(form, olderFeatures)).not.toHaveProperty(
+      "noticeActionOrigins",
+    );
+  });
+
+  it("offers the v0.23 settings on create unless every application predates them", () => {
+    const older: Partial<OidcApplication> = { ...app };
+    delete older.sessionExchangeEnabled;
+
+    expect(instanceApplicationFeatures([])).toEqual({
+      sessionExchange: true,
+      noticeActionOrigins: true,
+    });
+    expect(instanceApplicationFeatures([older as OidcApplication])).toEqual({
+      sessionExchange: false,
+      noticeActionOrigins: false,
+    });
+  });
+
+  it("links a confidential application only to public ones of the same party", () => {
+    const backend = { ...app, id: "backend", firstParty: true };
+    const desk = {
+      ...app,
+      id: "desk",
+      clientType: "public" as const,
+      firstParty: false,
+    };
+    const firstPartyDesk = { ...desk, id: "desk_1p", firstParty: true };
+    const linked = { ...firstPartyDesk, id: "linked" };
+    const all = [backend, desk, firstPartyDesk, linked];
+
+    expect(
+      linkCandidates(backend, all, ["linked"]).map((other) => other.id),
+    ).toEqual(["desk_1p"]);
+    expect(linkCandidates(firstPartyDesk, all, [])).toEqual([]);
   });
 });
