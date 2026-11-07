@@ -14,6 +14,7 @@ import Skeleton from "../components/Skeleton";
 import StatCard from "../components/StatCard";
 import { Section } from "../components/Section";
 import OidcApplicationDialog from "../components/OidcApplicationDialog";
+import OidcApplicationLinks from "../components/OidcApplicationLinks";
 import {
   QueryErrorState,
   ReadOnlyNotice,
@@ -21,15 +22,18 @@ import {
 } from "../components/StateMessage";
 import { getErrorMessage } from "../lib/errorMessage";
 import {
+  applicationFeatures,
   applicationToForm,
   type ApplicationForm,
   AUTH_METHOD_LABELS,
   createRequestFromForm,
   emptyApplicationForm,
   GRANT_LABELS,
+  instanceApplicationFeatures,
   isSharedSecretMethod,
   lacksCodeBinding,
   NO_CODE_BINDING_WARNING,
+  type OidcApplicationView,
   parseJwks,
   REDIRECT_KIND_LABELS,
   updateRequestFromForm,
@@ -51,9 +55,9 @@ import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import { useToast } from "../hooks/useToast";
 import { useConfirm } from "../hooks/useConfirm";
 
-type ApplicationRow = OidcApplication & Record<string, unknown>;
+type ApplicationRow = OidcApplicationView & Record<string, unknown>;
 
-type Editing = { mode: "create" } | { mode: "edit"; app: OidcApplication };
+type Editing = { mode: "create" } | { mode: "edit"; app: OidcApplicationView };
 
 export default function Applications() {
   const { data, isLoading, isError, error, refetch } = useOidcApplications();
@@ -88,9 +92,10 @@ export default function Applications() {
 
   const handleSubmit = async (form: ApplicationForm) => {
     if (!canWrite || !editing) return;
-    if (!(await ensureStepUp())) return;
 
     if (editing.mode === "create") {
+      if (!(await ensureStepUp())) return;
+
       createApplication.mutate(createRequestFromForm(form), {
         onSuccess: ({ application, clientSecret }) => {
           setEditing(null);
@@ -114,8 +119,25 @@ export default function Applications() {
       return;
     }
 
+    const features = applicationFeatures(editing.app);
+    if (
+      features.sessionExchange &&
+      editing.app.sessionExchangeEnabled &&
+      !form.sessionExchangeEnabled &&
+      !(await confirm({
+        title: "Turn off session exchange",
+        description: `Turn off session exchange for ${editing.app.name}? Every session it exchanged for is signed out, and its native admin tool has to sign in another way.`,
+        confirmLabel: "Turn off",
+        tone: "danger",
+      }))
+    ) {
+      return;
+    }
+
+    if (!(await ensureStepUp())) return;
+
     updateApplication.mutate(
-      { id: editing.app.id, ...updateRequestFromForm(form) },
+      { id: editing.app.id, ...updateRequestFromForm(form, features) },
       {
         onSuccess: ({ application }) => {
           setEditing(null);
@@ -370,11 +392,19 @@ export default function Applications() {
               onRotate={() => void handleRotateSecret(selected)}
             />
           </Section>
-          <ApplicationResources
-            key={selected.id}
-            app={selected}
-            canWrite={canWrite}
-          />
+          <div className="space-y-8">
+            <ApplicationResources
+              key={selected.id}
+              app={selected}
+              canWrite={canWrite}
+            />
+            <OidcApplicationLinks
+              key={`links-${selected.id}`}
+              app={selected}
+              applications={applications}
+              canWrite={canWrite}
+            />
+          </div>
         </div>
       )}
 
@@ -385,6 +415,11 @@ export default function Applications() {
             editing.mode === "edit"
               ? applicationToForm(editing.app)
               : emptyApplicationForm()
+          }
+          features={
+            editing.mode === "edit"
+              ? applicationFeatures(editing.app)
+              : instanceApplicationFeatures(applications)
           }
           isPending={createApplication.isPending || updateApplication.isPending}
           onSubmit={(form) => void handleSubmit(form)}
@@ -507,7 +542,8 @@ function UriList({ label, uris }: { label: string; uris: string[] }) {
   );
 }
 
-function ApplicationDetails({ app }: { app: OidcApplication }) {
+function ApplicationDetails({ app }: { app: OidcApplicationView }) {
+  const features = applicationFeatures(app);
   const grants = [
     ...app.grantTypes.map((grant) => GRANT_LABELS[grant]),
     ...(app.deviceFlowEnabled ? ["Device authorization"] : []),
@@ -534,6 +570,20 @@ function ApplicationDetails({ app }: { app: OidcApplication }) {
         label="Account notices"
         value={app.noticesEnabled ? "Allowed" : "Off"}
       />
+      {features.sessionExchange && (
+        <Detail
+          label="Session exchange"
+          value={app.sessionExchangeEnabled ? "On" : "Off"}
+        />
+      )}
+      {features.noticeActionOrigins && (
+        <div className="sm:col-span-2">
+          <UriList
+            label="Notice action origins"
+            uris={app.noticeActionOrigins ?? []}
+          />
+        </div>
+      )}
       <Detail
         label="PKCE"
         value={app.pkceRequired ? "Required" : "Not required"}

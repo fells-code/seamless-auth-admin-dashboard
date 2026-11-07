@@ -6,17 +6,23 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
+import { shouldRetryQuery } from "../lib/queryRetry";
+import { isRouteMissing } from "../lib/roleRefusals";
+import type {
+  ApplicationCreateBody,
+  ApplicationUpdateBody,
+  OidcApplicationLink,
+  OidcApplicationLinksResponse,
+  OidcApplicationListView,
+} from "../lib/oidcApplications";
 import type {
   MessageResponse,
   OidcApplicationCreatedResponse,
-  OidcApplicationCreateRequest,
   OidcApplicationKeysRequest,
-  OidcApplicationListResponse,
   OidcApplicationResourceGrant,
   OidcApplicationResourcesResponse,
   OidcApplicationResponse,
   OidcApplicationSecretResponse,
-  OidcApplicationUpdateRequest,
 } from "@seamless-auth/types";
 
 function applicationPath(id: string) {
@@ -26,7 +32,7 @@ function applicationPath(id: string) {
 export function useOidcApplications() {
   return useQuery({
     queryKey: ["oidc-applications"],
-    queryFn: () => apiFetch<OidcApplicationListResponse>("/admin/applications"),
+    queryFn: () => apiFetch<OidcApplicationListView>("/admin/applications"),
   });
 }
 
@@ -36,7 +42,7 @@ export function useCreateOidcApplication() {
   return useMutation<
     OidcApplicationCreatedResponse,
     Error,
-    OidcApplicationCreateRequest
+    ApplicationCreateBody
   >({
     mutationFn: (data) =>
       apiFetch<OidcApplicationCreatedResponse>("/admin/applications", {
@@ -55,7 +61,7 @@ export function useUpdateOidcApplication() {
   return useMutation<
     OidcApplicationResponse,
     Error,
-    OidcApplicationUpdateRequest & { id: string }
+    ApplicationUpdateBody & { id: string }
   >({
     mutationFn: ({ id, ...data }) =>
       apiFetch<OidcApplicationResponse>(applicationPath(id), {
@@ -77,6 +83,8 @@ export function useDeleteOidcApplication() {
     onSuccess: (_data, id) => {
       qc.invalidateQueries({ queryKey: ["oidc-applications"] });
       qc.removeQueries({ queryKey: ["oidc-application-resources", id] });
+      // Deleting an application removes its links in both directions.
+      qc.invalidateQueries({ queryKey: ["oidc-application-links"] });
     },
   });
 }
@@ -144,5 +152,64 @@ export function useSetOidcApplicationResources() {
     onSuccess: (data, { id }) => {
       qc.setQueryData(["oidc-application-resources", id], data);
     },
+  });
+}
+
+// A 404 on an application already listed means the API predates links (v0.23).
+// Retrying cannot change that.
+function retryUnlessMissing(failureCount: number, error: unknown) {
+  return !isRouteMissing(error) && shouldRetryQuery(failureCount, error);
+}
+
+export function useOidcApplicationLinks(id?: string | null) {
+  return useQuery({
+    queryKey: ["oidc-application-links", id],
+    enabled: Boolean(id),
+    retry: retryUnlessMissing,
+    queryFn: () => {
+      if (!id) throw new Error("Application ID is required");
+
+      return apiFetch<OidcApplicationLinksResponse>(
+        `${applicationPath(id)}/links`,
+      );
+    },
+  });
+}
+
+type LinkTarget = { clientId: string; linkedClientId: string };
+
+function linkPath({ clientId, linkedClientId }: LinkTarget) {
+  return `${applicationPath(clientId)}/links/${encodeURIComponent(linkedClientId)}`;
+}
+
+function useInvalidateLinks() {
+  const qc = useQueryClient();
+
+  // Both ends list the link, and every application response carries it.
+  return () => {
+    qc.invalidateQueries({ queryKey: ["oidc-application-links"] });
+    qc.invalidateQueries({ queryKey: ["oidc-applications"] });
+  };
+}
+
+export function useAddOidcApplicationLink() {
+  const invalidate = useInvalidateLinks();
+
+  return useMutation<{ link: OidcApplicationLink }, Error, LinkTarget>({
+    mutationFn: (target) =>
+      apiFetch<{ link: OidcApplicationLink }>(linkPath(target), {
+        method: "PUT",
+      }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useRemoveOidcApplicationLink() {
+  const invalidate = useInvalidateLinks();
+
+  return useMutation<MessageResponse, Error, LinkTarget>({
+    mutationFn: (target) =>
+      apiFetch<MessageResponse>(linkPath(target), { method: "DELETE" }),
+    onSuccess: invalidate,
   });
 }

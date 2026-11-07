@@ -14,6 +14,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OidcApplication } from "@seamless-auth/types";
 import Applications from "./Applications";
+import { ApiError } from "../lib/api";
 
 const mocks = vi.hoisted(() => ({
   useOidcApplications: vi.fn(),
@@ -25,6 +26,9 @@ const mocks = vi.hoisted(() => ({
   rotate: vi.fn(),
   setKeys: vi.fn(),
   setResources: vi.fn(),
+  useOidcApplicationLinks: vi.fn(),
+  addLink: vi.fn(),
+  removeLink: vi.fn(),
   useAdminPermissions: vi.fn(),
   ensureStepUp: vi.fn(),
   confirm: vi.fn(),
@@ -48,6 +52,9 @@ vi.mock("../hooks/useOidcApplications", () => ({
   useRotateOidcApplicationSecret: mutation(mocks.rotate),
   useSetOidcApplicationKeys: mutation(mocks.setKeys),
   useSetOidcApplicationResources: mutation(mocks.setResources),
+  useOidcApplicationLinks: mocks.useOidcApplicationLinks,
+  useAddOidcApplicationLink: mutation(mocks.addLink),
+  useRemoveOidcApplicationLink: mutation(mocks.removeLink),
 }));
 
 vi.mock("../hooks/useOidcResources", () => ({
@@ -97,6 +104,56 @@ const legacy: OidcApplication = {
   updatedAt: "2026-10-01T00:00:00.000Z",
 };
 
+const backend = {
+  ...legacy,
+  id: "client_backend",
+  name: "Backend",
+  firstParty: true,
+  tokenEndpointAuthMethod: "private_key_jwt" as const,
+  hasSecret: false,
+  noticeActionOrigins: ["https://app.example.com"],
+  links: ["client_desk"],
+  linkedFrom: [],
+};
+
+const desk = {
+  ...legacy,
+  id: "client_desk",
+  name: "Desk",
+  clientType: "public" as const,
+  applicationType: "native" as const,
+  firstParty: true,
+  tokenEndpointAuthMethod: "none" as const,
+  redirectUris: ["http://127.0.0.1/callback"],
+  hasSecret: false,
+  sessionExchangeEnabled: true,
+  noticeActionOrigins: [],
+  links: [],
+  linkedFrom: ["client_backend"],
+};
+
+const mobile = {
+  ...desk,
+  id: "client_mobile",
+  name: "Mobile",
+  sessionExchangeEnabled: false,
+  linkedFrom: [],
+};
+
+const link = {
+  clientId: "client_backend",
+  linkedClientId: "client_desk",
+  createdBy: null,
+  createdAt: "2026-10-01T00:00:00.000Z",
+};
+
+function withApplications(...applications: OidcApplication[]) {
+  mocks.useOidcApplications.mockReturnValue({
+    data: { applications },
+    isLoading: false,
+  });
+}
+
 const resource = {
   id: "00000000-0000-4000-8000-000000000001",
   identifier: "https://orders.example.com",
@@ -120,6 +177,10 @@ describe("Applications", () => {
     });
     mocks.useOidcApplicationResources.mockReturnValue({
       data: { resources: [] },
+      isLoading: false,
+    });
+    mocks.useOidcApplicationLinks.mockReturnValue({
+      data: { links: [], linkedFrom: [] },
       isLoading: false,
     });
     mocks.useAdminPermissions.mockReturnValue({
@@ -323,5 +384,234 @@ describe("Applications", () => {
       screen.queryByRole("button", { name: "New application" }),
     ).toBeNull();
     expect(screen.queryByRole("button", { name: "Rotate secret" })).toBeNull();
+  });
+
+  it("offers session exchange only to a first-party public native client", () => {
+    render(<Applications />);
+    fireEvent.click(screen.getByRole("button", { name: "New application" }));
+
+    const exchange = screen.getByLabelText(
+      "Session exchange for native admin tools",
+    );
+    expect(exchange).toBeDisabled();
+    expect(
+      screen.getByText(/Only a first-party public client with a loopback/),
+    ).toBeVisible();
+
+    fireEvent.change(screen.getByLabelText("Client type"), {
+      target: { value: "public" },
+    });
+    fireEvent.click(screen.getByLabelText("First-party (skips consent)"));
+    fireEvent.change(screen.getByLabelText("Redirect URIs (one per line)"), {
+      target: { value: "http://127.0.0.1/callback" },
+    });
+    expect(exchange).toBeEnabled();
+
+    fireEvent.click(exchange);
+    fireEvent.click(screen.getByLabelText("First-party (skips consent)"));
+    expect(exchange).not.toBeChecked();
+    expect(exchange).toBeDisabled();
+  });
+
+  it("creates a native admin tool with session exchange on", async () => {
+    render(<Applications />);
+    fireEvent.click(screen.getByRole("button", { name: "New application" }));
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Admin CLI" },
+    });
+    fireEvent.change(screen.getByLabelText("Client type"), {
+      target: { value: "public" },
+    });
+    fireEvent.click(screen.getByLabelText("First-party (skips consent)"));
+    fireEvent.change(screen.getByLabelText("Redirect URIs (one per line)"), {
+      target: { value: "http://127.0.0.1/callback" },
+    });
+    fireEvent.click(
+      screen.getByLabelText("Session exchange for native admin tools"),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Create application" }));
+
+    await waitFor(() => expect(mocks.create).toHaveBeenCalled());
+    expect(mocks.ensureStepUp).toHaveBeenCalled();
+    expect(mocks.create.mock.calls[0][0]).toMatchObject({
+      name: "Admin CLI",
+      firstParty: true,
+      sessionExchangeEnabled: true,
+    });
+  });
+
+  it("confirms before turning session exchange off, then asks for step-up", async () => {
+    withApplications(desk);
+    mocks.confirm.mockResolvedValueOnce(false);
+    render(<Applications />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Desk" }));
+    fireEvent.click(
+      screen.getByLabelText("Session exchange for native admin tools"),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(mocks.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Turn off session exchange" }),
+      ),
+    );
+    expect(mocks.ensureStepUp).not.toHaveBeenCalled();
+    expect(mocks.update).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(mocks.update).toHaveBeenCalled());
+    expect(mocks.update.mock.calls[0][0]).toMatchObject({
+      id: "client_desk",
+      sessionExchangeEnabled: false,
+      noticeActionOrigins: [],
+    });
+  });
+
+  it("does not send the v0.23 settings to an API that did not return them", async () => {
+    const older: Partial<OidcApplication> = { ...legacy };
+    delete older.sessionExchangeEnabled;
+    withApplications(older as OidcApplication);
+    render(<Applications />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Legacy" }));
+    expect(
+      screen.queryByLabelText("Session exchange for native admin tools"),
+    ).toBeNull();
+    expect(
+      screen.getByText(/notice action origins need Seamless Auth API v0.23/),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(mocks.update).toHaveBeenCalled());
+    expect(mocks.update.mock.calls[0][0]).not.toHaveProperty(
+      "sessionExchangeEnabled",
+    );
+    expect(mocks.update.mock.calls[0][0]).not.toHaveProperty(
+      "noticeActionOrigins",
+    );
+  });
+
+  it("refuses a loopback notice action origin before step-up", () => {
+    withApplications(backend);
+    render(<Applications />);
+
+    expect(screen.getByText("https://app.example.com")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Edit Backend" }));
+    fireEvent.change(
+      screen.getByLabelText("Notice action origins (one per line)"),
+      { target: { value: "https://127.0.0.1" } },
+    );
+    expect(
+      within(screen.getByRole("dialog")).getByRole("alert"),
+    ).toHaveTextContent("cannot be loopback");
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
+  it("lists, adds and removes the links of a confidential application", async () => {
+    withApplications(backend, desk, mobile);
+    mocks.useOidcApplicationLinks.mockReturnValue({
+      data: { links: [link], linkedFrom: [] },
+      isLoading: false,
+    });
+    mocks.addLink.mockImplementation((_target, options) =>
+      options.onSuccess({ link }),
+    );
+    mocks.removeLink.mockImplementation((_target, options) =>
+      options.onSuccess({ message: "Link removed" }),
+    );
+    render(<Applications />);
+
+    const actsFor = screen.getByRole("list", { name: "Acts for" });
+    expect(within(actsFor).getByText("Desk")).toBeVisible();
+    expect(
+      screen.getByRole("combobox", { name: "Application to act for" }),
+    ).toHaveDisplayValue("Mobile (client_mobile)");
+
+    fireEvent.click(screen.getByRole("button", { name: "Add link" }));
+    await waitFor(() =>
+      expect(mocks.addLink).toHaveBeenCalledWith(
+        { clientId: "client_backend", linkedClientId: "client_mobile" },
+        expect.any(Object),
+      ),
+    );
+    expect(mocks.ensureStepUp).toHaveBeenCalled();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove link with Desk" }),
+    );
+    await waitFor(() =>
+      expect(mocks.removeLink).toHaveBeenCalledWith(
+        { clientId: "client_backend", linkedClientId: "client_desk" },
+        expect.any(Object),
+      ),
+    );
+    expect(mocks.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Remove link" }),
+    );
+  });
+
+  it("shows the API's reason when it refuses a link", async () => {
+    withApplications(backend, mobile);
+    mocks.addLink.mockImplementation((_target, options) =>
+      options.onError(
+        new Error(
+          "Links stay within first-party or within third-party applications",
+        ),
+      ),
+    );
+    render(<Applications />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add link" }));
+    await waitFor(() =>
+      expect(mocks.toastError).toHaveBeenCalledWith(
+        "Link refused",
+        "Links stay within first-party or within third-party applications",
+      ),
+    );
+  });
+
+  it("shows who acts for a public application", () => {
+    withApplications(desk, backend);
+    mocks.useOidcApplicationLinks.mockReturnValue({
+      data: { links: [], linkedFrom: [link] },
+      isLoading: false,
+    });
+    render(<Applications />);
+
+    const actedFor = screen.getByRole("list", { name: "Acted for by" });
+    expect(within(actedFor).getByText("Backend")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Add link" })).toBeNull();
+  });
+
+  it("says links need v0.23 when the API answers 404", () => {
+    mocks.useOidcApplicationLinks.mockReturnValue({
+      isLoading: false,
+      isError: true,
+      error: new ApiError("Not found", 404),
+      refetch: vi.fn(),
+    });
+    render(<Applications />);
+
+    expect(screen.getByText("Needs Seamless Auth API v0.23")).toBeVisible();
+  });
+
+  it("shows links without controls to a read-only admin", () => {
+    mocks.useAdminPermissions.mockReturnValue({
+      canRead: true,
+      canWrite: false,
+    });
+    withApplications(backend, desk, mobile);
+    mocks.useOidcApplicationLinks.mockReturnValue({
+      data: { links: [link], linkedFrom: [] },
+      isLoading: false,
+    });
+    render(<Applications />);
+
+    expect(screen.getByRole("list", { name: "Acts for" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Add link" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Remove link with Desk" }),
+    ).toBeNull();
   });
 });

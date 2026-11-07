@@ -235,6 +235,8 @@ When the server adapter is mounted at `/auth`, the dashboard sends this as `DELE
 - check redirect URIs as they are typed: exact https, loopback on 127.0.0.1 or [::1] with any port, and private-use schemes for native apps
 - rotate a client secret (shown once) and register a public key set or JWKS URI
 - define resources with their audience identifier and scopes, and choose which resources and scopes each application may use
+- turn on session exchange for a first-party public native client, such as the Seamless CLI, and set notice action origins (v0.23)
+- link a confidential application to the public applications it acts for, so it can send their users account notices (v0.23). An older API answers 404, and the page says so
 - every write asks for step-up first
 
 ### Sessions

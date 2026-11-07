@@ -13,9 +13,11 @@ import type {
 } from "@seamless-auth/types";
 import Dialog from "./Dialog";
 import {
+  type ApplicationFeatures,
   type ApplicationForm,
   AUTH_METHOD_LABELS,
   authMethodsFor,
+  canUseSessionExchange,
   checkRedirectUris,
   GRANT_LABELS,
   isSharedSecretMethod,
@@ -37,12 +39,15 @@ const GRANTS: OidcApplicationGrantType[] = [
 export default function OidcApplicationDialog({
   mode,
   initial,
+  features,
   isPending,
   onSubmit,
   onClose,
 }: {
   mode: "create" | "edit";
   initial: ApplicationForm;
+  /** The v0.23 settings the API can take. An older API refuses them. */
+  features: ApplicationFeatures;
   isPending: boolean;
   onSubmit: (form: ApplicationForm) => void;
   onClose: () => void;
@@ -51,6 +56,7 @@ export default function OidcApplicationDialog({
   const [touched, setTouched] = useState(false);
   const problems = useMemo(() => validateApplicationForm(form), [form]);
   const shownProblems = touched ? problems : [];
+  const exchangeEligible = canUseSessionExchange(form);
   const redirectChecks = useMemo(
     () => checkRedirectUris(form.redirectUris),
     [form.redirectUris],
@@ -70,6 +76,8 @@ export default function OidcApplicationDialog({
         clientType === "public"
           ? current.grantTypes.filter((grant) => grant !== "client_credentials")
           : current.grantTypes,
+      sessionExchangeEnabled:
+        clientType === "public" ? current.sessionExchangeEnabled : false,
       pkceRequired: clientType === "public" ? true : current.pkceRequired,
       nonceRequired: clientType === "public" ? true : current.nonceRequired,
     }));
@@ -243,6 +251,9 @@ export default function OidcApplicationDialog({
                 ...current,
                 firstParty: on,
                 deviceFlowEnabled: on ? current.deviceFlowEnabled : false,
+                sessionExchangeEnabled: on
+                  ? current.sessionExchangeEnabled
+                  : false,
               }))
             }
           />
@@ -251,6 +262,21 @@ export default function OidcApplicationDialog({
             checked={form.noticesEnabled}
             onChange={(on) => set("noticesEnabled", on)}
           />
+          {features.sessionExchange && (
+            <>
+              <Check
+                label="Session exchange for native admin tools"
+                checked={form.sessionExchangeEnabled}
+                disabled={!exchangeEligible && !form.sessionExchangeEnabled}
+                onChange={(on) => set("sessionExchangeEnabled", on)}
+              />
+              <p className="pl-6 text-xs text-muted">
+                {exchangeEligible
+                  ? "Lets this app exchange a provider sign-in for a first-party session that reaches the admin API, as the Seamless CLI does. Turning it off signs out every session it exchanged for."
+                  : "Only a first-party public client with a loopback or private-use redirect URI can use session exchange."}
+              </p>
+            </>
+          )}
           {mode === "edit" && (
             <Check
               label="Disabled (cannot sign anyone in or get tokens)"
@@ -299,6 +325,33 @@ export default function OidcApplicationDialog({
             </>
           )}
         </fieldset>
+
+        {features.noticeActionOrigins ? (
+          <>
+            <Field label="Notice action origins (one per line)">
+              <textarea
+                value={form.noticeActionOrigins}
+                onChange={(event) =>
+                  set("noticeActionOrigins", event.target.value)
+                }
+                rows={2}
+                placeholder="https://app.example.com"
+                className={`${inputClass} font-mono`}
+              />
+            </Field>
+            <p className="text-xs text-muted">
+              Bare https origins, never loopback, where the action link of an
+              account notice this application sends may point, besides its own
+              https redirect origins. Set it for a backend with no redirect
+              URIs, or one acting for a native app.
+            </p>
+          </>
+        ) : (
+          <p className="text-xs text-muted">
+            Session exchange and notice action origins need Seamless Auth API
+            v0.23 or later.
+          </p>
+        )}
 
         <Field label="Back-channel logout URI">
           <input

@@ -193,9 +193,17 @@ export function makeMembership(
   };
 }
 
+// TODO(seamless-auth-types#148): the published OidcApplication carries these.
+/** An application as the v0.23 API answers with it. */
+export type OidcApplicationV023 = OidcApplication & {
+  noticeActionOrigins: string[];
+  links: string[];
+  linkedFrom: string[];
+};
+
 export function makeOidcApplication(
-  overrides: Partial<OidcApplication> = {},
-): OidcApplication {
+  overrides: Partial<OidcApplicationV023> = {},
+): OidcApplicationV023 {
   return {
     id: nextId("client"),
     name: "Docs Portal",
@@ -219,6 +227,9 @@ export function makeOidcApplication(
     idTokenTtlSeconds: null,
     refreshTokenTtlSeconds: null,
     disabled: false,
+    noticeActionOrigins: [],
+    links: [],
+    linkedFrom: [],
     createdAt: isoOffset(-30 * DAY),
     updatedAt: isoOffset(-1 * DAY),
     ...overrides,
