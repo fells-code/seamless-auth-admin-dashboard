@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import { AUTH_EVENT_TYPES } from "@seamless-auth/types";
+import { PENDING_EVENT_TYPES } from "./eventLabels";
 import {
   categorizeEventSummary,
   eventCategories,
@@ -25,7 +26,7 @@ describe("eventCategories", () => {
   });
 
   it("assigns every known event type to a category other than Other", () => {
-    const uncategorized = AUTH_EVENT_TYPES.filter(
+    const uncategorized = [...AUTH_EVENT_TYPES, ...PENDING_EVENT_TYPES].filter(
       (type) => getEventCategory(type).value === "other",
     );
 
@@ -48,6 +49,15 @@ describe("eventCategories", () => {
     expect(getEventCategory("step_up_challenge").value).toBe("stepUp");
     expect(getEventCategory("login_suspicious").value).toBe("security");
     expect(getEventCategory("session_exchanged").value).toBe("token");
+    expect(getEventCategory("admin_oidc_application_link_added").value).toBe(
+      "oidc",
+    );
+    expect(
+      getEventCategory("admin_oidc_application_session_exchange_updated").value,
+    ).toBe("oidc");
+    expect(getEventCategory("oidc_backchannel_logout_failed").value).toBe(
+      "oidc",
+    );
     expect(getEventCategory("admin_permission_deleted").value).toBe(
       "rolesAndPermissions",
     );
