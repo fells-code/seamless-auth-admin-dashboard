@@ -1,5 +1,21 @@
 # seamless-auth-admin-dashboard
 
+## 0.13.0
+
+### Minor Changes
+
+- d5278b4: Show and manage application links on the Applications page. A confidential application lists the public applications it acts for, and a public application lists the confidential ones acting for it. Admins with write access add and remove links after step-up, choosing only public applications of the same party, and a link the API refuses shows its reason. Read-only admins see the links without the controls, and an API older than v0.23 gets an upgrade message instead of retries.
+- d5278b4: Turn session exchange on or off for an application on the Applications page, so a native admin tool such as the Seamless CLI can sign in through the OpenID Provider. The setting is offered only to a first-party public client with a loopback or private-use redirect URI, the rule the API applies, and turning it off asks for confirmation because it signs out every session the application exchanged for. Applications also take notice action origins, the bare `https` origins an account notice's action link may point to, checked as the API checks them before step-up. Against an API older than v0.23 neither setting is sent, and the form says they need the upgrade.
+- d5278b4: Name the application the Seamless CLI signs in with (`oidc_cli_client_id`) under OpenID Provider on the System page. The API advertises it while the provider is on, so the CLI can offer provider sign-in, and it refuses an application without session exchange turned on. An API older than v0.23 gets a note instead of the field.
+- f2d95b1: Add a Roles page to manage the permission catalogue, the organization role catalogue, and what each instance and organization role grants. Every write asks for step-up, read-only admins see the model without the controls, and a refused delete or mapping names what stood in the way. The page states that a change reaches a user with their next access token, and that an instance `admin` and an organization `admin` never share a grant. Against an API older than v0.23 it says the API needs upgrading instead of retrying an error.
+
+  Organization member roles are now picked from the organization role catalogue. A legacy role a member already holds stays visible and is kept, and a refused grant names the roles. The audit events for permissions, roles, members and session exchange have categories and labels in the Events view. `@seamless-auth/types` moves to 0.38.
+
+### Patch Changes
+
+- 89389ee: Overview no longer shows zeros for a custom range the API refuses. A range longer than the API's 366 day maximum is caught before it is sent, and the page says how long the range is and what the limit is. A range the API rejects anyway is reported as an error, with the range picker still in place to fix it. The fixed 24 hour copy now appears only when the API answers without range support, not while a request is pending or has failed. Queries no longer retry a 400 or 422, which fails the same way every time.
+- d5278b4: Give the session exchange, back-channel logout and application link audit events readable names in the Events view. The OpenID Provider filter now also finds the link events, which the published event types do not list yet.
+
 ## 0.12.0
 
 ### Minor Changes
