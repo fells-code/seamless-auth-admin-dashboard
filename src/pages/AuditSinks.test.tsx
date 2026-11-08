@@ -270,6 +270,9 @@ describe("AuditSinks", () => {
     fireEvent.click(screen.getByRole("button", { name: "New sink" }));
     setText("Name", "Graylog");
     setText("Protocol", "syslog");
+    expect(
+      screen.getByText(/Syslog sinks need auth server v0.23.1 or later/),
+    ).toBeVisible();
     setText("Host", "graylog.example.com");
     setText("Client key env var", "-----BEGIN PRIVATE KEY-----");
     fireEvent.click(screen.getByRole("button", { name: "Create sink" }));
