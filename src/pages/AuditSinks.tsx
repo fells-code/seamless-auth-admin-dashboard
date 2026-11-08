@@ -615,9 +615,17 @@ function SinkDialog({
             className={inputClass}
           >
             <option value="otlp">OTLP over HTTP (JSON)</option>
-            <option value="syslog">Syslog (RFC 5424)</option>
+            <option value="syslog">
+              Syslog (RFC 5424, auth server v0.23.1)
+            </option>
           </select>
         </Field>
+        {kind === "syslog" ? (
+          <FieldNote>
+            Syslog sinks need auth server v0.23.1 or later. v0.23.0 refuses them
+            until their records carry the registered structured data ID.
+          </FieldNote>
+        ) : null}
 
         {kind === "otlp" ? (
           <>
