@@ -145,7 +145,13 @@ test.describe("Login hooks", () => {
     await page
       .getByRole("button", { name: "Rotate secret post_login" })
       .click();
-    await confirmDialog(page, "Rotate");
+    // The secret dialog opens as soon as the confirmation closes, so wait on
+    // the confirmation by name: "no dialog" is never a state the page reaches.
+    const confirmation = page.getByRole("dialog", {
+      name: "Rotate signing secret",
+    });
+    await confirmation.getByRole("button", { name: "Rotate" }).click();
+    await expect(confirmation).toBeHidden();
     await expect(
       page
         .getByRole("dialog", { name: "Signing secret" })
@@ -172,7 +178,13 @@ test.describe("Login hooks", () => {
     await page
       .getByRole("button", { name: "Rotate secret post_login" })
       .click();
-    await confirmDialog(page, "Rotate");
+    // The secret dialog opens as soon as the confirmation closes, so wait on
+    // the confirmation by name: "no dialog" is never a state the page reaches.
+    const confirmation = page.getByRole("dialog", {
+      name: "Rotate signing secret",
+    });
+    await confirmation.getByRole("button", { name: "Rotate" }).click();
+    await expect(confirmation).toBeHidden();
 
     await expectInlineAlert(page, /CALLOUT_SECRET_ENCRYPTION_KEY must be set/);
   });

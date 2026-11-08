@@ -6,7 +6,7 @@
 
 import { expect, test } from "../fixtures";
 import type { MockApi } from "../mockApi";
-import { confirmDialog, expectInlineAlert, expectToast } from "../helpers";
+import { expectInlineAlert, expectToast } from "../helpers";
 import {
   HOUR,
   isoOffset,
@@ -208,7 +208,13 @@ test.describe("Webhooks", () => {
     await page
       .getByRole("button", { name: `Rotate secret ${live.url}` })
       .click();
-    await confirmDialog(page, "Rotate");
+    // The secret dialog opens as soon as the confirmation closes, so wait on
+    // the confirmation by name: "no dialog" is never a state the page reaches.
+    const confirmation = page.getByRole("dialog", {
+      name: "Rotate signing secret",
+    });
+    await confirmation.getByRole("button", { name: "Rotate" }).click();
+    await expect(confirmation).toBeHidden();
 
     const reveal = page.getByRole("dialog", { name: "Signing secret" });
     await expect(reveal.getByRole("textbox")).toHaveValue(SECRET);
