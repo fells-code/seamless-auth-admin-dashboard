@@ -6,7 +6,6 @@
 
 import { describe, expect, it } from "vitest";
 import { AUTH_EVENT_TYPES } from "@seamless-auth/types";
-import { PENDING_EVENT_TYPES } from "./eventLabels";
 import {
   categorizeEventSummary,
   eventCategories,
@@ -26,7 +25,7 @@ describe("eventCategories", () => {
   });
 
   it("assigns every known event type to a category other than Other", () => {
-    const uncategorized = [...AUTH_EVENT_TYPES, ...PENDING_EVENT_TYPES].filter(
+    const uncategorized = AUTH_EVENT_TYPES.filter(
       (type) => getEventCategory(type).value === "other",
     );
 
@@ -64,6 +63,16 @@ describe("eventCategories", () => {
     expect(
       getEventCategory("organization_member_role_grant_refused").value,
     ).toBe("rolesAndPermissions");
+    expect(getEventCategory("webhook_endpoint_disabled").value).toBe(
+      "webhooks",
+    );
+    expect(getEventCategory("login_hook_denied").value).toBe("loginHooks");
+    expect(getEventCategory("admin_custom_claims_updated").value).toBe(
+      "customClaims",
+    );
+    expect(getEventCategory("admin_audit_sink_created").value).toBe(
+      "auditSinks",
+    );
   });
 
   it("groups raw event summaries and only keeps populated categories", () => {
@@ -103,6 +112,13 @@ describe("v0.20 event categories", () => {
 
   it("files session eviction and last-admin refusals with their neighbours", () => {
     expect(getEventCategory("session_evicted").value).toBe("token");
+    expect(getEventCategory("session_created").value).toBe("token");
+    expect(getEventCategory("custom_claims_omitted").value).toBe(
+      "customClaims",
+    );
+    expect(getEventCategory("admin_oidc_application_link_removed").value).toBe(
+      "oidc",
+    );
     expect(getEventCategory("admin_last_admin_change_refused").value).toBe(
       "user",
     );

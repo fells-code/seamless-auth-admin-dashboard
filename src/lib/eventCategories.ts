@@ -110,7 +110,9 @@ export const eventCategories: EventCategory[] = [
     match: (type) =>
       startsWithAny(["bearer_token_", "refresh_token_", "session_exchange"])(
         type,
-      ) || type === "session_evicted",
+      ) ||
+      type === "session_created" ||
+      type === "session_evicted",
   },
   {
     label: "Service Tokens",
@@ -155,6 +157,49 @@ export const eventCategories: EventCategory[] = [
       "organization_member_removed",
       "organization_member_role_grant_refused",
       "organization_member_updated",
+    ]),
+  },
+  {
+    label: "Webhooks",
+    value: "webhooks",
+    match: exact([
+      "admin_webhook_created",
+      "admin_webhook_deleted",
+      "admin_webhook_redelivered",
+      "admin_webhook_secret_rotated",
+      "admin_webhook_updated",
+      "webhook_endpoint_disabled",
+    ]),
+  },
+  {
+    label: "Login Hooks",
+    value: "loginHooks",
+    match: exact([
+      "admin_login_hook_deleted",
+      "admin_login_hook_secret_rotated",
+      "admin_login_hook_set",
+      "login_hook_claims_stripped",
+      "login_hook_denied",
+      "login_hook_failed",
+      "login_hook_success",
+    ]),
+  },
+  {
+    label: "Custom Claims",
+    value: "customClaims",
+    match: exact([
+      "admin_custom_claims_deleted",
+      "admin_custom_claims_updated",
+      "custom_claims_omitted",
+    ]),
+  },
+  {
+    label: "Audit Streaming",
+    value: "auditSinks",
+    match: exact([
+      "admin_audit_sink_created",
+      "admin_audit_sink_deleted",
+      "admin_audit_sink_updated",
     ]),
   },
   {

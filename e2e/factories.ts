@@ -6,7 +6,13 @@
 
 import type {
   ApiUser,
+  AuditSink,
   AuthEvent,
+  CustomClaimSource,
+  LoginHook,
+  LoginHookInvocation,
+  WebhookDelivery,
+  WebhookEndpoint,
   CredentialResponse,
   MeUser,
   OidcApplication,
@@ -520,5 +526,112 @@ export function makeCoverageReport() {
         },
       ],
     },
+  };
+}
+
+function nextUuid() {
+  sequence += 1;
+  return `00000000-0000-4000-8000-${String(sequence).padStart(12, "0")}`;
+}
+
+export function makeWebhookEndpoint(
+  overrides: Partial<WebhookEndpoint> = {},
+): WebhookEndpoint {
+  return {
+    id: nextUuid(),
+    url: "https://hooks.example.com/seamless",
+    description: null,
+    eventTypes: ["user.created"],
+    enabled: true,
+    disabledReason: null,
+    version: 1,
+    previousSecretExpiresAt: null,
+    createdAt: isoOffset(-30 * DAY),
+    updatedAt: isoOffset(-1 * DAY),
+    ...overrides,
+  };
+}
+
+export function makeWebhookDelivery(
+  overrides: Partial<WebhookDelivery> = {},
+): WebhookDelivery {
+  return {
+    id: nextUuid(),
+    endpointId: "endpoint",
+    eventType: "user.created",
+    status: "succeeded",
+    attempts: 1,
+    nextAttemptAt: null,
+    lastAttemptAt: isoOffset(-1 * HOUR),
+    lastStatusCode: 200,
+    lastFailure: null,
+    createdAt: isoOffset(-1 * HOUR),
+    ...overrides,
+  };
+}
+
+export function makeLoginHook(overrides: Partial<LoginHook> = {}): LoginHook {
+  return {
+    trigger: "post_login",
+    url: "https://hooks.example.com/sign-in",
+    timeoutMs: 2000,
+    failureMode: "closed",
+    enabled: true,
+    previousSecretExpiresAt: null,
+    createdAt: isoOffset(-30 * DAY),
+    updatedAt: isoOffset(-1 * DAY),
+    ...overrides,
+  };
+}
+
+export function makeLoginHookInvocation(
+  overrides: Partial<LoginHookInvocation> = {},
+): LoginHookInvocation {
+  return {
+    id: nextUuid(),
+    trigger: "post_login",
+    userId: "user_1",
+    outcome: "allowed",
+    failure: null,
+    statusCode: 200,
+    durationMs: 120,
+    createdAt: isoOffset(-1 * HOUR),
+    ...overrides,
+  };
+}
+
+export function makeCustomClaimSource(
+  overrides: Partial<CustomClaimSource> = {},
+): CustomClaimSource {
+  return {
+    sourceKind: "instance_role",
+    sourceName: "admin",
+    claims: { tier: "gold" },
+    updatedAt: isoOffset(-1 * DAY),
+    ...overrides,
+  };
+}
+
+export function makeAuditSink(overrides: Partial<AuditSink> = {}): AuditSink {
+  return {
+    id: nextUuid(),
+    name: "Datadog",
+    enabled: true,
+    settings: {
+      kind: "otlp",
+      endpoint: "https://otel.example.com",
+      headersFromEnv: { "DD-API-KEY": "DD_AUDIT_SINK_SECRET" },
+      serviceName: "seamless-auth",
+    },
+    status: {
+      cursorSeq: 120,
+      lagEvents: 0,
+      lastDeliveredAt: isoOffset(-5 * MINUTE),
+      lastFailure: null,
+      lastFailureAt: null,
+    },
+    createdAt: isoOffset(-30 * DAY),
+    updatedAt: isoOffset(-1 * DAY),
+    ...overrides,
   };
 }

@@ -229,6 +229,15 @@ When the server adapter is mounted at `/auth`, the dashboard sends this as `DELE
 - needs Seamless Auth API v0.23, and a server adapter that forwards these routes. An older API answers 404, and the page says so
 - every write asks for step-up first
 
+### Custom Claims
+
+- set fixed claims on an instance role, an organization role or an OpenID Provider client, as a JSON object
+- shows the reserved names and the per-token budget the API reports, and each set's size against it
+- restates the order sources apply in (instance roles, organization roles, the OpenID Provider client, then the `pre_token` hook) and, when two roles of one kind set the same claim, which role wins in role-name order
+- explains that permissions, organization roles and custom claims share one budget in a token, with permissions giving way first
+- a reserved name, a value nested deeper than 3 levels or a set over budget is refused before step-up, and the API's own refusal names the field
+- needs Seamless Auth API v0.23. An older API answers 404, and the page says so
+
 ### Applications and Resources
 
 - register OpenID Provider applications: public clients (PKCE) and confidential clients (private key JWT or a shared secret, which is marked as weaker)
@@ -238,6 +247,18 @@ When the server adapter is mounted at `/auth`, the dashboard sends this as `DELE
 - turn on session exchange for a first-party public native client, such as the Seamless CLI, and set notice action origins (v0.23)
 - link a confidential application to the public applications it acts for, so it can send their users account notices (v0.23). An older API answers 404, and the page says so
 - every write asks for step-up first
+
+### Webhooks and Login Hooks
+
+- create, edit, turn off and on, and delete webhook endpoints, choosing the event types each receives
+- shows why the API turned an endpoint off (410 Gone, or three days of failures)
+- rotate a signing secret, shown once; the old secret keeps signing for 24 hours
+- send a test event and see the status code or failure reason
+- a delivery log per endpoint with status, attempts, last status code and failure, the event body, a dead letter view, paging, and redeliver
+- set one login hook per trigger (`post_login`, `pre_token`) with its URL, timeout (100 to 5000 ms) and failure mode, test it, rotate its secret, and read its recent invocations
+- the page says that break-glass sign-ins and recovery sessions never call a hook
+- needs Seamless Auth API v0.23. An older API answers 404, and the page says so
+- every write, including a test call and a redelivery, asks for step-up first
 
 ### Sessions
 
@@ -254,6 +275,15 @@ When the server adapter is mounted at `/auth`, the dashboard sends this as `DELE
 
 - review anomaly and suspicious activity signals
 - navigate from security context into event investigation
+
+### Audit Streaming
+
+- stream the audit log to OTLP (HTTP, JSON) or syslog (RFC 5424 over TLS) destinations
+- credentials are named as env vars ending `_AUDIT_SINK_SECRET`, never entered; a value typed in their place is refused before anything is sent
+- shows each sink's lag, last delivery and last failure, refreshed every 30 seconds
+- send a test record, turn a sink off and on (it keeps its place), edit and delete
+- a sink that is turned off still holds audit retention: the API keeps every event it has not delivered, so a turned-off sink that is behind says so, and deleting it releases them
+- needs Seamless Auth API v0.23. An older API answers 404, and the page says so
 
 ### System Configuration
 
