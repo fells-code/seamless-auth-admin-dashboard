@@ -64,6 +64,16 @@ describe("eventCategories", () => {
     expect(
       getEventCategory("organization_member_role_grant_refused").value,
     ).toBe("rolesAndPermissions");
+    expect(getEventCategory("webhook_endpoint_disabled").value).toBe(
+      "webhooks",
+    );
+    expect(getEventCategory("login_hook_denied").value).toBe("loginHooks");
+    expect(getEventCategory("admin_custom_claims_updated").value).toBe(
+      "customClaims",
+    );
+    expect(getEventCategory("admin_audit_sink_created").value).toBe(
+      "auditSinks",
+    );
   });
 
   it("groups raw event summaries and only keeps populated categories", () => {

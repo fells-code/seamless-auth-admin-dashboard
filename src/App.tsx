@@ -21,6 +21,10 @@ import Organizations from "./pages/Organizations";
 import Applications from "./pages/Applications";
 import Resources from "./pages/Resources";
 import Roles from "./pages/Roles";
+import CustomClaims from "./pages/CustomClaims";
+import Webhooks from "./pages/Webhooks";
+import LoginHooks from "./pages/LoginHooks";
+import AuditSinks from "./pages/AuditSinks";
 import Enrollment from "./pages/Enrollment";
 import Coverage from "./pages/Coverage";
 import UserDetail from "./pages/UserDetail";
@@ -109,11 +113,15 @@ const router = createBrowserRouter(
             { path: "/applications", element: <Applications /> },
             { path: "/resources", element: <Resources /> },
             { path: "/roles", element: <Roles /> },
+            { path: "/custom-claims", element: <CustomClaims /> },
+            { path: "/webhooks", element: <Webhooks /> },
+            { path: "/login-hooks", element: <LoginHooks /> },
             { path: "/enrollment", element: <Enrollment /> },
             { path: "/coverage", element: <Coverage /> },
             { path: "/sessions", element: <Sessions /> },
             { path: "/events", element: <Events /> },
             { path: "/security", element: <Security /> },
+            { path: "/audit-streaming", element: <AuditSinks /> },
             { path: "/users/:id", element: <UserDetail /> },
             { path: "/system", element: <SystemConfig /> },
             { path: "/policy", element: <Policy /> },

@@ -21,6 +21,10 @@ import {
   AppWindow,
   Boxes,
   ListChecks,
+  Braces,
+  Webhook,
+  Workflow,
+  RadioTower,
 } from "lucide-react";
 import packageJson from "../../package.json";
 import { trapTabKey } from "../lib/focusTrap";
@@ -30,13 +34,17 @@ const navItems = [
   { name: "Users", path: "/users", icon: Users },
   { name: "Organizations", path: "/organizations", icon: Building2 },
   { name: "Roles", path: "/roles", icon: ListChecks },
+  { name: "Custom claims", path: "/custom-claims", icon: Braces },
   { name: "Applications", path: "/applications", icon: AppWindow },
   { name: "Resources", path: "/resources", icon: Boxes },
+  { name: "Webhooks", path: "/webhooks", icon: Webhook },
+  { name: "Login hooks", path: "/login-hooks", icon: Workflow },
   { name: "Enrollment", path: "/enrollment", icon: Fingerprint },
   { name: "Coverage", path: "/coverage", icon: ClipboardCheck },
   { name: "Sessions", path: "/sessions", icon: KeyRound },
   { name: "Events", path: "/events", icon: Activity },
   { name: "Security", path: "/security", icon: Shield },
+  { name: "Audit streaming", path: "/audit-streaming", icon: RadioTower },
   { name: "Policy", path: "/policy", icon: ScrollText },
   { name: "System", path: "/system", icon: Settings },
 ];

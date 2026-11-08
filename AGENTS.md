@@ -114,13 +114,17 @@ Current route model:
 - `/users/:id`
 - `/organizations`
 - `/roles`
+- `/custom-claims`
 - `/applications`
 - `/resources`
+- `/webhooks`
+- `/login-hooks`
 - `/enrollment`
 - `/coverage`
 - `/sessions`
 - `/events`
 - `/security`
+- `/audit-streaming`
 - `/system`
 - `/policy`
 - `/profile`
@@ -202,6 +206,8 @@ the mutation. `apiFetch` also handles `403 { error: "step_up_required" }` centra
 mid-task prompts instead of failing. `ApiError.code` carries the API's `error` code for branching
 (for example `policy_version_conflict`). `ApiError.details` carries the API's `details` unparsed;
 `describeRefusal` in `src/lib/roleRefusals.ts` turns the role and permission refusals into text.
+`describeWriteRefusal` in `src/lib/callouts.ts` adds the field issues of an `invalid_request`
+refusal, and `describeCalloutFailure` turns a webhook, login hook or sink failure reason into text.
 
 For a route that answers with a file rather than JSON (the coverage CSV, the audit
 export), use `apiDownload(path, fallbackName)` and `saveBlob` from `src/lib/csvExport.ts`.
@@ -220,14 +226,18 @@ Current page intent:
 - `UserDetail.tsx`: single-user overview, sessions, credentials, events, and anomalies
 - `Organizations.tsx`: organization directory, details, and membership management
 - `Roles.tsx`: the permission catalogue, organization role catalogue, and what each role grants. Instance roles are listed for their mappings but stay defined in `SystemConfig.tsx`. An API older than v0.23 answers 404 on these routes, which is a state of its own rather than an error
+- `CustomClaims.tsx`: custom claim sets per instance role, organization role and OpenID Provider client. The reserved names and budget come from the API's list response; `src/lib/customClaims.ts` checks a set before step-up
 - `Applications.tsx`: OpenID Provider applications (clients): create and edit, public and confidential clients, redirect URI checks (https, loopback, private-use), secret rotation shown once, key registration, the resources and scopes each application may use, session exchange and notice action origins, and links between applications (`OidcApplicationLinks`). Shared-secret clients are marked as weaker. The v0.23 settings are sent only to an API that returns them on the application, and a 404 on the links route is shown as needing v0.23
 - `Resources.tsx`: OpenID Provider resources (APIs), their audience identifier, scopes, and token TTL
 - `Enrollment.tsx`: passkey enrollment status by user, and enrollment invites
 - `Coverage.tsx`: authentication coverage report for assessments, with the API's CSV download
 - `Sessions.tsx`: global session inventory and revoke actions
 - `Events.tsx`: auth event browsing and filtering, including grouped quick filters
+- `Webhooks.tsx`: webhook endpoints, secret rotation (shown once through `SigningSecretDialog`), test events, and the delivery log with its dead letter view, cursor paging and redeliver
+- `LoginHooks.tsx`: one login hook per trigger, its failure mode, test call, secret rotation, and invocation log
 - `Security.tsx`: anomaly and login-stat visibility with drill-down links, plus the audit trail panel (integrity check and NDJSON export)
 - `SystemConfig.tsx`: editable system settings and roles (including the OpenID Provider switch, issuer, CLI application (`oidc_cli_client_id`), client secret, and third-party client settings), plus hosted page branding (saved on its own through `HostedUiBrandingEditor`, with contrast checks from `src/lib/hostedUi.ts`)
+- `AuditSinks.tsx`: audit streaming sinks (OTLP and syslog). Credentials are env var names only, and a value typed in their place is refused before any write
 - `Policy.tsx`: staged sign-in policy: draft versus published diff, dry run, publish, version history and rollback
 - `Profile.tsx`: current user profile, sessions, and credentials
 - `Unauthenticated.tsx`: access-required state and redirect handling
