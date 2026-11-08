@@ -1,5 +1,12 @@
 # seamless-auth-admin-dashboard
 
+## 0.14.0
+
+### Minor Changes
+
+- c467ece: Add Login hooks, Custom claims and Audit streaming pages. Login hooks: one per trigger with URL, timeout and failure mode explained, a signing secret shown once and rotation, a test call, and the invocation log; the page says break-glass and recovery sessions never call a hook. Custom claims: a JSON set per instance role, organization role or OpenID Provider client, with the reserved names and the shared per-token budget from the API, checked before step-up, the field the API refused, the order sources apply in, and which role wins when two roles of one kind set the same claim. Audit streaming: OTLP and syslog sinks (syslog needs auth server v0.23.1, and the form says so) whose credentials are env var names only, a test record, each sink's lag, last delivery and last failure, and a note that a turned-off sink still holds audit retention until it is deleted. Webhooks, Login hooks and Audit streaming sit in an Integrations group in the sidebar. The new audit events have categories and labels in the Events view, and `@seamless-auth/types` moves to 0.40. A call that never went out because the destination's settings cannot be used, such as an unset `_AUDIT_SINK_SECRET` env var, is reported as such.
+- c467ece: Add a Webhooks page. Create, edit, turn off and on, and delete endpoints for the v0.23 webhook event types, with the reason the API turned one off. Rotate a signing secret, shown once, with the old one signing beside it for 24 hours. Send a test event and see the status code or failure reason. The delivery log shows status, attempts, last status code and failure and the event body, with a dead letter view, cursor paging and redeliver. Every write asks for step-up first, and an API older than v0.23 gets an upgrade message.
+
 ## 0.13.0
 
 ### Minor Changes
