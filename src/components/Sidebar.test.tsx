@@ -4,13 +4,31 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import Sidebar from "./Sidebar";
 
 describe("Sidebar", () => {
+  it("groups the integrations and keeps custom claims beside roles", () => {
+    render(
+      <MemoryRouter initialEntries={["/webhooks"]}>
+        <Sidebar />
+      </MemoryRouter>,
+    );
+
+    const integrations = within(
+      screen.getByRole("group", { name: "Integrations" }),
+    );
+    expect(
+      integrations.getAllByRole("link").map((link) => link.textContent),
+    ).toEqual(["Webhooks", "Login hooks", "Audit streaming"]);
+
+    const names = screen.getAllByRole("link").map((link) => link.textContent);
+    expect(names.indexOf("Custom claims")).toBe(names.indexOf("Roles") + 1);
+  });
+
   it("renders the admin navigation", () => {
     render(
       <MemoryRouter initialEntries={["/"]}>

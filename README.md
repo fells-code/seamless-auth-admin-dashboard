@@ -233,7 +233,8 @@ When the server adapter is mounted at `/auth`, the dashboard sends this as `DELE
 
 - set fixed claims on an instance role, an organization role or an OpenID Provider client, as a JSON object
 - shows the reserved names and the per-token budget the API reports, and each set's size against it
-- explains which source wins and that permissions, organization roles and custom claims share one budget in a token, with permissions giving way first
+- restates the order sources apply in (instance roles, organization roles, the OpenID Provider client, then the `pre_token` hook) and, when two roles of one kind set the same claim, which role wins in role-name order
+- explains that permissions, organization roles and custom claims share one budget in a token, with permissions giving way first
 - a reserved name, a value nested deeper than 3 levels or a set over budget is refused before step-up, and the API's own refusal names the field
 - needs Seamless Auth API v0.23. An older API answers 404, and the page says so
 
@@ -281,6 +282,7 @@ When the server adapter is mounted at `/auth`, the dashboard sends this as `DELE
 - credentials are named as env vars ending `_AUDIT_SINK_SECRET`, never entered; a value typed in their place is refused before anything is sent
 - shows each sink's lag, last delivery and last failure, refreshed every 30 seconds
 - send a test record, turn a sink off and on (it keeps its place), edit and delete
+- a sink that is turned off still holds audit retention: the API keeps every event it has not delivered, so a turned-off sink that is behind says so, and deleting it releases them
 - needs Seamless Auth API v0.23. An older API answers 404, and the page says so
 
 ### System Configuration

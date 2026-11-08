@@ -42,7 +42,11 @@ import { useRoleDefinitions } from "../hooks/useRolePermissions";
 import { useStepUpGuard } from "../hooks/useStepUpGuard";
 import { useToast } from "../hooks/useToast";
 import { describeWriteRefusal, formatTimestamp } from "../lib/callouts";
-import { checkClaims, type ReservedClaims } from "../lib/customClaims";
+import {
+  checkClaims,
+  findClaimConflicts,
+  type ReservedClaims,
+} from "../lib/customClaims";
 import { inputClass } from "../lib/formStyles";
 import { isRouteMissing } from "../lib/roleRefusals";
 
@@ -96,6 +100,11 @@ export default function CustomClaims() {
         names: Object.keys(source.claims),
         bytes: customClaimsByteLength(source.claims),
       })),
+    [claimQuery.data],
+  );
+
+  const conflicts = useMemo(
+    () => findClaimConflicts(claimQuery.data?.sources ?? []),
     [claimQuery.data],
   );
 
@@ -217,13 +226,33 @@ export default function CustomClaims() {
       <div className="grid gap-4 lg:grid-cols-2">
         <StateMessage
           title="Which value wins"
-          description="Lowest precedence first: an instance role, an organization role (while that organization is active), an OpenID Provider client (provider tokens only), then the pre_token hook. Roles of one kind apply in name order."
+          description="Sources apply in this order, and a later one wins for a claim name: instance roles, then organization roles (while that organization is active), then the OpenID Provider client (provider tokens only), then the pre_token login hook. Roles of one kind apply in role-name order, so of two roles a user holds, the one whose name sorts last wins."
         />
         <StateMessage
           title={`One ${budgetBytes} byte budget per token`}
           description={`Each set may be up to ${budgetBytes} bytes. In a token, permissions, organization roles and custom claims share one ${budgetBytes} byte budget. When they do not all fit, permissions give way first and the token carries permissions_omitted: true beside the custom claims. Only if the custom claims do not fit even then are they all dropped. Nothing is trimmed partially.`}
         />
       </div>
+
+      {conflicts.length > 0 && (
+        <StateMessage
+          tone="warning"
+          title="Claims set by more than one role"
+          description={
+            <ul className="space-y-1">
+              {conflicts.map((conflict) => (
+                <li key={`${conflict.sourceKind}:${conflict.claim}`}>
+                  <code className="font-mono">{conflict.claim}</code> is set by{" "}
+                  {KIND_LABELS[conflict.sourceKind].toLowerCase()}s{" "}
+                  {conflict.roles.join(", ")}. For a user who holds more than
+                  one, they are applied in role-name order;{" "}
+                  <code className="font-mono">{conflict.winner}</code> wins.
+                </li>
+              ))}
+            </ul>
+          }
+        />
+      )}
 
       <details className="rounded-xl border border-subtle bg-surface px-4 py-3 text-sm">
         <summary className="cursor-pointer font-medium">

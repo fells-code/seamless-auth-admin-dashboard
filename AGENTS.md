@@ -226,7 +226,7 @@ Current page intent:
 - `UserDetail.tsx`: single-user overview, sessions, credentials, events, and anomalies
 - `Organizations.tsx`: organization directory, details, and membership management
 - `Roles.tsx`: the permission catalogue, organization role catalogue, and what each role grants. Instance roles are listed for their mappings but stay defined in `SystemConfig.tsx`. An API older than v0.23 answers 404 on these routes, which is a state of its own rather than an error
-- `CustomClaims.tsx`: custom claim sets per instance role, organization role and OpenID Provider client. The reserved names and budget come from the API's list response; `src/lib/customClaims.ts` checks a set before step-up
+- `CustomClaims.tsx`: custom claim sets per instance role, organization role and OpenID Provider client. The reserved names and budget come from the API's list response; `src/lib/customClaims.ts` checks a set before step-up and finds claims two roles of one kind set (the role whose name sorts last wins, as in the API)
 - `Applications.tsx`: OpenID Provider applications (clients): create and edit, public and confidential clients, redirect URI checks (https, loopback, private-use), secret rotation shown once, key registration, the resources and scopes each application may use, session exchange and notice action origins, and links between applications (`OidcApplicationLinks`). Shared-secret clients are marked as weaker. The v0.23 settings are sent only to an API that returns them on the application, and a 404 on the links route is shown as needing v0.23
 - `Resources.tsx`: OpenID Provider resources (APIs), their audience identifier, scopes, and token TTL
 - `Enrollment.tsx`: passkey enrollment status by user, and enrollment invites
@@ -237,7 +237,7 @@ Current page intent:
 - `LoginHooks.tsx`: one login hook per trigger, its failure mode, test call, secret rotation, and invocation log
 - `Security.tsx`: anomaly and login-stat visibility with drill-down links, plus the audit trail panel (integrity check and NDJSON export)
 - `SystemConfig.tsx`: editable system settings and roles (including the OpenID Provider switch, issuer, CLI application (`oidc_cli_client_id`), client secret, and third-party client settings), plus hosted page branding (saved on its own through `HostedUiBrandingEditor`, with contrast checks from `src/lib/hostedUi.ts`)
-- `AuditSinks.tsx`: audit streaming sinks (OTLP and syslog). Credentials are env var names only, and a value typed in their place is refused before any write
+- `AuditSinks.tsx`: audit streaming sinks (OTLP and syslog). Credentials are env var names only, and a value typed in their place is refused before any write. A turned-off sink that is behind still holds audit retention, and the page says so
 - `Policy.tsx`: staged sign-in policy: draft versus published diff, dry run, publish, version history and rollback
 - `Profile.tsx`: current user profile, sessions, and credentials
 - `Unauthenticated.tsx`: access-required state and redirect handling

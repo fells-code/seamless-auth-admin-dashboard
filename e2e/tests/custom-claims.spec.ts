@@ -87,6 +87,37 @@ test.describe("Custom claims", () => {
     ).toBeVisible();
   });
 
+  test("shows which of two instance roles wins a claim", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    seedClaims(api);
+    api.get("/admin/custom-claims", {
+      json: {
+        sources: [
+          makeCustomClaimSource({
+            sourceName: "support",
+            claims: { tier: "silver" },
+          }),
+          makeCustomClaimSource({
+            sourceName: "admin",
+            claims: { tier: "gold" },
+          }),
+        ],
+        reservedNames: [...RESERVED_CLAIM_NAMES],
+        reservedPrefixes: ["seamless_", "org_"],
+        budgetBytes: 1024,
+      },
+    });
+
+    await signInAs("writeAdmin", "/custom-claims");
+
+    await expect(
+      page.getByText(/applied in role-name order; support wins/),
+    ).toBeVisible();
+  });
+
   test("adds claims to an OpenID Provider client", async ({
     page,
     api,

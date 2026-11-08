@@ -29,7 +29,15 @@ import {
 import packageJson from "../../package.json";
 import { trapTabKey } from "../lib/focusTrap";
 
-const navItems = [
+type NavItem = {
+  name: string;
+  path: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+};
+
+type NavGroup = { group: string; items: NavItem[] };
+
+const navItems: (NavItem | NavGroup)[] = [
   { name: "Overview", path: "/", icon: LayoutDashboard },
   { name: "Users", path: "/users", icon: Users },
   { name: "Organizations", path: "/organizations", icon: Building2 },
@@ -37,14 +45,19 @@ const navItems = [
   { name: "Custom claims", path: "/custom-claims", icon: Braces },
   { name: "Applications", path: "/applications", icon: AppWindow },
   { name: "Resources", path: "/resources", icon: Boxes },
-  { name: "Webhooks", path: "/webhooks", icon: Webhook },
-  { name: "Login hooks", path: "/login-hooks", icon: Workflow },
+  {
+    group: "Integrations",
+    items: [
+      { name: "Webhooks", path: "/webhooks", icon: Webhook },
+      { name: "Login hooks", path: "/login-hooks", icon: Workflow },
+      { name: "Audit streaming", path: "/audit-streaming", icon: RadioTower },
+    ],
+  },
   { name: "Enrollment", path: "/enrollment", icon: Fingerprint },
   { name: "Coverage", path: "/coverage", icon: ClipboardCheck },
   { name: "Sessions", path: "/sessions", icon: KeyRound },
   { name: "Events", path: "/events", icon: Activity },
   { name: "Security", path: "/security", icon: Shield },
-  { name: "Audit streaming", path: "/audit-streaming", icon: RadioTower },
   { name: "Policy", path: "/policy", icon: ScrollText },
   { name: "System", path: "/system", icon: Settings },
 ];
@@ -58,6 +71,41 @@ type SidebarContentProps = {
   onNavigate?: () => void;
   showBranding?: boolean;
 };
+
+function NavItemLink({
+  item,
+  active,
+  onNavigate,
+}: {
+  item: NavItem;
+  active: boolean;
+  onNavigate?: () => void;
+}) {
+  const Icon = item.icon;
+
+  return (
+    <NavLink
+      to={item.path}
+      onClick={onNavigate}
+      className={({ isActive }) =>
+        [
+          "group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition",
+          isActive
+            ? "bg-primary/10 text-primary border border-primary/20"
+            : "text-muted hover:bg-surface-alt hover:text-primary",
+        ].join(" ")
+      }
+    >
+      <Icon size={18} className="transition-colors group-hover:text-primary" />
+      <span className="font-medium tracking-tight">{item.name}</span>
+      <span
+        className={`ml-auto h-1.5 w-1.5 rounded-full transition ${
+          active ? "bg-primary" : "bg-transparent"
+        }`}
+      />
+    </NavLink>
+  );
+}
 
 function SidebarContent({
   onNavigate,
@@ -78,43 +126,35 @@ function SidebarContent({
 
       {/* Nav */}
       <nav className="flex flex-col gap-1">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              onClick={onNavigate}
-              className={({ isActive }) =>
-                [
-                  "group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition",
-                  isActive
-                    ? "bg-primary/10 text-primary border border-primary/20"
-                    : "text-muted hover:bg-surface-alt hover:text-primary",
-                ].join(" ")
-              }
+        {navItems.map((entry) =>
+          "group" in entry ? (
+            <div
+              key={entry.group}
+              role="group"
+              aria-label={entry.group}
+              className="mt-3 flex flex-col gap-1"
             >
-              {/* Icon */}
-              <Icon
-                size={18}
-                className="transition-colors group-hover:text-primary"
-              />
-
-              {/* Label */}
-              <span className="font-medium tracking-tight">{item.name}</span>
-
-              {/* Active indicator */}
-              <span
-                className={`ml-auto h-1.5 w-1.5 rounded-full transition ${
-                  location.pathname === item.path
-                    ? "bg-primary"
-                    : "bg-transparent"
-                }`}
-              />
-            </NavLink>
-          );
-        })}
+              <div className="px-3 pb-1 text-[11px] uppercase tracking-[0.18em] text-muted">
+                {entry.group}
+              </div>
+              {entry.items.map((item) => (
+                <NavItemLink
+                  key={item.path}
+                  item={item}
+                  active={location.pathname === item.path}
+                  onNavigate={onNavigate}
+                />
+              ))}
+            </div>
+          ) : (
+            <NavItemLink
+              key={entry.path}
+              item={entry}
+              active={location.pathname === entry.path}
+              onNavigate={onNavigate}
+            />
+          ),
+        )}
       </nav>
 
       {/* Footer spacer */}

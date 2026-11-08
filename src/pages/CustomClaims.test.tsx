@@ -119,6 +119,45 @@ describe("CustomClaims", () => {
     expect(screen.getByText(/permissions give way first/)).toBeVisible();
   });
 
+  it("restates the full precedence order", () => {
+    render(<CustomClaims />);
+
+    expect(
+      screen.getByText(
+        /instance roles, then organization roles .*then the OpenID Provider client .*then the pre_token login hook/,
+      ),
+    ).toBeVisible();
+    expect(screen.queryByText("Claims set by more than one role")).toBeNull();
+  });
+
+  it("shows which role wins a claim two roles of one kind set", () => {
+    mocks.useCustomClaims.mockReturnValue({
+      data: {
+        sources: [
+          adminClaims,
+          { ...adminClaims, sourceName: "support", claims: { tier: "silver" } },
+          {
+            ...adminClaims,
+            sourceKind: "organization_role",
+            sourceName: "billing",
+            claims: { tier: "bronze" },
+          },
+        ],
+        reservedNames: [],
+        reservedPrefixes: [],
+        budgetBytes: 1024,
+      },
+      isLoading: false,
+    });
+    render(<CustomClaims />);
+
+    expect(screen.getByText("Claims set by more than one role")).toBeVisible();
+    const item = screen.getByRole("listitem");
+    expect(item).toHaveTextContent(
+      "tier is set by instance roles admin, support. For a user who holds more than one, they are applied in role-name order; support wins.",
+    );
+  });
+
   it("saves claims for a role after step-up", async () => {
     mocks.setClaims.mockImplementation((_request, options) =>
       options.onSuccess({ source: adminClaims }),

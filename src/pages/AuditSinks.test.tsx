@@ -132,6 +132,74 @@ describe("AuditSinks", () => {
     );
   });
 
+  it("says a turned-off sink that is behind still holds audit retention", () => {
+    render(<AuditSinks />);
+
+    expect(
+      screen.getByText(
+        "This sink still holds audit retention, so no event is lost. Delete it to release.",
+      ),
+    ).toBeVisible();
+    expect(screen.getAllByText(/still holds audit retention/)).toHaveLength(2);
+  });
+
+  it.each([
+    ["on and behind", { enabled: true, lagEvents: 5 }],
+    ["off and caught up", { enabled: false, lagEvents: 0 }],
+    ["off and not started", { enabled: false, lagEvents: null }],
+  ])("does not say so for a sink %s", (_name, { enabled, lagEvents }) => {
+    mocks.useAuditSinks.mockReturnValue({
+      data: {
+        sinks: [
+          { ...splunk, enabled, status: { ...splunk.status, lagEvents } },
+        ],
+      },
+      isLoading: false,
+    });
+    render(<AuditSinks />);
+
+    expect(screen.queryByText(/Delete it to release/)).toBeNull();
+  });
+
+  it("says retention is held when turning a sink off and when deleting it", async () => {
+    mocks.confirm.mockResolvedValueOnce(false);
+    render(<AuditSinks />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Turn off Datadog" }));
+    await waitFor(() =>
+      expect(mocks.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Turn off audit sink",
+          description: expect.stringMatching(
+            /still holds audit retention.*no event is lost/,
+          ),
+        }),
+      ),
+    );
+    expect(mocks.ensureStepUp).not.toHaveBeenCalled();
+    expect(mocks.update).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Splunk" }));
+    await waitFor(() =>
+      expect(mocks.confirm).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          description: expect.stringMatching(
+            /holds audit retention.*deleting it releases them/,
+          ),
+        }),
+      ),
+    );
+  });
+
+  it("turns a sink on without a confirmation", async () => {
+    render(<AuditSinks />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Turn on Splunk" }));
+
+    await waitFor(() => expect(mocks.update).toHaveBeenCalled());
+    expect(mocks.confirm).not.toHaveBeenCalled();
+  });
+
   it("reports a sink that has not started", () => {
     mocks.useAuditSinks.mockReturnValue({
       data: {

@@ -66,6 +66,15 @@ function destination(settings: AuditSinkSettings) {
   return `Syslog ${settings.host}:${settings.port} over ${settings.transport === "tls" ? "TLS" : "plain TCP"}`;
 }
 
+// The API never deletes an event a sink has not delivered, so a sink that is
+// off but behind keeps the audit log from being pruned past it.
+const RETAINED_NOTE =
+  "This sink still holds audit retention, so no event is lost. Delete it to release.";
+
+function holdsRetention(sink: AuditSink) {
+  return !sink.enabled && (sink.status.lagEvents ?? 0) > 0;
+}
+
 function lagText(sink: AuditSink) {
   const { lagEvents } = sink.status;
   if (lagEvents === null) return "Not started";
@@ -144,9 +153,21 @@ export default function AuditSinks() {
 
   const handleToggle = async (sink: AuditSink) => {
     if (!canWrite) return;
-    if (!(await ensureStepUp())) return;
 
     const enabled = !sink.enabled;
+    if (
+      !enabled &&
+      !(await confirm({
+        title: "Turn off audit sink",
+        description: `Turn off ${sink.name}? It stops sending but keeps its place, and it still holds audit retention: the API keeps every event it has not delivered, so no event is lost. Delete the sink to release them.`,
+        confirmLabel: "Turn off",
+      }))
+    ) {
+      return;
+    }
+
+    if (!(await ensureStepUp())) return;
+
     updateSink.mutate(
       { id: sink.id, changes: { enabled } },
       {
@@ -186,7 +207,7 @@ export default function AuditSinks() {
     if (
       !(await confirm({
         title: "Delete audit sink",
-        description: `Delete ${sink.name}? It stops streaming at once and its place in the log is lost.`,
+        description: `Delete ${sink.name}? It stops streaming at once and its place in the log is lost. While it exists it holds audit retention, so the API keeps every event it has not delivered; deleting it releases them.`,
         confirmLabel: "Delete",
         tone: "danger",
       }))
@@ -280,7 +301,7 @@ export default function AuditSinks() {
 
       <Section
         title="Sinks"
-        description="A new sink starts after the newest event. Status refreshes every 30 seconds."
+        description="A new sink starts after the newest event. A sink that is turned off still holds audit retention: the API keeps every event it has not delivered until the sink is deleted. Status refreshes every 30 seconds."
         actions={
           canWrite ? (
             <button
@@ -341,6 +362,9 @@ export default function AuditSinks() {
                     Last delivery:{" "}
                     {formatTimestamp(value.lastDeliveredAt) ?? "never"}
                   </span>
+                  {holdsRetention(row) && (
+                    <span className="text-primary">{RETAINED_NOTE}</span>
+                  )}
                 </div>
               ),
             },

@@ -76,6 +76,25 @@ test.describe("Audit streaming", () => {
     ).toBeVisible();
   });
 
+  test("says a turned-off sink that is behind still holds retention", async ({
+    page,
+    api,
+    signInAs,
+  }) => {
+    const { syslog } = seedSinks(api);
+    syslog.enabled = false;
+
+    await signInAs("writeAdmin", "/audit-streaming");
+
+    await expect(
+      page
+        .getByRole("table", { name: "Audit sinks" })
+        .getByText(
+          "This sink still holds audit retention, so no event is lost. Delete it to release.",
+        ),
+    ).toBeVisible();
+  });
+
   test("creates an OTLP sink with a header named by env var", async ({
     page,
     api,
@@ -176,6 +195,7 @@ test.describe("Audit streaming", () => {
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Turn off Datadog" }).click();
+    await confirmDialog(page, "Turn off");
     await expectToast(page, "Audit sink turned off");
     expect(
       api.lastCall("PATCH", `/admin/audit-sinks/${otlp.id}`)?.payload,

@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { checkClaims } from "./customClaims";
+import { checkClaims, findClaimConflicts } from "./customClaims";
 
 const reserved = { names: ["email", "roles"], prefixes: ["seamless_", "org_"] };
 
@@ -66,5 +66,71 @@ describe("checkClaims", () => {
     });
     expect(checkClaims("[1]", reserved, 1024).ok).toBe(false);
     expect(checkClaims("null", reserved, 1024).ok).toBe(false);
+  });
+});
+
+function source(
+  sourceKind: "instance_role" | "organization_role" | "oidc_client",
+  sourceName: string,
+  claims: Record<string, string>,
+) {
+  return {
+    sourceKind,
+    sourceName,
+    claims,
+    updatedAt: "2026-11-01T00:00:00.000Z",
+  };
+}
+
+describe("findClaimConflicts", () => {
+  it("names the role that sorts last as the winner, whatever order the list is in", () => {
+    expect(
+      findClaimConflicts([
+        source("instance_role", "support", { tier: "silver" }),
+        source("instance_role", "billing", { tier: "gold", region: "eu" }),
+        source("instance_role", "admin", { tier: "platinum" }),
+      ]),
+    ).toEqual([
+      {
+        sourceKind: "instance_role",
+        claim: "tier",
+        roles: ["admin", "billing", "support"],
+        winner: "support",
+      },
+    ]);
+  });
+
+  it("sorts by code unit as the API does, so an uppercase name sorts first", () => {
+    expect(
+      findClaimConflicts([
+        source("organization_role", "member", { plan: "a" }),
+        source("organization_role", "Legacy Role", { plan: "b" }),
+      ])[0],
+    ).toMatchObject({ roles: ["Legacy Role", "member"], winner: "member" });
+  });
+
+  it("ignores a name set by roles of different kinds or by a client", () => {
+    expect(
+      findClaimConflicts([
+        source("instance_role", "admin", { tier: "a" }),
+        source("organization_role", "admin", { tier: "b" }),
+        source("oidc_client", "docs", { tier: "c" }),
+        source("oidc_client", "portal", { tier: "d" }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it("reports each kind separately", () => {
+    expect(
+      findClaimConflicts([
+        source("instance_role", "a", { tier: "1" }),
+        source("instance_role", "b", { tier: "2" }),
+        source("organization_role", "c", { tier: "3" }),
+        source("organization_role", "d", { tier: "4" }),
+      ]).map((conflict) => [conflict.sourceKind, conflict.winner]),
+    ).toEqual([
+      ["instance_role", "b"],
+      ["organization_role", "d"],
+    ]);
   });
 });
