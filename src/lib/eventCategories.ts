@@ -110,7 +110,9 @@ export const eventCategories: EventCategory[] = [
     match: (type) =>
       startsWithAny(["bearer_token_", "refresh_token_", "session_exchange"])(
         type,
-      ) || type === "session_evicted",
+      ) ||
+      type === "session_created" ||
+      type === "session_evicted",
   },
   {
     label: "Service Tokens",
@@ -188,6 +190,7 @@ export const eventCategories: EventCategory[] = [
     match: exact([
       "admin_custom_claims_deleted",
       "admin_custom_claims_updated",
+      "custom_claims_omitted",
     ]),
   },
   {

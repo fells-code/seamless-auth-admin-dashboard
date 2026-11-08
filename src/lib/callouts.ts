@@ -22,6 +22,8 @@ export function retryUnlessMissing(failureCount: number, error: unknown) {
 const FAILURE_TEXT: Record<CalloutFailure, string> = {
   refused:
     "The API refused to call this address, for example a private address not listed in CALLOUT_PRIVATE_HOSTS, or plain http in production.",
+  misconfigured:
+    "The API could not use this destination's settings, for example a _AUDIT_SINK_SECRET env var it names that is not set on the server, so it made no call.",
   timed_out: "The destination did not answer in time.",
   connection_failed: "The API could not connect to the destination.",
   http_status: "The destination answered with an error status.",

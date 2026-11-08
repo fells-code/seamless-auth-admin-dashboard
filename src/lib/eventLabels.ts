@@ -6,16 +6,7 @@
 
 import type { AuthEventType } from "@seamless-auth/types";
 
-// TODO(seamless-auth-types#148): drop once AUTH_EVENT_TYPES lists the link events.
-/** Written by the v0.23 API, but not yet in the published event types. */
-export const PENDING_EVENT_TYPES = [
-  "admin_oidc_application_link_added",
-  "admin_oidc_application_link_removed",
-] as const;
-
-type LabelledEventType = AuthEventType | (typeof PENDING_EVENT_TYPES)[number];
-
-const LABELS: Partial<Record<LabelledEventType, string>> = {
+const LABELS: Partial<Record<AuthEventType, string>> = {
   account_recovery_cancelled: "Account recovery cancelled",
   account_recovery_completed: "Account recovery completed",
   account_recovery_failed: "Account recovery failed",
@@ -49,6 +40,7 @@ const LABELS: Partial<Record<LabelledEventType, string>> = {
   admin_webhook_updated: "Webhook updated",
   break_glass_enrollment: "Break-glass enrollment",
   break_glass_sign_in: "Break-glass sign-in",
+  custom_claims_omitted: "Custom claims omitted from token",
   login_hook_claims_stripped: "Login hook claims stripped",
   login_hook_denied: "Login hook denied sign-in",
   login_hook_failed: "Login hook failed",
@@ -65,6 +57,7 @@ const LABELS: Partial<Record<LabelledEventType, string>> = {
   recovery_code_failed: "Recovery code failed",
   recovery_code_used: "Recovery code used",
   recovery_codes_generated: "Recovery codes generated",
+  session_created: "Session created",
   session_evicted: "Session evicted",
   session_exchange_replayed: "Session exchange replayed",
   session_exchanged: "Session exchanged",
@@ -91,7 +84,7 @@ const WORDS: Record<string, string> = {
  * can carry types this build does not know, which still get a readable name.
  */
 export function getEventLabel(type: string): string {
-  const known = LABELS[type as LabelledEventType];
+  const known = LABELS[type as AuthEventType];
   if (known) return known;
 
   const words = type

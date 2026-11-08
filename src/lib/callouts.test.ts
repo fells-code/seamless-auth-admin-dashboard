@@ -24,6 +24,9 @@ describe("describeCalloutFailure", () => {
 
   it("explains each coarse reason", () => {
     expect(describeCalloutFailure("refused")).toMatch(/CALLOUT_PRIVATE_HOSTS/);
+    expect(describeCalloutFailure("misconfigured")).toMatch(
+      /_AUDIT_SINK_SECRET env var it names that is not set/,
+    );
     expect(describeCalloutFailure("timed_out")).toMatch(/in time/);
     expect(describeCalloutFailure("too_large")).toMatch(/size limit/);
     expect(describeCalloutFailure("http_status", null)).toMatch(/error status/);
@@ -55,6 +58,19 @@ describe("describeTestResult", () => {
         durationMs: 12,
       }),
     ).toBe("The API could not connect to the destination. Took 12 ms.");
+  });
+});
+
+describe("describeTestResult for a destination that cannot be used", () => {
+  it("says no call was made", () => {
+    expect(
+      describeTestResult({
+        ok: false,
+        failure: "misconfigured",
+        statusCode: null,
+        durationMs: 0,
+      }),
+    ).toMatch(/so it made no call\. Took 0 ms\.$/);
   });
 });
 

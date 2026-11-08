@@ -6,11 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import { AUTH_EVENT_TYPES } from "@seamless-auth/types";
-import {
-  getEventLabel,
-  isHighSeverityEvent,
-  PENDING_EVENT_TYPES,
-} from "./eventLabels";
+import { getEventLabel, isHighSeverityEvent } from "./eventLabels";
 
 describe("getEventLabel", () => {
   it("names the v0.20 event types", () => {
@@ -31,6 +27,13 @@ describe("getEventLabel", () => {
     );
     expect(getEventLabel("oidc_account_notice_failed")).toBe(
       "Application account notice failed",
+    );
+  });
+
+  it("names the session and custom claim omission events", () => {
+    expect(getEventLabel("session_created")).toBe("Session created");
+    expect(getEventLabel("custom_claims_omitted")).toBe(
+      "Custom claims omitted from token",
     );
   });
 
@@ -70,7 +73,7 @@ describe("getEventLabel", () => {
   });
 
   it("gives every known type a label without underscores", () => {
-    for (const type of [...AUTH_EVENT_TYPES, ...PENDING_EVENT_TYPES]) {
+    for (const type of AUTH_EVENT_TYPES) {
       expect(getEventLabel(type)).not.toContain("_");
     }
   });
